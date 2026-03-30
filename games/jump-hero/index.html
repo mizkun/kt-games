@@ -717,8 +717,7 @@ canvas.addEventListener('click',()=>{
   if(state==='win'||state==='gameover') state='title';
 });
 
-lives=3;
-loop();
+window.addEventListener('load', () => { lives=3; loop(); });
 </script>
 </body>
 </html>
