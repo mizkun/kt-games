@@ -1,0 +1,940 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>逃げろ！ダークハウス</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: #000;
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Kaku Gothic ProN", sans-serif;
+      overflow: hidden;
+      touch-action: none;
+      user-select: none;
+    }
+    canvas {
+      display: block;
+      position: absolute;
+      top: 0; left: 0;
+    }
+    /* HUD */
+    #hud {
+      position: fixed;
+      top: 12px; left: 0; right: 0;
+      display: flex;
+      justify-content: center;
+      gap: 16px;
+      z-index: 20;
+      pointer-events: none;
+    }
+    .key-icon {
+      width: 32px; height: 32px;
+      border-radius: 6px;
+      border: 2px solid #555;
+      background: #111;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.1rem;
+      transition: all 0.2s;
+    }
+    .key-icon.got {
+      border-color: #FFD700;
+      background: #332200;
+      box-shadow: 0 0 10px #FFD700;
+    }
+    #home-link {
+      position: fixed;
+      top: 8px; left: 12px;
+      color: #555;
+      text-decoration: none;
+      font-size: 0.75rem;
+      background: rgba(0,0,0,0.6);
+      padding: 4px 10px;
+      border-radius: 10px;
+      z-index: 30;
+    }
+    /* オーバーレイ */
+    .overlay {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+      background: rgba(0,0,0,0.92);
+    }
+    .overlay h1 {
+      font-size: clamp(1.6rem, 6vw, 2.6rem);
+      color: #cc2200;
+      text-shadow: 0 0 20px #cc2200;
+      margin-bottom: 0.4rem;
+      text-align: center;
+    }
+    .overlay .sub {
+      color: #888;
+      font-size: 0.95rem;
+      margin-bottom: 0.5rem;
+      text-align: center;
+      line-height: 1.7;
+    }
+    .how-to {
+      color: #666;
+      font-size: 0.82rem;
+      margin-bottom: 1.8rem;
+      text-align: center;
+      line-height: 1.9;
+      border: 1px solid #333;
+      padding: 12px 20px;
+      border-radius: 10px;
+    }
+    .btn {
+      padding: 14px 44px;
+      font-size: 1.2rem;
+      font-weight: bold;
+      border: none;
+      border-radius: 50px;
+      cursor: pointer;
+      color: #fff;
+      background: linear-gradient(135deg, #cc0000, #880000);
+      box-shadow: 0 0 20px rgba(200,0,0,0.4);
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn:active { transform: scale(0.95); }
+    .overlay.hidden { display: none; }
+
+    /* ゲームオーバー */
+    #gameover-screen h1 { color: #ff0000; animation: flicker 0.15s infinite; }
+    @keyframes flicker {
+      0%,100% { opacity: 1; }
+      50%      { opacity: 0.7; }
+    }
+    #gameover-screen .jumpscare {
+      font-size: 5rem;
+      animation: shake 0.1s infinite;
+      margin-bottom: 0.5rem;
+    }
+    @keyframes shake {
+      0%   { transform: translate(0,0); }
+      25%  { transform: translate(-4px, 3px); }
+      50%  { transform: translate(4px, -3px); }
+      75%  { transform: translate(-3px, -4px); }
+      100% { transform: translate(3px, 4px); }
+    }
+
+    /* クリア */
+    #clear-screen h1 { color: #88ff44; text-shadow: 0 0 20px #88ff44; animation: none; }
+    #clear-screen .confetti-msg {
+      font-size: 2rem;
+      margin-bottom: 0.5rem;
+    }
+
+    /* タッチ操作 */
+    #touch-controls {
+      position: fixed;
+      bottom: 20px; left: 0; right: 0;
+      display: none;
+      justify-content: space-between;
+      padding: 0 20px;
+      z-index: 20;
+      pointer-events: none;
+    }
+    #touch-controls.show { display: flex; }
+    .joystick-area {
+      width: 130px; height: 130px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.06);
+      border: 2px solid rgba(255,255,255,0.15);
+      position: relative;
+      pointer-events: auto;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .joystick-knob {
+      width: 46px; height: 46px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.3);
+      position: absolute;
+      top: 50%; left: 50%;
+      transform: translate(-50%,-50%);
+      pointer-events: none;
+    }
+    #pc-hint {
+      position: fixed;
+      bottom: 10px; left: 50%;
+      transform: translateX(-50%);
+      color: rgba(255,255,255,0.2);
+      font-size: 0.7rem;
+      z-index: 20;
+      pointer-events: none;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="c"></canvas>
+  <a href="../../index.html" id="home-link">🏠 もどる</a>
+
+  <div id="hud">
+    <div class="key-icon" id="k0">🔑</div>
+    <div class="key-icon" id="k1">🔑</div>
+    <div class="key-icon" id="k2">🔑</div>
+  </div>
+
+  <!-- スタート -->
+  <div class="overlay" id="start-screen">
+    <h1>👻 逃げろ！<br>ダークハウス</h1>
+    <p class="sub">くらやみの屋敷から にげだせ！</p>
+    <div class="how-to">
+      🔑 カギを３つ集める<br>
+      🚪 出口にたどりつく<br>
+      👁 おばけにつかまるな！<br>
+      <span style="color:#444">WASD / 矢印キー で移動（PC）</span>
+    </div>
+    <button class="btn" id="start-btn">はじめる！</button>
+  </div>
+
+  <!-- ゲームオーバー -->
+  <div class="overlay hidden" id="gameover-screen">
+    <div class="jumpscare">👁</div>
+    <h1>つかまった…！</h1>
+    <p class="sub" style="margin-top:0.5rem">おばけに食べられてしまった</p>
+    <button class="btn" style="margin-top:1.5rem" id="retry-btn">もういっかい</button>
+  </div>
+
+  <!-- クリア -->
+  <div class="overlay hidden" id="clear-screen">
+    <div class="confetti-msg">🎉</div>
+    <h1 style="color:#88ff44;text-shadow:0 0 20px #88ff44">にげきった！！</h1>
+    <p class="sub" style="color:#aaa;margin-top:0.5rem">おばけをかわして脱出成功！</p>
+    <button class="btn" style="background:linear-gradient(135deg,#226600,#114400);box-shadow:0 0 20px rgba(100,200,0,0.4);margin-top:1.5rem" id="clear-btn">もういっかい</button>
+  </div>
+
+  <!-- タッチ操作 -->
+  <div id="touch-controls">
+    <div class="joystick-area" id="joy">
+      <div class="joystick-knob" id="joy-knob"></div>
+    </div>
+    <div style="width:80px"></div>
+  </div>
+  <div id="pc-hint">WASD / 矢印キーで移動</div>
+
+<script>
+// ===============================
+//  逃げろ！ダークハウス
+// ===============================
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+
+// ---- 定数 ----
+const TILE = 40;
+const PLAYER_R = 10;
+const MONSTER_R = 14;
+const PLAYER_SPEED = 2.8;
+const MONSTER_BASE_SPEED = 1.4;
+const KEY_COUNT = 3;
+const VISION_RADIUS = 120;  // 懐中電灯の半径（px）
+
+// ---- マップ（# = 壁, . = 床, K = カギ, E = 出口, S = スタート, M = モンスター）----
+const MAP_SRC = [
+  '############################',
+  '#S..........#.....#........#',
+  '#.####.####.#.###.#.######.#',
+  '#.#..#.#..#...#.#...#....#.#',
+  '#.#.K#.#.######.#####.##.#.#',
+  '#.#..#.#..........#...##.#.#',
+  '#.####.##########.#.####.#.#',
+  '#......#....K.....#.#....#.#',
+  '######.#.########.#.#.####.#',
+  '#......#.#......#.#.#.#....#',
+  '#.######.#.####.#.#.#.#.###.',
+  '#.#......#.#....#...#.#.#..#',
+  '#.#.######.#.####.###.#.#.##',
+  '#.#.#....#.#.#K...#...#.#..#',
+  '#.#.#.##.#.#.#.####.###.##.#',
+  '#...#.##...#.#.....M#...#..#',
+  '#.###.######.#######.###.#.#',
+  '#.#..........#.......#...#.#',
+  '#.#.##########.#######.###.#',
+  '#...#...........#.........E#',
+  '############################',
+];
+
+let W, H;
+let tileMap = [];   // 'wall'|'floor'|'key'|'exit'|'start'
+let keys3 = [];     // カギの座標
+let exitPos = null;
+let startPos = null;
+let monsterStart = null;
+
+let player, monster;
+let collectedKeys, gameRunning;
+let isTouchDev = false;
+let joyDX = 0, joyDY = 0;
+let inputKeys = {};
+
+// Web Audio
+let audioCtx = null;
+let heartbeatNode = null;
+let heartbeatGain = null;
+let noiseNode = null;
+let noiseGain = null;
+
+function initAudio() {
+  if (audioCtx) return;
+  audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  startHeartbeat();
+  startAmbient();
+}
+
+function startHeartbeat() {
+  heartbeatGain = audioCtx.createGain();
+  heartbeatGain.gain.value = 0;
+  heartbeatGain.connect(audioCtx.destination);
+
+  function beat() {
+    if (!audioCtx) return;
+    const osc = audioCtx.createOscillator();
+    const g = audioCtx.createGain();
+    osc.connect(g);
+    g.connect(heartbeatGain);
+    osc.frequency.value = 60;
+    g.gain.setValueAtTime(0.8, audioCtx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.18);
+    osc.start(audioCtx.currentTime);
+    osc.stop(audioCtx.currentTime + 0.18);
+
+    // 間をおいて2発目
+    setTimeout(() => {
+      if (!audioCtx) return;
+      const osc2 = audioCtx.createOscillator();
+      const g2 = audioCtx.createGain();
+      osc2.connect(g2);
+      g2.connect(heartbeatGain);
+      osc2.frequency.value = 55;
+      g2.gain.setValueAtTime(0.6, audioCtx.currentTime);
+      g2.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.14);
+      osc2.start(audioCtx.currentTime);
+      osc2.stop(audioCtx.currentTime + 0.14);
+    }, 220);
+  }
+
+  function scheduleBeats() {
+    if (!gameRunning) {
+      setTimeout(scheduleBeats, 500);
+      return;
+    }
+    if (!monster || !player) { setTimeout(scheduleBeats, 300); return; }
+    const dist = Math.hypot(monster.x - player.x, monster.y - player.y);
+    const interval = Math.max(300, Math.min(1000, dist * 2.5));
+    const vol = Math.max(0, Math.min(1, 1 - dist / 350));
+    heartbeatGain.gain.setTargetAtTime(vol, audioCtx.currentTime, 0.3);
+    beat();
+    setTimeout(scheduleBeats, interval);
+  }
+  scheduleBeats();
+}
+
+function startAmbient() {
+  // ホワイトノイズ
+  const bufSize = audioCtx.sampleRate * 2;
+  const buffer = audioCtx.createBuffer(1, bufSize, audioCtx.sampleRate);
+  const data = buffer.getChannelData(0);
+  for (let i = 0; i < bufSize; i++) data[i] = (Math.random() * 2 - 1) * 0.015;
+  noiseNode = audioCtx.createBufferSource();
+  noiseNode.buffer = buffer;
+  noiseNode.loop = true;
+  const filter = audioCtx.createBiquadFilter();
+  filter.type = 'lowpass';
+  filter.frequency.value = 200;
+  noiseGain = audioCtx.createGain();
+  noiseGain.gain.value = 0.3;
+  noiseNode.connect(filter);
+  filter.connect(noiseGain);
+  noiseGain.connect(audioCtx.destination);
+  noiseNode.start();
+}
+
+function playSFX(type) {
+  if (!audioCtx) return;
+  if (type === 'key') {
+    const osc = audioCtx.createOscillator();
+    const g = audioCtx.createGain();
+    osc.connect(g); g.connect(audioCtx.destination);
+    osc.frequency.setValueAtTime(440, audioCtx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(880, audioCtx.currentTime + 0.15);
+    g.gain.setValueAtTime(0.3, audioCtx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.4);
+    osc.start(); osc.stop(audioCtx.currentTime + 0.4);
+  } else if (type === 'death') {
+    const osc = audioCtx.createOscillator();
+    const g = audioCtx.createGain();
+    osc.type = 'sawtooth';
+    osc.connect(g); g.connect(audioCtx.destination);
+    osc.frequency.setValueAtTime(200, audioCtx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(30, audioCtx.currentTime + 0.8);
+    g.gain.setValueAtTime(0.6, audioCtx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.8);
+    osc.start(); osc.stop(audioCtx.currentTime + 0.8);
+  } else if (type === 'clear') {
+    [523, 659, 784, 1047].forEach((f, i) => {
+      const osc = audioCtx.createOscillator();
+      const g = audioCtx.createGain();
+      osc.connect(g); g.connect(audioCtx.destination);
+      osc.frequency.value = f;
+      const t = audioCtx.currentTime + i * 0.15;
+      g.gain.setValueAtTime(0.25, t);
+      g.gain.exponentialRampToValueAtTime(0.001, t + 0.3);
+      osc.start(t); osc.stop(t + 0.3);
+    });
+  }
+}
+
+// ---- マップ初期化 ----
+function initMap() {
+  tileMap = [];
+  keys3 = [];
+  exitPos = null;
+  startPos = null;
+  monsterStart = null;
+
+  for (let row = 0; row < MAP_SRC.length; row++) {
+    tileMap[row] = [];
+    for (let col = 0; col < MAP_SRC[row].length; col++) {
+      const ch = MAP_SRC[row][col];
+      const cx = col * TILE + TILE / 2;
+      const cy = row * TILE + TILE / 2;
+      if (ch === '#') {
+        tileMap[row][col] = 'wall';
+      } else if (ch === 'K') {
+        tileMap[row][col] = 'key';
+        keys3.push({ col, row, cx, cy, got: false });
+      } else if (ch === 'E') {
+        tileMap[row][col] = 'exit';
+        exitPos = { cx, cy };
+      } else if (ch === 'S') {
+        tileMap[row][col] = 'floor';
+        startPos = { cx, cy };
+      } else if (ch === 'M') {
+        tileMap[row][col] = 'floor';
+        monsterStart = { cx, cy };
+      } else {
+        tileMap[row][col] = 'floor';
+      }
+    }
+  }
+}
+
+function isWallTile(col, row) {
+  if (row < 0 || row >= tileMap.length || col < 0 || col >= (tileMap[0]||[]).length) return true;
+  return tileMap[row][col] === 'wall';
+}
+
+function canMove(nx, ny, r) {
+  const margin = r;
+  const corners = [
+    [nx - margin, ny - margin],
+    [nx + margin, ny - margin],
+    [nx - margin, ny + margin],
+    [nx + margin, ny + margin],
+  ];
+  for (const [cx, cy] of corners) {
+    const col = Math.floor(cx / TILE);
+    const row = Math.floor(cy / TILE);
+    if (isWallTile(col, row)) return false;
+  }
+  return true;
+}
+
+// ---- A* 経路探索（モンスター用） ----
+function heuristic(a, b) {
+  return Math.abs(a[0] - b[0]) + Math.abs(a[1] - b[1]);
+}
+
+function findPath(fromCol, fromRow, toCol, toRow) {
+  const rows = tileMap.length;
+  const cols = tileMap[0].length;
+  const key = (c, r) => r * 1000 + c;
+  const open = new Map();
+  const closed = new Set();
+  const gScore = new Map();
+  const parent = new Map();
+  const start = [fromCol, fromRow];
+  const goal = [toCol, toRow];
+
+  gScore.set(key(...start), 0);
+  open.set(key(...start), { pos: start, f: heuristic(start, goal) });
+
+  let iters = 0;
+  while (open.size > 0 && iters++ < 500) {
+    // 最小f値のノードを取り出す
+    let best = null, bestF = Infinity;
+    for (const [k, v] of open) {
+      if (v.f < bestF) { bestF = v.f; best = k; }
+    }
+    const cur = open.get(best).pos;
+    open.delete(best);
+    closed.add(best);
+
+    if (cur[0] === goal[0] && cur[1] === goal[1]) {
+      // パスを再構築
+      const path = [];
+      let c = key(...goal);
+      while (parent.has(c)) {
+        const p = parent.get(c);
+        path.unshift(p);
+        c = key(...p);
+      }
+      return path;
+    }
+
+    const dirs = [[0,-1],[0,1],[-1,0],[1,0]];
+    for (const [dc, dr] of dirs) {
+      const nc = cur[0] + dc;
+      const nr = cur[1] + dr;
+      const nk = key(nc, nr);
+      if (closed.has(nk)) continue;
+      if (isWallTile(nc, nr)) continue;
+      const ng = (gScore.get(best) || 0) + 1;
+      if (ng < (gScore.get(nk) || Infinity)) {
+        gScore.set(nk, ng);
+        parent.set(nk, cur);
+        open.set(nk, { pos: [nc, nr], f: ng + heuristic([nc, nr], goal) });
+      }
+    }
+  }
+  return [];
+}
+
+// ---- ゲーム初期化 ----
+function startGame() {
+  initMap();
+  collectedKeys = 0;
+  gameRunning = true;
+
+  player = {
+    x: startPos.cx,
+    y: startPos.cy,
+    angle: 0,
+  };
+  monster = {
+    x: monsterStart.cx,
+    y: monsterStart.cy,
+    path: [],
+    pathTimer: 0,
+    speed: MONSTER_BASE_SPEED,
+    phase: 'patrol',
+    stuckTimer: 0,
+    lastX: monsterStart.cx,
+    lastY: monsterStart.cy,
+  };
+
+  // キーHUD リセット
+  for (let i = 0; i < KEY_COUNT; i++) {
+    document.getElementById('k' + i).classList.remove('got');
+  }
+
+  document.getElementById('start-screen').classList.add('hidden');
+  document.getElementById('gameover-screen').classList.add('hidden');
+  document.getElementById('clear-screen').classList.add('hidden');
+
+  if (isTouchDev) {
+    document.getElementById('touch-controls').classList.add('show');
+    document.getElementById('pc-hint').style.display = 'none';
+  }
+
+  initAudio();
+  requestAnimationFrame(loop);
+}
+
+// ---- メインループ ----
+let prevTime = 0;
+function loop(ts) {
+  if (!gameRunning) return;
+  const dt = Math.min((ts - prevTime) / 16.67, 3);
+  prevTime = ts;
+
+  update(dt);
+  render();
+  requestAnimationFrame(loop);
+}
+
+function update(dt) {
+  // --- プレイヤー移動 ---
+  let dx = 0, dy = 0;
+  if (isTouchDev) {
+    dx = joyDX; dy = joyDY;
+  } else {
+    if (inputKeys['w'] || inputKeys['arrowup'])    dy = -1;
+    if (inputKeys['s'] || inputKeys['arrowdown'])  dy =  1;
+    if (inputKeys['a'] || inputKeys['arrowleft'])  dx = -1;
+    if (inputKeys['d'] || inputKeys['arrowright']) dx =  1;
+  }
+  const len = Math.hypot(dx, dy);
+  if (len > 0.01) {
+    const spd = PLAYER_SPEED * dt;
+    const ndx = (dx / len) * spd;
+    const ndy = (dy / len) * spd;
+    if (canMove(player.x + ndx, player.y, PLAYER_R)) player.x += ndx;
+    if (canMove(player.x, player.y + ndy, PLAYER_R)) player.y += ndy;
+    player.angle = Math.atan2(dy, dx);
+  }
+
+  // --- カギ取得 ---
+  for (const k of keys3) {
+    if (k.got) continue;
+    const d = Math.hypot(player.x - k.cx, player.y - k.cy);
+    if (d < TILE * 0.7) {
+      k.got = true;
+      collectedKeys++;
+      document.getElementById('k' + (collectedKeys - 1)).classList.add('got');
+      playSFX('key');
+      tileMap[k.row][k.col] = 'floor';
+    }
+  }
+
+  // --- 出口チェック ---
+  if (exitPos && collectedKeys >= KEY_COUNT) {
+    const d = Math.hypot(player.x - exitPos.cx, player.y - exitPos.cy);
+    if (d < TILE * 0.8) {
+      triggerClear();
+      return;
+    }
+  }
+
+  // --- モンスター移動 ---
+  updateMonster(dt);
+
+  // --- モンスターとの衝突 ---
+  const distM = Math.hypot(player.x - monster.x, player.y - monster.y);
+  if (distM < PLAYER_R + MONSTER_R) {
+    triggerGameOver();
+  }
+}
+
+function updateMonster(dt) {
+  // 定期的にパスを再計算
+  monster.pathTimer -= dt;
+  if (monster.pathTimer <= 0) {
+    const fc = Math.floor(monster.x / TILE);
+    const fr = Math.floor(monster.y / TILE);
+    const tc = Math.floor(player.x / TILE);
+    const tr = Math.floor(player.y / TILE);
+    monster.path = findPath(fc, fr, tc, tr);
+    monster.pathTimer = 20 + Math.random() * 10;
+  }
+
+  // パスに沿って移動
+  if (monster.path.length > 0) {
+    const next = monster.path[0];
+    const tx = next[0] * TILE + TILE / 2;
+    const ty = next[1] * TILE + TILE / 2;
+    const dx = tx - monster.x;
+    const dy = ty - monster.y;
+    const d = Math.hypot(dx, dy);
+
+    // 近づくほど速くなる
+    const distToPlayer = Math.hypot(player.x - monster.x, player.y - monster.y);
+    const speedMul = distToPlayer < 200 ? 1.5 : 1.0;
+    const spd = monster.speed * speedMul * dt;
+
+    if (d < spd + 1) {
+      monster.x = tx;
+      monster.y = ty;
+      monster.path.shift();
+    } else {
+      monster.x += (dx / d) * spd;
+      monster.y += (dy / d) * spd;
+    }
+  }
+}
+
+// ---- 描画 ----
+// タイルの色パレット
+const WALL_COLOR = '#1a1020';
+const WALL_EDGE = '#251528';
+const FLOOR_COLOR = '#0d0d12';
+
+function render() {
+  const mapW = (tileMap[0] || []).length * TILE;
+  const mapH = tileMap.length * TILE;
+
+  // カメラ（プレイヤー中心）
+  const camX = player.x - W / 2;
+  const camY = player.y - H / 2;
+
+  ctx.save();
+  ctx.fillStyle = '#000';
+  ctx.fillRect(0, 0, W, H);
+  ctx.translate(-camX, -camY);
+
+  // --- タイルを描画 ---
+  const startCol = Math.max(0, Math.floor(camX / TILE) - 1);
+  const endCol   = Math.min((tileMap[0]||[]).length - 1, Math.ceil((camX + W) / TILE) + 1);
+  const startRow = Math.max(0, Math.floor(camY / TILE) - 1);
+  const endRow   = Math.min(tileMap.length - 1, Math.ceil((camY + H) / TILE) + 1);
+
+  for (let row = startRow; row <= endRow; row++) {
+    for (let col = startCol; col <= endCol; col++) {
+      const t = tileMap[row][col];
+      const tx = col * TILE;
+      const ty = row * TILE;
+
+      if (t === 'wall') {
+        ctx.fillStyle = WALL_COLOR;
+        ctx.fillRect(tx, ty, TILE, TILE);
+        // エッジハイライト
+        ctx.fillStyle = WALL_EDGE;
+        ctx.fillRect(tx, ty, TILE, 3);
+        ctx.fillRect(tx, ty, 3, TILE);
+      } else {
+        ctx.fillStyle = FLOOR_COLOR;
+        ctx.fillRect(tx, ty, TILE, TILE);
+
+        if (t === 'key') {
+          // カギのアイコン
+          const kx = tx + TILE / 2;
+          const ky = ty + TILE / 2;
+          const pulse = 0.85 + 0.15 * Math.sin(Date.now() / 300);
+          ctx.save();
+          ctx.translate(kx, ky);
+          ctx.scale(pulse, pulse);
+          ctx.font = '22px serif';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillStyle = '#FFD700';
+          ctx.shadowColor = '#FFD700';
+          ctx.shadowBlur = 15;
+          ctx.fillText('🔑', 0, 0);
+          ctx.restore();
+        } else if (t === 'exit') {
+          const kx = tx + TILE / 2;
+          const ky = ty + TILE / 2;
+          ctx.save();
+          if (collectedKeys >= KEY_COUNT) {
+            // 出口が光る
+            const pulse = 0.8 + 0.2 * Math.sin(Date.now() / 200);
+            ctx.globalAlpha = pulse;
+            ctx.fillStyle = '#00ff88';
+            ctx.shadowColor = '#00ff88';
+            ctx.shadowBlur = 20;
+            ctx.beginPath();
+            ctx.arc(kx, ky, TILE * 0.4, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.globalAlpha = 1;
+            ctx.font = '20px serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('🚪', kx, ky);
+          } else {
+            ctx.globalAlpha = 0.35;
+            ctx.font = '20px serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillStyle = '#555';
+            ctx.fillText('🚪', kx, ky);
+          }
+          ctx.restore();
+        }
+      }
+    }
+  }
+
+  // --- モンスター ---
+  drawMonster(monster.x, monster.y);
+
+  // --- プレイヤー ---
+  drawPlayer(player.x, player.y, player.angle);
+
+  ctx.restore();
+
+  // --- 暗闇オーバーレイ（プレイヤー中心に懐中電灯） ---
+  drawDarkness(player.x - camX, player.y - camY, player.angle);
+}
+
+function drawMonster(mx, my) {
+  ctx.save();
+  ctx.translate(mx, my);
+  const scale = 0.9 + 0.1 * Math.sin(Date.now() / 200);
+  ctx.scale(scale, scale);
+
+  // 体（ぼんやり赤く光る）
+  const grad = ctx.createRadialGradient(0, 0, 0, 0, 0, MONSTER_R * 2);
+  grad.addColorStop(0, 'rgba(180,0,0,0.9)');
+  grad.addColorStop(1, 'rgba(100,0,0,0)');
+  ctx.fillStyle = grad;
+  ctx.beginPath();
+  ctx.arc(0, 0, MONSTER_R * 2, 0, Math.PI * 2);
+  ctx.fill();
+
+  // 本体
+  ctx.fillStyle = '#330000';
+  ctx.beginPath();
+  ctx.arc(0, 0, MONSTER_R, 0, Math.PI * 2);
+  ctx.fill();
+
+  // 目（赤く光る）
+  ctx.fillStyle = '#ff2200';
+  ctx.shadowColor = '#ff2200';
+  ctx.shadowBlur = 8;
+  ctx.beginPath(); ctx.arc(-5, -4, 4, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(5, -4, 4, 0, Math.PI * 2); ctx.fill();
+
+  ctx.restore();
+}
+
+function drawPlayer(px, py, angle) {
+  ctx.save();
+  ctx.translate(px, py);
+  ctx.rotate(angle);
+
+  // 懐中電灯の光（体の前方向）
+  const grad = ctx.createRadialGradient(8, 0, 0, 8, 0, 30);
+  grad.addColorStop(0, 'rgba(255,240,180,0.25)');
+  grad.addColorStop(1, 'rgba(255,240,180,0)');
+  ctx.fillStyle = grad;
+  ctx.beginPath();
+  ctx.arc(8, 0, 30, 0, Math.PI * 2);
+  ctx.fill();
+
+  // 体
+  ctx.fillStyle = '#88aaff';
+  ctx.beginPath();
+  ctx.arc(0, 0, PLAYER_R, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = '#aaccff';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  // 顔（前方向）
+  ctx.fillStyle = '#fff';
+  ctx.beginPath(); ctx.arc(4, -3, 3, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(4, 3, 3, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#222';
+  ctx.beginPath(); ctx.arc(5, -3, 1.5, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(5, 3, 1.5, 0, Math.PI * 2); ctx.fill();
+
+  ctx.restore();
+}
+
+function drawDarkness(px, py, angle) {
+  // キャンバス全体を暗くして、懐中電灯だけくり抜く
+  const offCanvas = document.createElement('canvas');
+  offCanvas.width = W;
+  offCanvas.height = H;
+  const offCtx = offCanvas.getContext('2d');
+
+  offCtx.fillStyle = 'rgba(0,0,0,0.94)';
+  offCtx.fillRect(0, 0, W, H);
+
+  // 懐中電灯（扇形）
+  offCtx.save();
+  offCtx.translate(px, py);
+  offCtx.rotate(angle);
+
+  // 円形のグラデーション
+  const grad = offCtx.createRadialGradient(0, 0, TILE * 0.3, 0, 0, VISION_RADIUS);
+  grad.addColorStop(0, 'rgba(0,0,0,1)');
+  grad.addColorStop(0.6, 'rgba(0,0,0,0.85)');
+  grad.addColorStop(1, 'rgba(0,0,0,0)');
+
+  offCtx.globalCompositeOperation = 'destination-out';
+  offCtx.fillStyle = grad;
+  // 扇形（前方120度）
+  offCtx.beginPath();
+  offCtx.moveTo(0, 0);
+  offCtx.arc(0, 0, VISION_RADIUS, -Math.PI * 0.35, Math.PI * 0.35);
+  offCtx.closePath();
+  offCtx.fill();
+
+  // 自分周り小さく丸く見える
+  offCtx.beginPath();
+  offCtx.arc(0, 0, TILE * 0.7, 0, Math.PI * 2);
+  offCtx.fill();
+
+  offCtx.restore();
+
+  ctx.drawImage(offCanvas, 0, 0);
+}
+
+// ---- ゲームオーバー / クリア ----
+function triggerGameOver() {
+  gameRunning = false;
+  playSFX('death');
+  // 画面を一瞬赤くフラッシュ
+  const overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(200,0,0,0.7);z-index:90;pointer-events:none';
+  document.body.appendChild(overlay);
+  setTimeout(() => {
+    document.body.removeChild(overlay);
+    document.getElementById('gameover-screen').classList.remove('hidden');
+  }, 600);
+}
+
+function triggerClear() {
+  gameRunning = false;
+  playSFX('clear');
+  document.getElementById('clear-screen').classList.remove('hidden');
+}
+
+// ---- サイズ調整 ----
+function resize() {
+  W = canvas.width = window.innerWidth;
+  H = canvas.height = window.innerHeight;
+}
+
+window.addEventListener('resize', resize);
+resize();
+
+// ---- 入力 ----
+document.addEventListener('keydown', e => { inputKeys[e.key.toLowerCase()] = true; });
+document.addEventListener('keyup',   e => { inputKeys[e.key.toLowerCase()] = false; });
+
+window.addEventListener('touchstart', () => {
+  isTouchDev = true;
+  document.getElementById('touch-controls').classList.add('show');
+  document.getElementById('pc-hint').style.display = 'none';
+}, { once: true });
+
+// ジョイスティック
+const joyEl   = document.getElementById('joy');
+const joyKnob = document.getElementById('joy-knob');
+let joyTouchId = null, joyCenter = { x: 0, y: 0 };
+
+joyEl.addEventListener('touchstart', e => {
+  e.preventDefault();
+  const t = e.changedTouches[0];
+  joyTouchId = t.identifier;
+  const r = joyEl.getBoundingClientRect();
+  joyCenter = { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+});
+
+document.addEventListener('touchmove', e => {
+  for (const t of e.changedTouches) {
+    if (t.identifier !== joyTouchId) continue;
+    const dx = t.clientX - joyCenter.x;
+    const dy = t.clientY - joyCenter.y;
+    const d  = Math.hypot(dx, dy);
+    const mx = 50;
+    const ang = Math.atan2(dy, dx);
+    const cl = Math.min(d, mx);
+    joyDX = (cl / mx) * Math.cos(ang);
+    joyDY = (cl / mx) * Math.sin(ang);
+    joyKnob.style.transform = `translate(calc(-50% + ${Math.cos(ang)*cl}px), calc(-50% + ${Math.sin(ang)*cl}px))`;
+  }
+}, { passive: true });
+
+document.addEventListener('touchend', e => {
+  for (const t of e.changedTouches) {
+    if (t.identifier !== joyTouchId) continue;
+    joyTouchId = null;
+    joyDX = joyDY = 0;
+    joyKnob.style.transform = 'translate(-50%,-50%)';
+  }
+});
+
+// ---- ボタン ----
+document.getElementById('start-btn').addEventListener('click', startGame);
+document.getElementById('retry-btn').addEventListener('click', startGame);
+document.getElementById('clear-btn').addEventListener('click', startGame);
+</script>
+</body>
+</html>
