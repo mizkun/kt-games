@@ -626,7 +626,7 @@ function drawGameOver(){
 
 // ---- メインループ ----
 function loop(){
-  requestAnimationFrame(loop);
+  // setIntervalで動かすのでRAFは不要
 
   if(state==='title'){
     drawTitle();
@@ -717,7 +717,9 @@ canvas.addEventListener('click',()=>{
   if(state==='win'||state==='gameover') state='title';
 });
 
-window.addEventListener('load', () => { lives=3; loop(); });
+// ゲーム開始（setIntervalで確実に60fpsループ）
+lives=3;
+setInterval(loop, 16);
 </script>
 </body>
 </html>
