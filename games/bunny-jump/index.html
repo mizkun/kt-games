@@ -1,0 +1,588 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>うさぎジャンプ</title>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box;}
+    body{background:#87ceeb;overflow:hidden;touch-action:none;user-select:none;}
+    canvas{display:block;}
+    #home{position:fixed;top:8px;left:10px;color:#555;text-decoration:none;font-size:.75rem;background:rgba(255,255,255,.6);padding:4px 10px;border-radius:10px;z-index:20;}
+    #tc{position:fixed;bottom:0;left:0;right:0;display:none;justify-content:center;gap:20px;padding:20px;z-index:10;pointer-events:none;}
+    #tc.show{display:flex;}
+    .cb{width:80px;height:80px;border-radius:50%;background:rgba(255,255,255,.35);border:3px solid rgba(255,255,255,.6);display:flex;align-items:center;justify-content:center;font-size:2rem;pointer-events:auto;-webkit-tap-highlight-color:transparent;}
+  </style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<a href="../../index.html" id="home">🏠 ゲームいちらんにもどる</a>
+<div id="tc">
+  <div class="cb" id="bjp">🐰</div>
+</div>
+<script>
+'use strict';
+const cv = document.getElementById('c');
+const cx = cv.getContext('2d');
+let W, H;
+function resize(){ W = cv.width = window.innerWidth; H = cv.height = window.innerHeight; }
+resize();
+window.addEventListener('resize', resize);
+
+// ========== 定数 ==========
+const GY   = 0.6;
+const JV1  = -16;    // ジャンプ力
+const JV2  = -13;    // 二段ジャンプ
+const SPD  = 6;
+const LW   = 40000;  // 超広い！
+const GH   = 60;     // 地面の高さ
+const PW   = 38, PH = 52;
+
+// ========== レベル設計（でかい穴だらけ！）==========
+const PLATS = [];
+
+// 地面 + でっかい穴
+function addGround(x, w){
+  PLATS.push({x, y: H => H - GH, w, h: GH, type:'g'});
+}
+
+// 実際には描画時にH使うのでシンプルに定義
+// プラットフォームはピクセル座標で定義（Hは後で使う）
+// 地面ブロック（穴の間）
+const GROUND_SEGS = [
+  // x, w（穴の大きさはどんどん大きくなる）
+  {x:0,      w:600},   // スタート
+  {x:800,    w:350},   // 穴200px
+  {x:1350,   w:300},   // 穴200px
+  {x:1950,   w:280},   // 穴320px
+  {x:2550,   w:260},   // 穴320px
+  {x:3200,   w:250},   // 穴390px   ←ここからデカくなる
+  {x:3900,   w:240},   // 穴450px
+  {x:4700,   w:230},   // 穴560px
+  {x:5600,   w:220},   // 穴670px
+  {x:6600,   w:210},   // 穴780px  キツい！
+  {x:7800,   w:300},   // 穴890px
+  {x:9000,   w:280},   // 穴920px
+  {x:10300,  w:270},   // 穴1020px ← 超でかい
+  {x:11800,  w:260},   // 穴1230px
+  {x:13500,  w:250},   // 穴1440px
+  {x:15500,  w:300},   // 穴1750px
+  {x:17900,  w:280},   // 穴2120px 死ぬ
+  {x:20700,  w:260},   // 穴2520px
+  {x:24000,  w:250},   // 穴3040px 踏み台なしで渡れない
+  {x:28000,  w:240},   // 穴3750px
+  {x:32500,  w:300},   // 穴4260px
+  {x:37700,  w:400},   // 穴4900px
+  {x:39200,  w:800},   // ゴール前
+];
+
+// 中間の踏み台（でかい穴の途中にある小さい足場）
+const MIDPLATS = [
+  // x, w（タイル数）, 地面からの高さ
+  // 序盤はなし
+  {x:4200,  w:120, yoff:180},
+  {x:5100,  w:100, yoff:200},
+  {x:6100,  w:100, yoff:220},
+  {x:7100,  w:120, yoff:180},
+  {x:7400,  w:100, yoff:280},
+  // 中盤（穴が大きくなってきた）
+  {x:8200,  w:110, yoff:180},
+  {x:8600,  w:100, yoff:300},
+  {x:9500,  w:110, yoff:180},
+  {x:9800,  w:100, yoff:280},
+  {x:10600, w:100, yoff:200},
+  {x:11000, w:110, yoff:320},
+  {x:11400, w:100, yoff:180},
+  {x:12200, w:110, yoff:200},
+  {x:12700, w:100, yoff:340},
+  {x:13200, w:100, yoff:200},
+  {x:14000, w:110, yoff:180},
+  {x:14600, w:100, yoff:300},
+  {x:15200, w:100, yoff:200},
+  // 後半（超でかい穴）
+  {x:16000, w:110, yoff:200},
+  {x:16600, w:100, yoff:300},
+  {x:17200, w:100, yoff:200},
+  {x:17700, w:110, yoff:350},
+  {x:18400, w:100, yoff:200},
+  {x:19000, w:100, yoff:300},
+  {x:19600, w:110, yoff:200},
+  {x:20200, w:100, yoff:350},
+  {x:21200, w:110, yoff:200},
+  {x:21900, w:100, yoff:300},
+  {x:22600, w:100, yoff:200},
+  {x:23300, w:110, yoff:380},
+  // 地獄ゾーン
+  {x:24600, w:100, yoff:200},
+  {x:25400, w:100, yoff:320},
+  {x:26200, w:100, yoff:200},
+  {x:27000, w:100, yoff:380},
+  {x:27600, w:100, yoff:200},
+  {x:28700, w:100, yoff:240},
+  {x:29500, w:100, yoff:360},
+  {x:30300, w:100, yoff:200},
+  {x:31100, w:100, yoff:320},
+  {x:31900, w:100, yoff:200},
+  {x:32800, w:100, yoff:380},
+  {x:33700, w:100, yoff:200},
+  {x:34600, w:100, yoff:300},
+  {x:35500, w:100, yoff:200},
+  {x:36400, w:100, yoff:380},
+  {x:37300, w:100, yoff:200},
+  {x:38200, w:100, yoff:300},
+  {x:38800, w:100, yoff:200},
+];
+
+const GOAL_X = 39600;
+
+// ========== ゲーム状態 ==========
+let state = 'title';
+let player, particles;
+let score = 0, lives = 5, camX = 0;
+let keys = {};
+let touchJp = false, jumpQueued = false;
+
+function getPlatforms(screenH){
+  const all = [];
+  for(const g of GROUND_SEGS){
+    all.push({x:g.x, y:screenH-GH, w:g.w, h:GH, type:'g'});
+  }
+  for(const m of MIDPLATS){
+    all.push({x:m.x, y:screenH-GH-m.yoff, w:m.w, h:24, type:'m'});
+  }
+  return all;
+}
+
+function initGame(){
+  const plats = getPlatforms(H);
+  player = {
+    x:120, y:H-GH-PH,
+    vx:0, vy:0,
+    onGround:false,
+    dir:1,
+    dead:false, deadTimer:0,
+    invincible:0,
+    djump:false,
+    bounce:0,
+  };
+  particles = [];
+  score = 0;
+  camX = 0;
+}
+
+// ========== 衝突 ==========
+function overlap(a,b){
+  return a.x<b.x+b.w && a.x+a.w>b.x && a.y<b.y+b.h && a.y+a.h>b.y;
+}
+
+function updatePlayer(){
+  if(player.dead){
+    player.deadTimer--;
+    if(player.deadTimer<=0 && lives>0){
+      player.dead=false;
+      player.x=Math.max(100, camX+80);
+      player.y=H-GH-PH;
+      player.vx=0; player.vy=0;
+      player.invincible=120;
+      player.djump=false;
+    }
+    return;
+  }
+  if(player.invincible>0) player.invincible--;
+
+  const L = keys['arrowleft']||keys['a'];
+  const R = keys['arrowright']||keys['d'];
+  const J = keys[' ']||keys['z']||keys['arrowup']||touchJp||jumpQueued;
+  jumpQueued = false;
+
+  // 移動
+  if(L){ player.vx=-SPD; player.dir=-1; }
+  else if(R){ player.vx=SPD; player.dir=1; }
+  else player.vx*=0.75;
+
+  // ジャンプ（二段ジャンプ）
+  if(J){
+    if(player.onGround){
+      player.vy=JV1;
+      player.djump=false;
+      player.bounce=8;
+      addJumpParticles();
+    } else if(!player.djump){
+      player.vy=JV2;
+      player.djump=true;
+      player.bounce=6;
+      addJumpParticles();
+    }
+  }
+  if(player.bounce>0) player.bounce--;
+
+  // 重力
+  player.vy=Math.min(player.vy+GY, 24);
+  player.y+=player.vy;
+  player.x+=player.vx;
+
+  // 壁
+  if(player.x<PW/2){ player.x=PW/2; player.vx=0; }
+
+  // プラットフォーム衝突
+  player.onGround=false;
+  const plats = getPlatforms(H);
+  const pb = {x:player.x-PW/2, y:player.y, w:PW, h:PH};
+  for(const p of plats){
+    if(p.x>pb.x+pb.w+10||p.x+p.w<pb.x-10) continue;
+    if(!overlap(pb,p)) continue;
+    if(player.vy>=0 && player.y - player.vy <= p.y+4){
+      player.y=p.y-PH;
+      player.vy=0;
+      player.onGround=true;
+      player.djump=false;
+    } else if(player.vy<0){
+      player.y=p.y+p.h;
+      player.vy=1;
+    } else if(player.vx>0){
+      player.x=p.x-PW/2-1; player.vx=0;
+    } else if(player.vx<0){
+      player.x=p.x+p.w+PW/2+1; player.vx=0;
+    }
+  }
+
+  // 落下死
+  if(player.y>H+100 && !player.dead){
+    lives--;
+    player.dead=true; player.deadTimer=80;
+    for(let i=0;i<14;i++) particles.push({
+      x:player.x, y:H-GH-20,
+      vx:(Math.random()-0.5)*10, vy:-3-Math.random()*8,
+      life:45, color:'#fff', size:8
+    });
+    if(lives<=0) setTimeout(()=>{ state='gameover'; },1000);
+  }
+
+  // ゴール
+  if(player.x>=GOAL_X && state==='play'){
+    state='win';
+    for(let i=0;i<60;i++) particles.push({
+      x:player.x, y:player.y,
+      vx:(Math.random()-0.5)*14, vy:-3-Math.random()*10,
+      life:90, color:`hsl(${~~(Math.random()*360)},100%,65%)`, size:10
+    });
+  }
+
+  // カメラ
+  camX = Math.max(0, Math.min(LW-W, player.x - W*0.35));
+}
+
+function addJumpParticles(){
+  for(let i=0;i<6;i++) particles.push({
+    x:player.x+(Math.random()-0.5)*PW,
+    y:player.y+PH,
+    vx:(Math.random()-0.5)*5,
+    vy:2+Math.random()*3,
+    life:20, color:'#fff', size:5
+  });
+}
+
+function updateParticles(){
+  for(let i=particles.length-1;i>=0;i--){
+    const p=particles[i];
+    p.x+=p.vx; p.y+=p.vy; p.vy+=0.3; p.life--;
+    if(p.life<=0) particles.splice(i,1);
+  }
+}
+
+// ========== 描画 ==========
+function drawBG(){
+  // 空グラデ
+  const g=cx.createLinearGradient(0,0,0,H);
+  g.addColorStop(0,'#87ceeb'); g.addColorStop(1,'#e0f4ff');
+  cx.fillStyle=g; cx.fillRect(0,0,W,H);
+
+  // 雲（視差）
+  cx.fillStyle='rgba(255,255,255,.85)';
+  const cloudData=[
+    {ox:0,y:.15,w:180,h:60},{ox:400,y:.1,w:140,h:50},{ox:900,y:.2,w:200,h:65},
+    {ox:1500,y:.12,w:160,h:55},{ox:2200,y:.18,w:190,h:60},{ox:3000,y:.1,w:150,h:52},
+    {ox:3800,y:.22,w:170,h:58},{ox:4800,y:.14,w:200,h:62},{ox:5800,y:.1,w:145,h:50},
+  ];
+  for(const cl of cloudData){
+    const cx2 = (cl.ox - camX*0.25) % (W+300) - 150;
+    drawCloud(cx2, H*cl.y, cl.w, cl.h);
+  }
+
+  // 遠景の丘
+  cx.fillStyle='rgba(100,200,100,.3)';
+  for(let i=0;i<8;i++){
+    const hx=(i*1200-camX*0.1)%(W+500)-200;
+    cx.beginPath(); cx.arc(hx+200,H-GH+30,220,0,Math.PI*2); cx.fill();
+  }
+}
+
+function drawCloud(x, y, w, h){
+  cx.beginPath();
+  cx.arc(x+w*.3, y+h*.5, h*.5, 0, Math.PI*2);
+  cx.arc(x+w*.55, y+h*.35, h*.6, 0, Math.PI*2);
+  cx.arc(x+w*.8, y+h*.5, h*.45, 0, Math.PI*2);
+  cx.fill();
+}
+
+function drawPlatform(p){
+  const sx = p.x - camX;
+  if(sx+p.w<-10||sx>W+10) return;
+
+  if(p.type==='g'){
+    // 地面
+    cx.fillStyle='#5a9e2a';
+    cx.fillRect(sx, p.y, p.w, 18);
+    cx.fillStyle='#7ab840';
+    cx.fillRect(sx, p.y, p.w, 8);
+    cx.fillStyle='#6b4226';
+    cx.fillRect(sx, p.y+18, p.w, p.h-18);
+    // 土の模様
+    cx.fillStyle='rgba(0,0,0,.1)';
+    for(let tx=sx+20;tx<sx+p.w;tx+=40) cx.fillRect(tx,p.y+22,2,p.h-26);
+    // 草の葉
+    cx.fillStyle='#4a8a1a';
+    for(let gx=sx+8;gx<sx+p.w-4;gx+=14){
+      cx.fillRect(gx,p.y-6,3,10);
+      cx.fillRect(gx+5,p.y-9,3,12);
+    }
+  } else {
+    // 中間足場
+    cx.fillStyle='#d4a84b';
+    cx.fillRect(sx,p.y,p.w,p.h);
+    cx.fillStyle='#f0c060';
+    cx.fillRect(sx+2,p.y+2,p.w-4,8);
+    cx.strokeStyle='#a07030';
+    cx.lineWidth=2;
+    cx.strokeRect(sx+1,p.y+1,p.w-2,p.h-2);
+  }
+}
+
+function drawPlayer(){
+  if(player.dead) return;
+  if(player.invincible>0 && Math.floor(player.invincible/5)%2===0) return;
+
+  const sx = player.x - camX;
+  const sy = player.y;
+  const t = Date.now();
+
+  cx.save();
+  cx.translate(sx, sy+PH/2);
+  if(player.dir<0) cx.scale(-1,1);
+
+  // ジャンプスクワッシュ＆ストレッチ
+  let scaleY=1, scaleX=1;
+  if(!player.onGround && player.vy<0){
+    scaleY=1.15; scaleX=0.88; // 伸びる
+  } else if(player.onGround && player.bounce>0){
+    scaleY=0.82; scaleX=1.2; // 着地でつぶれる
+  }
+  cx.scale(scaleX, scaleY);
+
+  // 影
+  cx.save();
+  cx.scale(1, 0.15);
+  cx.fillStyle='rgba(0,0,0,.2)';
+  cx.beginPath(); cx.ellipse(0, PH/2+10, PW*0.6*scaleX, 12, 0, 0, Math.PI*2); cx.fill();
+  cx.restore();
+
+  // しっぽ
+  cx.fillStyle='#fff';
+  cx.beginPath(); cx.arc(-PW*0.42, 0, 8, 0, Math.PI*2); cx.fill();
+
+  // 体
+  cx.fillStyle='#fff';
+  cx.beginPath();
+  cx.ellipse(0, 0, PW*0.45, PH*0.38, 0, 0, Math.PI*2); cx.fill();
+
+  // 頭
+  cx.fillStyle='#fff';
+  cx.beginPath();
+  cx.ellipse(4, -PH*0.38, PW*0.38, PH*0.32, 0, 0, Math.PI*2); cx.fill();
+
+  // 耳（ぴょこぴょこ動く）
+  const earSwing = player.onGround ? Math.sin(t*0.01)*4 : (player.vy<0?-8:4);
+  cx.fillStyle='#fff';
+  cx.save();
+  cx.translate(-6, -PH*0.6);
+  cx.rotate(earSwing*0.06);
+  cx.beginPath(); cx.ellipse(0, -PH*0.3, 8, PH*0.28, 0, 0, Math.PI*2); cx.fill();
+  cx.fillStyle='#ffb0c0';
+  cx.beginPath(); cx.ellipse(0, -PH*0.3, 4, PH*0.18, 0, 0, Math.PI*2); cx.fill();
+  cx.restore();
+
+  cx.fillStyle='#fff';
+  cx.save();
+  cx.translate(10, -PH*0.62);
+  cx.rotate(-earSwing*0.06);
+  cx.beginPath(); cx.ellipse(0, -PH*0.3, 8, PH*0.28, 0, 0, Math.PI*2); cx.fill();
+  cx.fillStyle='#ffb0c0';
+  cx.beginPath(); cx.ellipse(0, -PH*0.3, 4, PH*0.18, 0, 0, Math.PI*2); cx.fill();
+  cx.restore();
+
+  // 目
+  cx.fillStyle='#333';
+  cx.beginPath(); cx.arc(10, -PH*0.38, 5, 0, Math.PI*2); cx.fill();
+  cx.fillStyle='#fff';
+  cx.beginPath(); cx.arc(11.5, -PH*0.4, 2, 0, Math.PI*2); cx.fill();
+
+  // 鼻
+  cx.fillStyle='#ffb0c0';
+  cx.beginPath(); cx.ellipse(14, -PH*0.3, 4, 3, 0, 0, Math.PI*2); cx.fill();
+
+  // 足（走るときぱたぱた）
+  const legSwing = player.onGround ? Math.sin(t*0.02)*12 : 0;
+  cx.fillStyle='#fff';
+  cx.beginPath(); cx.ellipse(-8, PH*0.3+legSwing, 8, 12, 0.2, 0, Math.PI*2); cx.fill();
+  cx.beginPath(); cx.ellipse(8, PH*0.3-legSwing, 8, 12, -0.2, 0, Math.PI*2); cx.fill();
+
+  cx.restore();
+}
+
+function drawGoal(){
+  const sx = GOAL_X - camX;
+  if(sx<-100||sx>W+100) return;
+  // ポール
+  cx.fillStyle='#ffd700';
+  cx.fillRect(sx-5, H-GH-280, 10, 270);
+  // 旗
+  cx.fillStyle='#ff4444';
+  cx.beginPath(); cx.moveTo(sx+5,H-GH-280); cx.lineTo(sx+80,H-GH-250); cx.lineTo(sx+5,H-GH-220); cx.fill();
+  cx.font='bold 28px sans-serif'; cx.textAlign='center';
+  cx.fillText('🐰',sx+42,H-GH-235);
+  // GOAL!
+  cx.fillStyle='#ff4400'; cx.font='bold 22px "Comic Sans MS",monospace'; cx.textAlign='center';
+  cx.fillText('GOAL!!',sx,H-GH-300);
+}
+
+function drawHUD(){
+  // ライフ
+  cx.font='bold 26px sans-serif'; cx.textAlign='left';
+  cx.fillText('🐰'.repeat(Math.max(0,lives)),10,36);
+  // スコア（タイム代わりに進捗）
+  const pct=Math.min(100,~~(player.x/GOAL_X*100));
+  cx.fillStyle='rgba(255,255,255,.5)'; cx.fillRect(W/2-120,8,240,16);
+  cx.fillStyle='#ffd700'; cx.fillRect(W/2-120,8,240*pct/100,16);
+  cx.fillStyle='#555'; cx.font='bold 12px monospace'; cx.textAlign='center';
+  cx.fillText('ゴールまで '+(100-pct)+'%', W/2, 20);
+}
+
+function drawTitle(){
+  const g=cx.createLinearGradient(0,0,0,H);
+  g.addColorStop(0,'#87ceeb'); g.addColorStop(1,'#e0f4ff');
+  cx.fillStyle=g; cx.fillRect(0,0,W,H);
+  // 雲
+  cx.fillStyle='rgba(255,255,255,.9)';
+  drawCloud(W*.15,H*.12,180,60);
+  drawCloud(W*.6,H*.08,220,70);
+  drawCloud(W*.85,H*.15,160,55);
+
+  // タイトル背景
+  cx.fillStyle='rgba(255,255,255,.8)';
+  cx.beginPath();
+  cx.roundRect(W/2-280,H/2-180,560,360,24);
+  cx.fill();
+  cx.strokeStyle='#ffd700'; cx.lineWidth=4; cx.stroke();
+
+  cx.fillStyle='#ff6600'; cx.font=`bold ${Math.min(52,W/10)}px "Comic Sans MS",monospace`; cx.textAlign='center';
+  cx.fillText('🐰 うさぎジャンプ！',W/2,H/2-110);
+
+  cx.fillStyle='#444'; cx.font='17px sans-serif';
+  cx.fillText('← → で移動　スペース/Z でジャンプ',W/2,H/2-55);
+  cx.fillText('ジャンプ中にもう1回ジャンプ → 二段ジャンプ！',W/2,H/2-20);
+  cx.fillStyle='#cc0000'; cx.font='bold 15px sans-serif';
+  cx.fillText('でっっっかい穴を飛び越えてゴールを目指せ！',W/2,H/2+20);
+
+  // バウンスアニメ
+  const bounce = Math.abs(Math.sin(Date.now()*0.004))*20;
+  cx.font='60px sans-serif'; cx.fillText('🐰',W/2,H/2+100-bounce);
+
+  const blink=Math.floor(Date.now()/600)%2;
+  if(blink){
+    cx.fillStyle='#ff6600'; cx.font='bold 22px monospace'; cx.textAlign='center';
+    cx.fillText('▶ スペースキーでスタート！',W/2,H/2+155);
+  }
+}
+
+function drawWin(){
+  cx.fillStyle='rgba(255,255,255,.75)'; cx.fillRect(0,0,W,H);
+  cx.fillStyle='#ff6600'; cx.font='bold 58px monospace'; cx.textAlign='center';
+  cx.fillText('🎉 クリア！！',W/2,H/2-60);
+  cx.fillStyle='#333'; cx.font='24px sans-serif';
+  cx.fillText('おめでとう！全部の穴を飛び越えた！',W/2,H/2);
+  cx.fillStyle='#888'; cx.font='18px sans-serif';
+  cx.fillText('スペースでタイトルへ',W/2,H/2+60);
+}
+
+function drawGameOver(){
+  cx.fillStyle='rgba(0,0,0,.55)'; cx.fillRect(0,0,W,H);
+  cx.fillStyle='#ff4444'; cx.font='bold 56px monospace'; cx.textAlign='center';
+  cx.fillText('💀 ゲームオーバー',W/2,H/2-60);
+  cx.fillStyle='#fff'; cx.font='22px sans-serif';
+  cx.fillText('ざんねん！　もういっかい挑戦しよう！',W/2,H/2+10);
+  cx.fillStyle='#aaa'; cx.font='18px sans-serif';
+  cx.fillText('スペースでタイトルへ',W/2,H/2+65);
+}
+
+function drawParticles(){
+  for(const p of particles){
+    const sx=p.x-camX;
+    if(sx<-20||sx>W+20) continue;
+    cx.globalAlpha=Math.max(0,p.life/60);
+    cx.fillStyle=p.color;
+    cx.beginPath(); cx.arc(sx,p.y,p.size||5,0,Math.PI*2); cx.fill();
+  }
+  cx.globalAlpha=1;
+}
+
+// ========== ループ ==========
+function loop(){
+  requestAnimationFrame(loop);
+  if(state==='title'){
+    drawTitle();
+    return;
+  }
+  if(state==='play') updatePlayer();
+  updateParticles();
+
+  drawBG();
+  const plats = getPlatforms(H);
+  for(const p of plats) drawPlatform(p);
+  drawGoal();
+  drawPlayer();
+  drawParticles();
+  drawHUD();
+  if(state==='win') drawWin();
+  if(state==='gameover') drawGameOver();
+}
+
+// ========== 入力 ==========
+document.addEventListener('keydown', e=>{
+  keys[e.key.toLowerCase()]=true;
+  if(e.key===' '||e.key==='ArrowUp') e.preventDefault();
+  if(state==='title'&&(e.key===' '||e.key==='Enter')){ lives=5; initGame(); state='play'; }
+  if((state==='win'||state==='gameover')&&(e.key===' '||e.key==='Enter')) state='title';
+});
+document.addEventListener('keyup', e=>{ keys[e.key.toLowerCase()]=false; });
+
+window.addEventListener('touchstart',()=>document.getElementById('tc').classList.add('show'),{once:true});
+const bjp=document.getElementById('bjp');
+bjp.addEventListener('touchstart',e=>{
+  e.preventDefault(); jumpQueued=true; touchJp=true;
+  if(state==='title'){lives=5;initGame();state='play';}
+  if(state==='win'||state==='gameover') state='title';
+},{passive:false});
+bjp.addEventListener('touchend',()=>touchJp=false);
+bjp.addEventListener('touchcancel',()=>touchJp=false);
+
+cv.addEventListener('click',()=>{
+  if(state==='title'){lives=5;initGame();state='play';}
+  if(state==='win'||state==='gameover') state='title';
+});
+
+// ========== 起動 ==========
+window.onload = ()=>{ requestAnimationFrame(loop); };
+if(document.readyState==='complete'){ requestAnimationFrame(loop); }
+</script>
+</body>
+</html>
