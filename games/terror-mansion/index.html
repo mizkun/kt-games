@@ -773,27 +773,16 @@ function drawMap(){
 
 function drawPlayer(){
   const sx=player.x-camX+shakeX, sy=player.y-camY+shakeY;
-  const flashAngle=player.dir>0?0:Math.PI;
-  const flashRange=flickerOn?200:25; // さらに暗く
-  const flashGrad=cx.createRadialGradient(sx,sy,0,sx,sy,flashRange);
-  flashGrad.addColorStop(0,'rgba(255,230,150,0.16)');
-  flashGrad.addColorStop(0.5,'rgba(255,230,150,0.05)');
-  flashGrad.addColorStop(1,'transparent');
-  cx.save();
-  cx.translate(sx,sy);
-  cx.rotate(flashAngle);
-  cx.fillStyle=flashGrad;
-  cx.beginPath(); cx.moveTo(0,0); cx.arc(0,0,flashRange,-Math.PI*0.4,Math.PI*0.4); cx.fill();
-  cx.restore();
+  // ライトなし！懐中電灯の描画を削除
   cx.save();
   cx.translate(sx,sy);
   if(player.dir<0) cx.scale(-1,1);
-  cx.fillStyle='#443322';
+  // ほぼ見えない暗いシルエット
+  cx.globalAlpha=0.18;
+  cx.fillStyle='#221100';
   cx.fillRect(-10,-26,20,26);
-  cx.fillStyle='#ddc090';
   cx.beginPath(); cx.arc(0,-30,13,0,Math.PI*2); cx.fill();
-  cx.fillStyle='rgba(255,140,0,0.9)';
-  cx.beginPath(); cx.arc(16,-28,6,0,Math.PI*2); cx.fill();
+  cx.globalAlpha=1;
   cx.restore();
   if(attackFlash>0){
     attackFlash--;
@@ -863,14 +852,22 @@ function drawGhostApparition(){
 }
 
 function drawDarkness(){
-  const sx=player.x-camX+shakeX, sy=player.y-camY+shakeY;
-  const flashRange=flickerOn?155:18; // もっと暗い
-  const dark=cx.createRadialGradient(sx,sy,flashRange*0.25,sx,sy,flashRange*2.5);
-  dark.addColorStop(0,'rgba(0,0,0,0)');
-  dark.addColorStop(0.45,'rgba(0,0,0,0.75)');
-  dark.addColorStop(1,'rgba(0,0,0,0.99)');
-  cx.fillStyle=dark;
+  // ライトなし！画面全体を真っ暗に
+  cx.fillStyle='rgba(0,0,0,0.97)';
   cx.fillRect(0,0,W,H);
+  // モンスターの目だけがうっすら赤く光って見える（超怖い）
+  for(const m of monsters){
+    if(m.respawnTimer>0||m.dying) continue;
+    const mx=m.x-camX+shakeX, my=m.y-camY+shakeY;
+    const dist=Math.hypot(player.x-m.x,player.y-m.y);
+    if(dist>TILE*8) continue; // 近くのモンスターの目だけ光る
+    const eyeAlpha=Math.min(0.9,(TILE*8-dist)/(TILE*8))*0.85;
+    const eyeGlow=cx.createRadialGradient(mx,my,0,mx,my,30);
+    eyeGlow.addColorStop(0,`rgba(255,0,0,${eyeAlpha})`);
+    eyeGlow.addColorStop(1,'transparent');
+    cx.fillStyle=eyeGlow;
+    cx.fillRect(mx-35,my-35,70,70);
+  }
 }
 
 function drawHUD(){
