@@ -41,7 +41,7 @@ const BLOCK_INFO = [
 const grid = Array.from({length:ROWS},()=>new Array(COLS).fill(NONE));
 const GOAL_COL=COLS-2, GOAL_ROW=ROWS-3;
 grid[GOAL_ROW][GOAL_COL]=GOAL;
-for(let c=0;c<COLS;c++) grid[ROWS-1][c]=WALL;
+// 底はあえて何も置かない → 落ちたらゲームオーバー！
 
 const BALL_R = CELL * 0.27;
 let ball=null, trail=[];
@@ -218,7 +218,11 @@ function triggerWin(){
 }
 function triggerFail(){
   state='fail';ball=null;
-  beep(300,0.1,0.3,'sawtooth');beep(200,0.2,0.3,'sawtooth');
+  // ざんねん音（だんだん低くなる）
+  beep(400,0.1,0.28,'sawtooth');
+  setTimeout(()=>beep(300,0.13,0.28,'sawtooth'),130);
+  setTimeout(()=>beep(200,0.16,0.25,'sawtooth'),270);
+  setTimeout(()=>beep(140,0.35,0.2,'sawtooth'),420);
 }
 
 // --- Draw blocks ---
@@ -421,16 +425,40 @@ function draw(){
     ctx.fillText('タップでもういっかい',W/2,GH*0.75);
   }
 
+  // プレイ中：底の「あぶないゾーン」表示
+  if(state==='play'){
+    const dangerH = CELL * 0.55;
+    const stripeCount = 10;
+    for(let i=0;i<stripeCount;i++){
+      const blink = Math.sin(frame*0.18+i*0.6)>0;
+      ctx.fillStyle = blink ? 'rgba(255,60,0,0.22)' : 'rgba(255,140,0,0.13)';
+      ctx.fillRect(i*(GW/stripeCount), GH-dangerH, GW/stripeCount, dangerH);
+    }
+    ctx.fillStyle='rgba(255,80,0,0.65)';
+    ctx.font=`bold ${CELL*0.3}px sans-serif`;ctx.textAlign='center';
+    ctx.fillText('⚠ おちたらゲームオーバー！ ⚠', GW/2, GH - dangerH*0.28);
+  }
+
   if(state==='fail'){
-    ctx.fillStyle='rgba(0,0,0,0.65)';ctx.fillRect(0,0,W,GH);
-    ctx.fillStyle='#ff4444';ctx.font=`bold ${CELL*0.9}px sans-serif`;ctx.textAlign='center';
-    ctx.shadowColor='#ff0000';ctx.shadowBlur=20;
-    ctx.fillText('ざんねん！もういっかい？',W/2,GH*0.42);
+    // 暗い背景
+    ctx.fillStyle='rgba(0,0,0,0.78)';ctx.fillRect(0,0,W,GH);
+    // 大きい絵文字
+    ctx.font=`${CELL*1.5}px sans-serif`;ctx.textAlign='center';
+    ctx.fillText('💥',W/2,GH*0.28);
+    // ゲームオーバー文字
+    ctx.shadowColor='#ff2200';ctx.shadowBlur=30;
+    ctx.fillStyle='#ff3333';ctx.font=`bold ${CELL*0.92}px sans-serif`;
+    ctx.fillText('ゲームオーバー！',W/2,GH*0.48);
     ctx.shadowBlur=0;
-    ctx.fillStyle='#fff';ctx.font=`${CELL*0.38}px sans-serif`;
-    ctx.fillText('ブロックを並べなおしてみよう！',W/2,GH*0.6);
-    ctx.fillStyle='#ffcc88';ctx.font=`${CELL*0.35}px sans-serif`;
-    ctx.fillText('タップでもどる',W/2,GH*0.73);
+    // サブテキスト
+    ctx.fillStyle='#ffcc44';ctx.font=`${CELL*0.4}px sans-serif`;
+    ctx.fillText('ボールが落っこちた〜！',W/2,GH*0.63);
+    // もう一回
+    const btnY=GH*0.77, btnW=CELL*5.5, btnH=CELL*0.75;
+    ctx.fillStyle='#ff5533';
+    ctx.beginPath();ctx.roundRect(W/2-btnW/2,btnY-btnH*0.7,btnW,btnH,btnH/2);ctx.fill();
+    ctx.fillStyle='#fff';ctx.font=`bold ${CELL*0.38}px sans-serif`;
+    ctx.fillText('👆 タップしてなおす',W/2,btnY);
   }
 }
 
