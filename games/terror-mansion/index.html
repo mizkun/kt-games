@@ -24,6 +24,7 @@
     <div class="cb" id="br">→</div>
   </div>
   <div class="cside">
+    <div class="cb" id="batk">⚡<br><small style="font-size:.5rem">攻撃</small></div>
     <div class="cb" id="bu">↑</div>
     <div class="cb" id="bd">↓</div>
   </div>
@@ -95,6 +96,24 @@ function playDoor(){
   playNoise(80,0.6,'sine',0.4);
   setTimeout(()=>playNoise(60,0.4,'sine',0.3),200);
 }
+function playHit(){
+  if(!ac) return;
+  playNoise(300,0.15,'square',0.4);
+  setTimeout(()=>playNoise(150,0.2,'sawtooth',0.3),80);
+}
+function playMonsterDie(){
+  if(!ac) return;
+  for(let i=0;i<4;i++){
+    const o=ac.createOscillator(), g=ac.createGain();
+    o.type='sawtooth';
+    o.frequency.setValueAtTime(400-i*80,ac.currentTime+i*0.1);
+    o.frequency.exponentialRampToValueAtTime(50,ac.currentTime+i*0.1+0.4);
+    g.gain.setValueAtTime(0.35,ac.currentTime+i*0.1);
+    g.gain.exponentialRampToValueAtTime(0.001,ac.currentTime+i*0.1+0.4);
+    o.connect(g); g.connect(ac.destination);
+    o.start(ac.currentTime+i*0.1); o.stop(ac.currentTime+i*0.1+0.5);
+  }
+}
 
 // ======== マップ設計 ========
 // 1=壁 0=通路 2=ドア 3=鍵 9=スタート E=出口
@@ -154,8 +173,8 @@ function isWall(px,py){
 // ======== モンスター ========
 // 複数の怖いモンスター
 const MONSTER_DEFS=[
-  {name:'MARY',   color:'#cc0000', eyeColor:'#ff0000', speed:1.8, size:22},
-  {name:'SHADOW', color:'#220044', eyeColor:'#aa00ff', speed:2.2, size:20},
+  {name:'MARY',   color:'#cc0000', eyeColor:'#ff0000', speed:1.8, size:22, hp:3, maxHp:3, hitFlash:0, dying:false, dyingTimer:0, respawnTimer:0},
+  {name:'SHADOW', color:'#220044', eyeColor:'#aa00ff', speed:2.2, size:20, hp:3, maxHp:3, hitFlash:0, dying:false, dyingTimer:0, respawnTimer:0},
 ];
 
 // ======== ゲーム状態 ========
@@ -173,6 +192,10 @@ let gameKeys={};
 let tL=false,tR=false,tU=false,tD=false;
 let deathTimer=0;
 let winTimer=0;
+let attackTimer=0; // 攻撃クールダウン
+let attackFlash=0; // 攻撃エフェクト
+let tAtk=false;    // タッチ攻撃
+let killCount=0;   // 倒した数
 
 function initGame(){
   buildMap();
@@ -186,12 +209,14 @@ function initGame(){
   keys_collected=0;
   totalKeys=keyPositions.length;
   keyPositions.forEach(k=>k.got=false);
+  monsters.forEach(m=>{ m.hp=m.maxHp; m.hitFlash=0; m.dying=false; m.dyingTimer=0; m.respawnTimer=0; });
   frameCount=0; heartbeatTimer=0;
   flickerTimer=0; flickerOn=true;
   jumpScare=0; jsTimer=0;
   nextJSFrame=300+~~(Math.random()*400);
   staticEffect=0; bloodAlpha=0;
   deathTimer=0; winTimer=0;
+  attackTimer=0; attackFlash=0; killCount=0;
   camX=player.x-W/2; camY=player.y-H/2;
 }
 
@@ -221,6 +246,8 @@ function updatePlayer(){
   if(dx>0) player.dir=1;
   if(dx<0) player.dir=-1;
   if(dx||dy) player.stepTimer++;
+  if(attackTimer>0) attackTimer--;
+  if(tAtk && attackTimer<=0) doAttack();
 
   // 鍵の取得
   for(const k of keyPositions){
@@ -250,6 +277,9 @@ function updatePlayer(){
 // ======== モンスター更新 ========
 function updateMonsters(){
   for(const m of monsters){
+    if(m.respawnTimer>0){ m.respawnTimer--; continue; }
+    if(m.dying){ m.dyingTimer--; if(m.dyingTimer<=0){ m.dying=false; m.hp=m.maxHp; m.hitFlash=0; m.respawnTimer=600; m.x=exitX; m.y=exitY; } continue; }
+    if(m.hitFlash>0) m.hitFlash--;
     // プレイヤーに向かってまっすぐ追いかける（簡易）
     const dx=player.x-m.x, dy=player.y-m.y;
     const dist=Math.hypot(dx,dy)||1;
@@ -262,7 +292,7 @@ function updateMonsters(){
     else m.y+=my*0.3;
 
     // 捕まったら死亡
-    if(dist<m.size+player.r){
+    if(!m.dying && m.respawnTimer<=0 && dist<m.size+player.r){
       state='death';
       deathTimer=0;
       playScream();
@@ -313,6 +343,29 @@ function updateHeartbeat(){
     playHeartbeat();
   }
   return minDist;
+}
+
+function doAttack(){
+  if(attackTimer>0) return;
+  attackTimer=30;
+  attackFlash=15;
+  playHit();
+  for(const m of monsters){
+    if(m.dying||m.respawnTimer>0) continue;
+    const dist=Math.hypot(player.x-m.x, player.y-m.y);
+    if(dist<TILE*1.8){
+      m.hp--;
+      m.hitFlash=20;
+      if(m.hp<=0){
+        m.dying=true; m.dyingTimer=60;
+        killCount++;
+        playMonsterDie();
+        bloodAlpha=0.5;
+      } else {
+        playHit();
+      }
+    }
+  }
 }
 
 // ======== 描画 ========
@@ -518,16 +571,31 @@ function drawPlayer(){
   cx.fillStyle='rgba(255,150,0,0.9)';
   cx.beginPath(); cx.arc(16,-28,6,0,Math.PI*2); cx.fill(); // 懐中電灯
   cx.restore();
+  if(attackFlash>0){
+    attackFlash--;
+    const sx2=player.x-camX, sy2=player.y-camY;
+    cx.save();
+    cx.translate(sx2,sy2);
+    cx.globalAlpha=attackFlash/15;
+    cx.strokeStyle='#ffffff';
+    cx.lineWidth=4;
+    cx.beginPath();
+    cx.arc(player.dir*30, 0, TILE*1.5, -Math.PI*0.5, Math.PI*0.5);
+    cx.stroke();
+    cx.globalAlpha=1;
+    cx.restore();
+  }
 }
 
 function drawMonster(m){
+  if(m.respawnTimer>0) return;
   const sx=m.x-camX, sy=m.y-camY;
   if(sx<-80||sx>W+80||sy<-80||sy>H+80) return;
   const t=Date.now()*0.004;
   // モンスターは暗くてぼんやり
   cx.save();
   cx.translate(sx,sy);
-  cx.globalAlpha=0.85;
+  cx.globalAlpha = m.dying ? m.dyingTimer/60 : (m.hitFlash>0 ? 0.5+Math.sin(m.hitFlash)*0.5 : 0.85);
   // 体（影のようなもや）
   const grad=cx.createRadialGradient(0,0,0,0,0,m.size*2.5);
   grad.addColorStop(0,m.color);
@@ -543,6 +611,18 @@ function drawMonster(m){
   cx.fillStyle='#000';
   cx.beginPath(); cx.ellipse(-8,Math.sin(t)*3-4,3,4,0,0,Math.PI*2); cx.fill();
   cx.beginPath(); cx.ellipse(8,Math.sin(t)*3-4,3,4,0,0,Math.PI*2); cx.fill();
+  if(m.hitFlash>0){
+    cx.globalAlpha=m.hitFlash/20*0.6;
+    cx.fillStyle='#fff';
+    cx.beginPath(); cx.arc(0,0,m.size*2,0,Math.PI*2); cx.fill();
+  }
+  if(m.dying){
+    cx.globalAlpha=m.dyingTimer/60;
+    cx.fillStyle='#ff0000';
+    cx.font=`${30+~~(m.dyingTimer*0.5)}px sans-serif`;
+    cx.textAlign='center';
+    cx.fillText('💥',0,-30);
+  }
   cx.restore();
 }
 
@@ -565,6 +645,13 @@ function drawHUD(){
   // 鍵アイコン
   cx.font='20px sans-serif'; cx.textAlign='left';
   cx.fillText('🗝️ '+keys_collected+' / '+totalKeys, 10, 34);
+  cx.fillStyle='rgba(255,200,200,0.9)';
+  cx.font='16px sans-serif'; cx.textAlign='right';
+  cx.fillText('💀 '+killCount+'体やっつけた', W-10, 34);
+  // 攻撃のヒント
+  cx.fillStyle='rgba(255,255,100,0.8)';
+  cx.font='13px sans-serif'; cx.textAlign='center';
+  cx.fillText('Z/スペース：攻撃', W/2, H-10);
   // 距離に応じて警告
   const minDist=monsters.reduce((mn,m)=>Math.min(mn,Math.hypot(player.x-m.x,player.y-m.y)),9999);
   if(minDist<TILE*4){
@@ -614,6 +701,9 @@ function drawTitle(){
   cx.fillStyle='#444';
   cx.font='14px sans-serif';
   cx.fillText('↑↓←→ / WASD で移動',0,H*0.18);
+  cx.fillStyle='#666';
+  cx.font='13px sans-serif';
+  cx.fillText('Z/スペース：攻撃！おばけをやっつけろ！',0,H*0.26);
 
   const blink=Math.floor(t/700)%2;
   if(blink){
@@ -725,6 +815,7 @@ document.addEventListener('keydown',e=>{
   if(state==='title'&&(e.key===' '||e.key==='Enter')){ initAudio(); initGame(); state='play'; }
   if(state==='death'&&jumpScare<=0&&(e.key===' '||e.key==='Enter')){ initGame(); state='play'; }
   if(state==='win'&&winTimer>120&&(e.key===' '||e.key==='Enter')) state='title';
+  if(state==='play' && (e.key==='z'||e.key==='Z')) doAttack();
 });
 document.addEventListener('keyup',e=>gameKeys[e.key.toLowerCase()]=false);
 
@@ -748,6 +839,8 @@ document.getElementById('bu').addEventListener('touchcancel',()=>tU=false);
 document.getElementById('bd').addEventListener('touchstart',e=>{e.preventDefault();tD=true;},{passive:false});
 document.getElementById('bd').addEventListener('touchend',()=>tD=false);
 document.getElementById('bd').addEventListener('touchcancel',()=>tD=false);
+document.getElementById('batk').addEventListener('touchstart',e=>{e.preventDefault();tAtk=true;doAttack();},{passive:false});
+document.getElementById('batk').addEventListener('touchend',()=>tAtk=false);
 
 // ======== 起動 ========
 buildMap();
