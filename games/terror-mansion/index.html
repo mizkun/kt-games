@@ -53,39 +53,121 @@ function playNoise(freq,dur,type='sawtooth',vol=0.3){
   o.start(); o.stop(ac.currentTime+dur);
 }
 
+// 超怖いスクリーム（音量UP、周波数UP）
 function playScream(){
   if(!ac) return;
-  // 金切り声
-  for(let i=0;i<5;i++){
+  for(let i=0;i<8;i++){
     const o=ac.createOscillator(), g=ac.createGain();
     o.type='sawtooth';
-    o.frequency.setValueAtTime(800+i*200,ac.currentTime+i*0.04);
-    o.frequency.exponentialRampToValueAtTime(200,ac.currentTime+0.8);
-    g.gain.setValueAtTime(0.4,ac.currentTime+i*0.04);
-    g.gain.exponentialRampToValueAtTime(0.001,ac.currentTime+0.8);
+    o.frequency.setValueAtTime(1200+i*300,ac.currentTime+i*0.03);
+    o.frequency.exponentialRampToValueAtTime(100,ac.currentTime+1.2);
+    g.gain.setValueAtTime(0.7,ac.currentTime+i*0.03);
+    g.gain.exponentialRampToValueAtTime(0.001,ac.currentTime+1.2);
     o.connect(g); g.connect(ac.destination);
-    o.start(ac.currentTime+i*0.04); o.stop(ac.currentTime+0.9);
+    o.start(ac.currentTime+i*0.03); o.stop(ac.currentTime+1.3);
   }
+  // 低音の衝撃
+  const b=ac.createOscillator(), bg=ac.createGain();
+  b.type='sine'; b.frequency.value=30;
+  bg.gain.setValueAtTime(0.8,ac.currentTime);
+  bg.gain.exponentialRampToValueAtTime(0.001,ac.currentTime+0.5);
+  b.connect(bg); bg.connect(ac.destination);
+  b.start(); b.stop(ac.currentTime+0.5);
 }
 
-function playHeartbeat(rate=1){
+// 子どもの笑い声みたいな怖い音
+function playChildLaugh(){
   if(!ac) return;
+  const notes=[523,494,440,392,350];
+  notes.forEach((f,i)=>{
+    const o=ac.createOscillator(), g=ac.createGain();
+    o.type='triangle';
+    o.frequency.value=f;
+    g.gain.setValueAtTime(0,ac.currentTime+i*0.12);
+    g.gain.linearRampToValueAtTime(0.3,ac.currentTime+i*0.12+0.05);
+    g.gain.exponentialRampToValueAtTime(0.001,ac.currentTime+i*0.12+0.18);
+    o.connect(g); g.connect(ac.destination);
+    o.start(ac.currentTime+i*0.12); o.stop(ac.currentTime+i*0.12+0.2);
+  });
+}
+
+// ドン！という突然の大音量
+function playBang(){
+  if(!ac) return;
+  const buf=ac.createBuffer(1,ac.sampleRate*0.4,ac.sampleRate);
+  const d=buf.getChannelData(0);
+  for(let i=0;i<d.length;i++) d[i]=(Math.random()*2-1)*Math.exp(-i/(ac.sampleRate*0.1));
+  const s=ac.createBufferSource(), g=ac.createGain();
+  g.gain.value=1.0;
+  s.buffer=buf; s.connect(g); g.connect(ac.destination);
+  s.start();
+  // 低い衝撃音
+  const o=ac.createOscillator(), g2=ac.createGain();
+  o.type='sine'; o.frequency.value=40;
+  g2.gain.setValueAtTime(0.9,ac.currentTime);
+  g2.gain.exponentialRampToValueAtTime(0.001,ac.currentTime+0.3);
+  o.connect(g2); g2.connect(ac.destination);
+  o.start(); o.stop(ac.currentTime+0.3);
+}
+
+// ヒソヒソ声みたいなノイズ
+function playWhisper(){
+  if(!ac) return;
+  const buf=ac.createBuffer(1,ac.sampleRate*1.5,ac.sampleRate);
+  const d=buf.getChannelData(0);
+  for(let i=0;i<d.length;i++){
+    const env=Math.sin(i/d.length*Math.PI);
+    d[i]=(Math.random()*2-1)*0.08*env;
+  }
+  const s=ac.createBufferSource();
+  // バンドパスフィルタで「声」っぽく
+  const f=ac.createBiquadFilter();
+  f.type='bandpass'; f.frequency.value=2000+Math.random()*500; f.Q.value=3;
+  const g=ac.createGain(); g.gain.value=0.5;
+  s.buffer=buf; s.connect(f); f.connect(g); g.connect(ac.destination);
+  s.start();
+}
+
+// ドアのきしみ音
+function playCreak(){
+  if(!ac) return;
+  const o=ac.createOscillator(), g=ac.createGain();
+  o.type='sawtooth';
+  o.frequency.setValueAtTime(200,ac.currentTime);
+  o.frequency.linearRampToValueAtTime(80,ac.currentTime+0.4);
+  o.frequency.linearRampToValueAtTime(140,ac.currentTime+0.7);
+  g.gain.setValueAtTime(0.2,ac.currentTime);
+  g.gain.exponentialRampToValueAtTime(0.001,ac.currentTime+0.8);
+  o.connect(g); g.connect(ac.destination);
+  o.start(); o.stop(ac.currentTime+0.8);
+}
+
+function playHeartbeat(fast){
+  if(!ac) return;
+  const vol=fast?0.8:0.5;
   const o=ac.createOscillator(), g=ac.createGain();
   o.type='sine'; o.frequency.value=60;
   g.gain.setValueAtTime(0,ac.currentTime);
-  g.gain.linearRampToValueAtTime(0.5,ac.currentTime+0.05);
+  g.gain.linearRampToValueAtTime(vol,ac.currentTime+0.05);
   g.gain.exponentialRampToValueAtTime(0.001,ac.currentTime+0.25);
   o.connect(g); g.connect(ac.destination);
   o.start(); o.stop(ac.currentTime+0.3);
+  const o2=ac.createOscillator(), g2=ac.createGain();
+  o2.type='sine'; o2.frequency.value=50;
+  g2.gain.setValueAtTime(0,ac.currentTime+0.18);
+  g2.gain.linearRampToValueAtTime(vol*0.7,ac.currentTime+0.23);
+  g2.gain.exponentialRampToValueAtTime(0.001,ac.currentTime+0.45);
+  o2.connect(g2); g2.connect(ac.destination);
+  o2.start(ac.currentTime+0.18); o2.stop(ac.currentTime+0.5);
 }
 
 function playStatic(){
   if(!ac) return;
   const buf=ac.createBuffer(1,ac.sampleRate*0.3,ac.sampleRate);
   const d=buf.getChannelData(0);
-  for(let i=0;i<d.length;i++) d[i]=(Math.random()*2-1)*0.15;
+  for(let i=0;i<d.length;i++) d[i]=(Math.random()*2-1)*0.25;
   const s=ac.createBufferSource(), g=ac.createGain();
-  g.gain.setValueAtTime(0.3,ac.currentTime);
+  g.gain.setValueAtTime(0.5,ac.currentTime);
   g.gain.exponentialRampToValueAtTime(0.001,ac.currentTime+0.3);
   s.buffer=buf; s.connect(g); g.connect(ac.destination);
   s.start();
@@ -96,27 +178,86 @@ function playDoor(){
   playNoise(80,0.6,'sine',0.4);
   setTimeout(()=>playNoise(60,0.4,'sine',0.3),200);
 }
+
+// ======== BGM（超怖い曲） ========
+let bgmInterval=null, bgmStep=0, droneNodes=null;
+function startBGM(){
+  if(bgmInterval) return;
+  if(!ac) return;
+  // 3つのドローン音でうねる不協和音
+  const drone1=ac.createOscillator();
+  const drone2=ac.createOscillator();
+  const drone3=ac.createOscillator();
+  const droneGain=ac.createGain();
+  drone1.type='sawtooth'; drone1.frequency.value=36;
+  drone2.type='sawtooth'; drone2.frequency.value=37.8;  // うなり
+  drone3.type='square';   drone3.frequency.value=54.7;  // 不協和な5度
+  droneGain.gain.value=0.10;
+  drone1.connect(droneGain); drone2.connect(droneGain); drone3.connect(droneGain);
+  droneGain.connect(ac.destination);
+  drone1.start(); drone2.start(); drone3.start();
+  droneNodes=[drone1,drone2,drone3,droneGain];
+
+  // 不気味なメロディーライン
+  const NOTES=[98,103.8,110,116.5,87.3,92.5,82.4,77.8];
+  bgmInterval=setInterval(()=>{
+    if(!ac||state==='title') return;
+    const note=NOTES[bgmStep%NOTES.length];
+    const o=ac.createOscillator(), g=ac.createGain();
+    o.type='sine'; o.frequency.value=note;
+    g.gain.setValueAtTime(0,ac.currentTime);
+    g.gain.linearRampToValueAtTime(0.12,ac.currentTime+0.4);
+    g.gain.exponentialRampToValueAtTime(0.001,ac.currentTime+2.5);
+    o.connect(g); g.connect(ac.destination);
+    o.start(); o.stop(ac.currentTime+2.5);
+
+    // 時々突然の高音スクリーチ
+    if(bgmStep%5===0){
+      const o2=ac.createOscillator(), g2=ac.createGain();
+      o2.type='sawtooth';
+      o2.frequency.setValueAtTime(800+Math.random()*400,ac.currentTime);
+      o2.frequency.exponentialRampToValueAtTime(100,ac.currentTime+2);
+      g2.gain.setValueAtTime(0.07+Math.random()*0.05,ac.currentTime);
+      g2.gain.exponentialRampToValueAtTime(0.001,ac.currentTime+2);
+      o2.connect(g2); g2.connect(ac.destination);
+      o2.start(); o2.stop(ac.currentTime+2);
+    }
+    // 突然のドーン！
+    if(bgmStep%11===0) setTimeout(()=>playBang(),300+Math.random()*500);
+    // ヒソヒソ
+    if(bgmStep%13===0) setTimeout(()=>playWhisper(),Math.random()*800);
+    // ドアのきしみ
+    if(bgmStep%17===0) setTimeout(()=>playCreak(),Math.random()*1000);
+    bgmStep++;
+  },900);
+}
+function stopBGM(){
+  if(bgmInterval){ clearInterval(bgmInterval); bgmInterval=null; }
+  if(droneNodes){
+    droneNodes.slice(0,3).forEach(n=>{ try{n.stop();}catch(e){} });
+    droneNodes=null;
+  }
+}
 function playHit(){
   if(!ac) return;
-  playNoise(300,0.15,'square',0.4);
-  setTimeout(()=>playNoise(150,0.2,'sawtooth',0.3),80);
+  playNoise(300,0.15,'square',0.5);
+  setTimeout(()=>playNoise(150,0.2,'sawtooth',0.4),80);
 }
 function playMonsterDie(){
   if(!ac) return;
-  for(let i=0;i<4;i++){
+  for(let i=0;i<5;i++){
     const o=ac.createOscillator(), g=ac.createGain();
     o.type='sawtooth';
-    o.frequency.setValueAtTime(400-i*80,ac.currentTime+i*0.1);
-    o.frequency.exponentialRampToValueAtTime(50,ac.currentTime+i*0.1+0.4);
-    g.gain.setValueAtTime(0.35,ac.currentTime+i*0.1);
-    g.gain.exponentialRampToValueAtTime(0.001,ac.currentTime+i*0.1+0.4);
+    o.frequency.setValueAtTime(500-i*80,ac.currentTime+i*0.1);
+    o.frequency.exponentialRampToValueAtTime(30,ac.currentTime+i*0.1+0.5);
+    g.gain.setValueAtTime(0.45,ac.currentTime+i*0.1);
+    g.gain.exponentialRampToValueAtTime(0.001,ac.currentTime+i*0.1+0.5);
     o.connect(g); g.connect(ac.destination);
-    o.start(ac.currentTime+i*0.1); o.stop(ac.currentTime+i*0.1+0.5);
+    o.start(ac.currentTime+i*0.1); o.stop(ac.currentTime+i*0.1+0.6);
   }
 }
 
 // ======== マップ設計 ========
-// 1=壁 0=通路 2=ドア 3=鍵 9=スタート E=出口
 const TILE=48;
 const RAW=[
   '####################',
@@ -143,7 +284,6 @@ const RAW=[
 const ROWS=RAW.length, COLS=RAW[0].length;
 const MAP_W=COLS*TILE, MAP_H=ROWS*TILE;
 
-// タイル種別
 const T_WALL=1, T_FLOOR=0, T_KEY=3, T_EXIT=9;
 let tileMap=[], startX=0, startY=0, exitX=0, exitY=0;
 const keyPositions=[];
@@ -170,11 +310,11 @@ function isWall(px,py){
   return tileMap[r][c]===T_WALL;
 }
 
-// ======== モンスター ========
-// 複数の怖いモンスター
+// ======== モンスター（3体！） ========
 const MONSTER_DEFS=[
-  {name:'MARY',   color:'#cc0000', eyeColor:'#ff0000', speed:1.8, size:22, hp:3, maxHp:3, hitFlash:0, dying:false, dyingTimer:0, respawnTimer:0},
-  {name:'SHADOW', color:'#220044', eyeColor:'#aa00ff', speed:2.2, size:20, hp:3, maxHp:3, hitFlash:0, dying:false, dyingTimer:0, respawnTimer:0},
+  {name:'MARY',   color:'#cc0000', eyeColor:'#ff3300', speed:2.0, size:22, hp:3, maxHp:3, hitFlash:0, dying:false, dyingTimer:0, respawnTimer:0},
+  {name:'SHADOW', color:'#220044', eyeColor:'#bb00ff', speed:2.5, size:20, hp:3, maxHp:3, hitFlash:0, dying:false, dyingTimer:0, respawnTimer:0},
+  {name:'CHILD',  color:'#334400', eyeColor:'#aaff00', speed:3.2, size:14, hp:2, maxHp:2, hitFlash:0, dying:false, dyingTimer:0, respawnTimer:0}, // 子どもの幽霊：小さいが超速い
 ];
 
 // ======== ゲーム状態 ========
@@ -184,26 +324,39 @@ let camX=0,camY=0;
 let frameCount=0;
 let heartbeatTimer=0;
 let flickerTimer=0, flickerOn=true;
-let jumpScare=0, jumpscareFace=0; // ジャンプスケア
-let jsTimer=0, nextJSFrame=0;
+let jumpScare=0, jumpscareFace=0;
+let jsTimer=0;
 let staticEffect=0;
 let bloodAlpha=0;
 let gameKeys={};
 let tL=false,tR=false,tU=false,tD=false;
 let deathTimer=0;
 let winTimer=0;
-let attackTimer=0; // 攻撃クールダウン
-let attackFlash=0; // 攻撃エフェクト
-let tAtk=false;    // タッチ攻撃
-let killCount=0;   // 倒した数
+let attackTimer=0;
+let attackFlash=0;
+let tAtk=false;
+let killCount=0;
+let shakeX=0, shakeY=0;   // 画面シェイク
+let glitchTimer=0;         // グリッチ効果
+let creepyMsgTimer=0;      // 不気味なメッセージ
+let creepyMsg='';
+let bloodDrips=[];         // 血が垂れる
+let ghostApparition=0;     // ゴーストの幻
+
+const CREEPY_MSGS=[
+  'みてる…','きこえてる','もうすぐいく','にげられない',
+  '…うしろ','たすけて','こわい…','あなたを…みつけた',
+  '…ここにいる','かえれない','ずっとここにいる',
+];
 
 function initGame(){
   buildMap();
   player={x:startX,y:startY,vx:0,vy:0,r:14,dir:1,stepTimer:0};
+  // モンスターの初期位置をバラバラに
   monsters=MONSTER_DEFS.map((m,i)=>({
     ...m,
-    x:exitX+i*TILE*2, y:exitY+i*TILE*2,
-    tx:exitX,ty:exitY,
+    x:exitX+[2,-2,0][i]*TILE*2+i*TILE,
+    y:exitY+[1,-1,2][i]*TILE,
     pathTimer:0,
   }));
   keys_collected=0;
@@ -213,11 +366,22 @@ function initGame(){
   frameCount=0; heartbeatTimer=0;
   flickerTimer=0; flickerOn=true;
   jumpScare=0; jsTimer=0;
-  nextJSFrame=300+~~(Math.random()*400);
+  jsTimer=0;
   staticEffect=0; bloodAlpha=0;
   deathTimer=0; winTimer=0;
   attackTimer=0; attackFlash=0; killCount=0;
+  shakeX=0; shakeY=0; glitchTimer=0;
+  creepyMsgTimer=0; creepyMsg='';
+  ghostApparition=0;
+  // 血のしたたり初期化
+  bloodDrips=[];
+  for(let i=0;i<20;i++) bloodDrips.push({
+    x:Math.random()*MAP_W, y:Math.random()*MAP_H,
+    len:10+Math.random()*40, speed:0.2+Math.random()*0.5,
+    alpha:0.4+Math.random()*0.4, cur:0
+  });
   camX=player.x-W/2; camY=player.y-H/2;
+  stopBGM(); setTimeout(startBGM,500);
 }
 
 // ======== プレイヤー更新 ========
@@ -228,17 +392,13 @@ function updatePlayer(){
   const U=gameKeys['arrowup']||gameKeys['w']||tU;
   const D=gameKeys['arrowdown']||gameKeys['s']||tD;
   let dx=0,dy=0;
-  if(L) dx=-PSPD;
-  if(R) dx=PSPD;
-  if(U) dy=-PSPD;
-  if(D) dy=PSPD;
+  if(L) dx=-PSPD; if(R) dx=PSPD;
+  if(U) dy=-PSPD; if(D) dy=PSPD;
   if(dx&&dy){dx*=0.707;dy*=0.707;}
 
-  // X移動
   const nx=player.x+dx;
   if(!isWall(nx-player.r,player.y)&&!isWall(nx+player.r,player.y)&&
      !isWall(nx-player.r,player.y-player.r)&&!isWall(nx+player.r,player.y+player.r)) player.x=nx;
-  // Y移動
   const ny=player.y+dy;
   if(!isWall(player.x-player.r,ny)&&!isWall(player.x+player.r,ny)&&
      !isWall(player.x-player.r,ny-player.r)&&!isWall(player.x+player.r,ny+player.r)) player.y=ny;
@@ -249,25 +409,24 @@ function updatePlayer(){
   if(attackTimer>0) attackTimer--;
   if(tAtk && attackTimer<=0) doAttack();
 
-  // 鍵の取得
   for(const k of keyPositions){
     if(k.got) continue;
     const kx=k.c*TILE+TILE/2, ky=k.r*TILE+TILE/2;
     if(Math.hypot(player.x-kx,player.y-ky)<TILE*0.7){
       k.got=true; keys_collected++;
       playDoor();
-      bloodAlpha=0.3;
+      bloodAlpha=0.4;
+      // 鍵を取ったら突然のドーン！
+      setTimeout(()=>playBang(),200);
     }
   }
 
-  // 出口チェック
   if(keys_collected>=totalKeys){
     if(Math.hypot(player.x-exitX,player.y-exitY)<TILE*0.9){
-      state='win'; winTimer=0;
+      state='win'; winTimer=0; stopBGM();
     }
   }
 
-  // カメラ
   camX+=(player.x-W/2-camX)*0.12;
   camY+=(player.y-H/2-camY)*0.12;
   camX=Math.max(0,Math.min(MAP_W-W,camX));
@@ -278,81 +437,118 @@ function updatePlayer(){
 function updateMonsters(){
   for(const m of monsters){
     if(m.respawnTimer>0){ m.respawnTimer--; continue; }
-    if(m.dying){ m.dyingTimer--; if(m.dyingTimer<=0){ m.dying=false; m.hp=m.maxHp; m.hitFlash=0; m.respawnTimer=600; m.x=exitX; m.y=exitY; } continue; }
+    if(m.dying){
+      m.dyingTimer--;
+      if(m.dyingTimer<=0){
+        m.dying=false; m.hp=m.maxHp; m.hitFlash=0;
+        m.respawnTimer=480; // 少し早く復活
+        m.x=exitX; m.y=exitY;
+      }
+      continue;
+    }
     if(m.hitFlash>0) m.hitFlash--;
-    // プレイヤーに向かってまっすぐ追いかける（簡易）
     const dx=player.x-m.x, dy=player.y-m.y;
     const dist=Math.hypot(dx,dy)||1;
-    // 壁を無視してじわじわ追う（ホラー感）
-    const spd = m.speed * (1 + frameCount/3000);
+    // 時間とともに少しずつ加速
+    const spd=m.speed*(1+frameCount/2500);
     const mx=dx/dist*spd, my=dy/dist*spd;
-    if(!isWall(m.x+mx,m.y)) m.x+=mx;
-    else m.x+=mx*0.3;
-    if(!isWall(m.x,m.y+my)) m.y+=my;
-    else m.y+=my*0.3;
+    if(!isWall(m.x+mx,m.y)) m.x+=mx; else m.x+=mx*0.4;
+    if(!isWall(m.x,m.y+my)) m.y+=my; else m.y+=my*0.4;
 
-    // 捕まったら死亡
-    if(!m.dying && m.respawnTimer<=0 && dist<m.size+player.r){
-      state='death';
-      deathTimer=0;
-      playScream();
-      jumpscareFace=~~(Math.random()*3);
-      jumpScare=120;
+    if(!m.dying&&m.respawnTimer<=0&&dist<m.size+player.r){
+      state='death'; deathTimer=0;
+      stopBGM(); playScream();
+      jumpscareFace=~~(Math.random()*5); // 5種類に増えた！
+      jumpScare=150; // 長く表示
     }
   }
 }
 
-// ======== ジャンプスケア ========
-let nextRandomScare=500;
+// ======== ジャンプスケア（超頻繁に！） ========
+let nextRandomScare=150+~~(Math.random()*200);
 function updateJumpScare(){
   jsTimer++;
-  // ランダムジャンプスケア（モンスターじゃなくてもビビらせる）
   if(jsTimer>=nextRandomScare){
     jsTimer=0;
-    nextRandomScare=400+~~(Math.random()*600);
-    jumpScare=35;
-    jumpscareFace=~~(Math.random()*3);
+    nextRandomScare=150+~~(Math.random()*250); // 150-400フレームごと（超頻繁！）
+    jumpScare=45;
+    jumpscareFace=~~(Math.random()*5);
     playStatic();
-    setTimeout(()=>playScream(),100);
+    setTimeout(()=>playScream(),80);
+    shakeX=(Math.random()-0.5)*30; shakeY=(Math.random()-0.5)*30;
   }
   if(jumpScare>0) jumpScare--;
 }
 
-// ======== フリッカー ========
+// ======== フリッカー（もっと激しく） ========
 function updateFlicker(){
   flickerTimer++;
-  if(flickerTimer%120===0){
-    // ランダムに電気が消える
+  if(flickerTimer%70===0){ // 70フレームごと（より頻繁）
     flickerOn=false;
-    setTimeout(()=>{ flickerOn=true; },80+~~(Math.random()*200));
-    if(Math.random()<0.3) setTimeout(()=>{
+    setTimeout(()=>{ flickerOn=true; },60+~~(Math.random()*300));
+    // 二重フリッカー
+    if(Math.random()<0.5) setTimeout(()=>{
       flickerOn=false;
-      setTimeout(()=>flickerOn=true,60);
-    },300);
-    playStatic();
+      setTimeout(()=>flickerOn=true,50+~~(Math.random()*150));
+    },200);
+    // 三重フリッカー
+    if(Math.random()<0.25) setTimeout(()=>{
+      flickerOn=false;
+      setTimeout(()=>flickerOn=true,40);
+    },500);
   }
 }
 
 // ======== ハートビート ========
 function updateHeartbeat(){
-  const minDist=monsters.reduce((min,m)=>Math.min(min,Math.hypot(player.x-m.x,player.y-m.y)),9999);
-  const rate=Math.max(20,Math.min(90,~~(minDist/4)));
+  const minDist=monsters.reduce((min,m)=>m.respawnTimer>0?min:Math.min(min,Math.hypot(player.x-m.x,player.y-m.y)),9999);
+  const rate=Math.max(15,Math.min(80,~~(minDist/4)));
   heartbeatTimer++;
   if(heartbeatTimer>=rate){
     heartbeatTimer=0;
-    playHeartbeat();
+    playHeartbeat(minDist<TILE*4);
   }
   return minDist;
 }
 
+// ======== 画面シェイク更新 ========
+function updateShake(){
+  shakeX*=0.85; shakeY*=0.85;
+  const minDist=monsters.reduce((min,m)=>m.respawnTimer>0?min:Math.min(min,Math.hypot(player.x-m.x,player.y-m.y)),9999);
+  if(minDist<TILE*3){
+    const s=(TILE*3-minDist)/(TILE*3)*4;
+    shakeX+=(Math.random()-0.5)*s;
+    shakeY+=(Math.random()-0.5)*s;
+  }
+}
+
+// ======== 不気味なメッセージ ========
+function updateCreepyMsg(){
+  creepyMsgTimer++;
+  if(creepyMsgTimer>200+~~(Math.random()*300)){
+    creepyMsgTimer=0;
+    creepyMsg=CREEPY_MSGS[~~(Math.random()*CREEPY_MSGS.length)];
+    setTimeout(()=>creepyMsg='',1500+Math.random()*1000);
+    if(Math.random()<0.3) playWhisper();
+    if(Math.random()<0.2) playChildLaugh();
+  }
+}
+
+// ======== ゴーストの幻 ========
+function updateGhostApparition(){
+  if(ghostApparition>0){ ghostApparition--; return; }
+  if(Math.random()<0.003){
+    ghostApparition=60+~~(Math.random()*60);
+  }
+}
+
 function doAttack(){
   if(attackTimer>0) return;
-  attackTimer=30;
-  attackFlash=15;
+  attackTimer=30; attackFlash=15;
   playHit();
   for(const m of monsters){
     if(m.dying||m.respawnTimer>0) continue;
-    const dist=Math.hypot(player.x-m.x, player.y-m.y);
+    const dist=Math.hypot(player.x-m.x,player.y-m.y);
     if(dist<TILE*1.8){
       m.hp--;
       m.hitFlash=20;
@@ -360,9 +556,10 @@ function doAttack(){
         m.dying=true; m.dyingTimer=60;
         killCount++;
         playMonsterDie();
-        bloodAlpha=0.5;
+        bloodAlpha=0.6;
       } else {
         playHit();
+        shakeX=(Math.random()-0.5)*15; shakeY=(Math.random()-0.5)*15;
       }
     }
   }
@@ -370,110 +567,132 @@ function doAttack(){
 
 // ======== 描画 ========
 
-// 怖い顔を描く（ジャンプスケア）
+// ジャンプスケア顔（5種類！）
 function drawScaryFace(type){
   const scale=Math.min(W,H)*0.85;
   cx.save();
   cx.translate(W/2,H/2);
 
   if(type===0){
-    // 血まみれ幽霊顔
-    cx.fillStyle='#111';
-    cx.fillRect(-W/2,-H/2,W,H);
-    // 顔
-    cx.fillStyle='#ddd';
+    // 血まみれ幽霊
+    cx.fillStyle='#0a0000'; cx.fillRect(-W/2,-H/2,W,H);
+    cx.fillStyle='#ccc';
     cx.beginPath(); cx.ellipse(0,0,scale*0.35,scale*0.42,0,0,Math.PI*2); cx.fill();
-    // 目（黒い穴）
     cx.fillStyle='#000';
     cx.beginPath(); cx.ellipse(-scale*0.12,-scale*0.06,scale*0.1,scale*0.14,0,0,Math.PI*2); cx.fill();
     cx.beginPath(); cx.ellipse(scale*0.12,-scale*0.06,scale*0.1,scale*0.14,0,0,Math.PI*2); cx.fill();
-    // 赤い目の光
     cx.fillStyle='#cc0000';
     cx.beginPath(); cx.ellipse(-scale*0.12,-scale*0.06,scale*0.05,scale*0.07,0,0,Math.PI*2); cx.fill();
     cx.beginPath(); cx.ellipse(scale*0.12,-scale*0.06,scale*0.05,scale*0.07,0,0,Math.PI*2); cx.fill();
-    // 口（大きく開いた口）
     cx.fillStyle='#000';
-    cx.beginPath(); cx.ellipse(0,scale*0.12,scale*0.2,scale*0.15,0,0,Math.PI*2); cx.fill();
-    // 歯
+    cx.beginPath(); cx.ellipse(0,scale*0.12,scale*0.22,scale*0.17,0,0,Math.PI*2); cx.fill();
     cx.fillStyle='#ccc';
-    for(let i=-3;i<=3;i++){
-      cx.fillRect(i*scale*0.055-scale*0.025,scale*0.03,scale*0.04,scale*0.1);
-    }
-    // 血
-    cx.fillStyle='#aa0000';
-    for(let i=0;i<8;i++){
+    for(let i=-3;i<=3;i++) cx.fillRect(i*scale*0.055-scale*0.025,scale*0.03,scale*0.04,scale*0.1);
+    cx.lineWidth=3+Math.random()*6; cx.strokeStyle='#aa0000';
+    for(let i=0;i<12;i++){
       cx.beginPath();
-      cx.moveTo((Math.random()-0.5)*scale*0.4,scale*0.22);
-      cx.quadraticCurveTo((Math.random()-0.5)*scale*0.1,scale*0.3,(Math.random()-0.5)*scale*0.15,scale*0.45);
-      cx.lineWidth=3+Math.random()*6;
-      cx.strokeStyle='#aa0000';
+      cx.moveTo((Math.random()-0.5)*scale*0.5,scale*0.22);
+      cx.quadraticCurveTo((Math.random()-0.5)*scale*0.2,scale*0.35,(Math.random()-0.5)*scale*0.2,scale*0.5);
       cx.stroke();
     }
-    // 髪（乱れた）
-    cx.fillStyle='#111';
+    cx.lineWidth=14; cx.strokeStyle='#111';
     for(let i=-5;i<=5;i++){
       cx.beginPath();
       cx.moveTo(i*scale*0.07,-scale*0.4);
-      cx.quadraticCurveTo(i*scale*0.1+scale*0.05*(Math.random()-0.5),-scale*0.55,i*scale*0.08+scale*0.08*(Math.random()-0.5),-scale*0.7);
-      cx.lineWidth=12;
-      cx.strokeStyle='#111';
+      cx.quadraticCurveTo(i*scale*0.1+scale*0.06*(Math.random()-0.5),-scale*0.6,i*scale*0.08+scale*0.1*(Math.random()-0.5),-scale*0.75);
       cx.stroke();
     }
+    cx.fillStyle='#ff0000'; cx.font=`bold ${~~(scale*0.13)}px serif`; cx.textAlign='center';
+    cx.fillText('みつけた', 0, scale*0.65);
   } else if(type===1){
     // 骸骨
-    cx.fillStyle='#000';
-    cx.fillRect(-W/2,-H/2,W,H);
+    cx.fillStyle='#000'; cx.fillRect(-W/2,-H/2,W,H);
     cx.fillStyle='#eee';
     cx.beginPath(); cx.ellipse(0,-scale*0.05,scale*0.3,scale*0.35,0,0,Math.PI*2); cx.fill();
-    // 目（穴）
     cx.fillStyle='#000';
     cx.beginPath(); cx.ellipse(-scale*0.1,-scale*0.1,scale*0.09,scale*0.11,0,0,Math.PI*2); cx.fill();
     cx.beginPath(); cx.ellipse(scale*0.1,-scale*0.1,scale*0.09,scale*0.11,0,0,Math.PI*2); cx.fill();
-    // 青白い目光
-    cx.fillStyle='rgba(100,150,255,0.8)';
+    cx.fillStyle='rgba(100,150,255,0.9)';
     cx.beginPath(); cx.ellipse(-scale*0.1,-scale*0.1,scale*0.04,scale*0.05,0,0,Math.PI*2); cx.fill();
     cx.beginPath(); cx.ellipse(scale*0.1,-scale*0.1,scale*0.04,scale*0.05,0,0,Math.PI*2); cx.fill();
-    // 鼻（穴）
     cx.fillStyle='#000';
     cx.beginPath(); cx.moveTo(0,scale*0.02); cx.lineTo(-scale*0.05,scale*0.1); cx.lineTo(scale*0.05,scale*0.1); cx.fill();
-    // 歯（ガタガタ）
     cx.fillStyle='#eee';
     for(let i=-4;i<=4;i++){
       const h=scale*0.12*(i%2===0?1:0.7);
       cx.fillRect(i*scale*0.06-scale*0.025,scale*0.15,scale*0.04,h);
     }
-    cx.fillStyle='#000';
-    cx.beginPath(); cx.ellipse(0,scale*0.2,scale*0.25,scale*0.1,0,0,Math.PI*2); cx.fill();
-    // 文字
-    cx.fillStyle='#cc0000';
-    cx.font=`bold ${~~(scale*0.15)}px serif`;
-    cx.textAlign='center';
-    cx.fillText('みつけた…', 0, scale*0.48);
-  } else {
+    cx.fillStyle='#cc0000'; cx.font=`bold ${~~(scale*0.15)}px serif`; cx.textAlign='center';
+    cx.fillText('みつけた…', 0, scale*0.52);
+  } else if(type===2){
     // 暗闇の目
-    cx.fillStyle='#050000';
-    cx.fillRect(-W/2,-H/2,W,H);
-    // じわっと広がる赤い目
-    const pulse=Math.sin(Date.now()*0.01)*0.05+1;
-    const gL=cx.createRadialGradient(-scale*0.2,0,0,-scale*0.2,0,scale*0.18*pulse);
-    gL.addColorStop(0,'#ff2200'); gL.addColorStop(0.4,'#880000'); gL.addColorStop(1,'transparent');
+    cx.fillStyle='#030000'; cx.fillRect(-W/2,-H/2,W,H);
+    const pulse=Math.sin(Date.now()*0.008)*0.07+1;
+    const gL=cx.createRadialGradient(-scale*0.22,0,0,-scale*0.22,0,scale*0.22*pulse);
+    gL.addColorStop(0,'#ff1100'); gL.addColorStop(0.4,'#990000'); gL.addColorStop(1,'transparent');
     cx.fillStyle=gL;
-    cx.beginPath(); cx.ellipse(-scale*0.2,0,scale*0.18*pulse,scale*0.12*pulse,0,0,Math.PI*2); cx.fill();
-    const gR=cx.createRadialGradient(scale*0.2,0,0,scale*0.2,0,scale*0.18*pulse);
-    gR.addColorStop(0,'#ff2200'); gR.addColorStop(0.4,'#880000'); gR.addColorStop(1,'transparent');
+    cx.beginPath(); cx.ellipse(-scale*0.22,0,scale*0.22*pulse,scale*0.14*pulse,0,0,Math.PI*2); cx.fill();
+    const gR=cx.createRadialGradient(scale*0.22,0,0,scale*0.22,0,scale*0.22*pulse);
+    gR.addColorStop(0,'#ff1100'); gR.addColorStop(0.4,'#990000'); gR.addColorStop(1,'transparent');
     cx.fillStyle=gR;
-    cx.beginPath(); cx.ellipse(scale*0.2,0,scale*0.18*pulse,scale*0.12*pulse,0,0,Math.PI*2); cx.fill();
+    cx.beginPath(); cx.ellipse(scale*0.22,0,scale*0.22*pulse,scale*0.14*pulse,0,0,Math.PI*2); cx.fill();
+    cx.fillStyle='#000';
+    cx.beginPath(); cx.ellipse(-scale*0.22,0,scale*0.07,scale*0.1,0,0,Math.PI*2); cx.fill();
+    cx.beginPath(); cx.ellipse(scale*0.22,0,scale*0.07,scale*0.1,0,0,Math.PI*2); cx.fill();
+    cx.fillStyle='rgba(200,0,0,0.5)';
+    cx.beginPath(); cx.ellipse(0,scale*0.28,scale*0.25,scale*0.07,0,0,Math.PI*2); cx.fill();
+    cx.fillStyle='#cc0000'; cx.font=`bold ${~~(scale*0.13)}px serif`; cx.textAlign='center';
+    cx.fillText('にげられない', 0, scale*0.5);
+  } else if(type===3){
+    // 子どもの幽霊（超怖い）
+    cx.fillStyle='#000508'; cx.fillRect(-W/2,-H/2,W,H);
+    // 青白い子どもの顔
+    cx.fillStyle='#8899bb';
+    cx.beginPath(); cx.ellipse(0,-scale*0.05,scale*0.25,scale*0.3,0,0,Math.PI*2); cx.fill();
+    // うつろな目
+    cx.fillStyle='#000';
+    cx.beginPath(); cx.ellipse(-scale*0.1,-scale*0.12,scale*0.07,scale*0.09,0,0,Math.PI*2); cx.fill();
+    cx.beginPath(); cx.ellipse(scale*0.1,-scale*0.12,scale*0.07,scale*0.09,0,0,Math.PI*2); cx.fill();
+    // 白く光る瞳
+    cx.fillStyle='#ffffff';
+    cx.beginPath(); cx.ellipse(-scale*0.1,-scale*0.12,scale*0.03,scale*0.04,0,0,Math.PI*2); cx.fill();
+    cx.beginPath(); cx.ellipse(scale*0.1,-scale*0.12,scale*0.03,scale*0.04,0,0,Math.PI*2); cx.fill();
+    // 口（一文字）
+    cx.fillStyle='#335566';
+    cx.beginPath(); cx.ellipse(0,scale*0.08,scale*0.1,scale*0.03,0,0,Math.PI*2); cx.fill();
+    // 体（透明）
+    cx.strokeStyle='rgba(100,150,200,0.4)'; cx.lineWidth=3;
+    cx.beginPath(); cx.ellipse(0,scale*0.28,scale*0.15,scale*0.25,0,0,Math.PI*2); cx.stroke();
+    // 文字
+    cx.fillStyle='#6688aa'; cx.font=`bold ${~~(scale*0.11)}px serif`; cx.textAlign='center';
+    cx.fillText('…いっしょにいよ', 0, scale*0.65);
+  } else {
+    // 超接写の目（新しい！）
+    cx.fillStyle='#010000'; cx.fillRect(-W/2,-H/2,W,H);
+    // 巨大な目が迫ってくる
+    const p2=Math.abs(Math.sin(Date.now()*0.005))*0.3+0.9;
+    cx.fillStyle='#ffddaa';
+    cx.beginPath(); cx.ellipse(0,0,scale*0.6*p2,scale*0.35*p2,0,0,Math.PI*2); cx.fill();
+    // 虹彩
+    const gi=cx.createRadialGradient(0,0,0,0,0,scale*0.22*p2);
+    gi.addColorStop(0,'#550000'); gi.addColorStop(0.5,'#880000'); gi.addColorStop(1,'#553300');
+    cx.fillStyle=gi;
+    cx.beginPath(); cx.ellipse(0,0,scale*0.22*p2,scale*0.22*p2,0,0,Math.PI*2); cx.fill();
     // 瞳孔
     cx.fillStyle='#000';
-    cx.beginPath(); cx.ellipse(-scale*0.2,0,scale*0.06,scale*0.09,0,0,Math.PI*2); cx.fill();
-    cx.beginPath(); cx.ellipse(scale*0.2,0,scale*0.06,scale*0.09,0,0,Math.PI*2); cx.fill();
-    // 口元（薄く）
-    cx.fillStyle='rgba(180,0,0,0.5)';
-    cx.beginPath(); cx.ellipse(0,scale*0.25,scale*0.22,scale*0.06,0,0,Math.PI*2); cx.fill();
-    cx.fillStyle='#cc0000';
-    cx.font=`bold ${~~(scale*0.12)}px serif`;
-    cx.textAlign='center';
-    cx.fillText('にげられない', 0, scale*0.45);
+    cx.beginPath(); cx.ellipse(0,0,scale*0.1*p2,scale*0.15*p2,0,0,Math.PI*2); cx.fill();
+    // 血管
+    cx.strokeStyle='rgba(200,0,0,0.5)'; cx.lineWidth=2;
+    for(let i=0;i<8;i++){
+      const a=i/8*Math.PI*2;
+      cx.beginPath();
+      cx.moveTo(Math.cos(a)*scale*0.22*p2,Math.sin(a)*scale*0.15*p2);
+      cx.quadraticCurveTo(Math.cos(a+0.3)*scale*0.4*p2,Math.sin(a+0.3)*scale*0.25*p2,
+        Math.cos(a+0.1)*scale*0.55*p2,Math.sin(a+0.1)*scale*0.3*p2);
+      cx.stroke();
+    }
+    cx.fillStyle='#ff0000'; cx.font=`bold ${~~(scale*0.1)}px serif`; cx.textAlign='center';
+    cx.fillText('もうおわり', 0, scale*0.52);
   }
   cx.restore();
 }
@@ -486,101 +705,104 @@ function drawMap(){
       const sx=c*TILE-camX, sy=r*TILE-camY;
       const t=tileMap[r][c];
       if(t===T_WALL){
-        cx.fillStyle='#1a0a0a';
+        cx.fillStyle='#150808';
         cx.fillRect(sx,sy,TILE,TILE);
-        cx.fillStyle='#2a1010';
+        cx.fillStyle='#200d0d';
         cx.fillRect(sx+1,sy+1,TILE-2,TILE-2);
-        // ひび割れ
-        cx.strokeStyle='#111';
-        cx.lineWidth=1;
+        cx.strokeStyle='#0d0404'; cx.lineWidth=1;
         cx.beginPath(); cx.moveTo(sx+8,sy+4); cx.lineTo(sx+18,sy+24); cx.lineTo(sx+12,sy+40); cx.stroke();
+        // 壁に滲む血
+        if((r*11+c*7)%13===0){
+          cx.fillStyle='rgba(60,0,0,0.5)';
+          cx.fillRect(sx,sy+TILE*0.6,TILE,TILE*0.4);
+        }
       } else {
-        // 床
-        cx.fillStyle='#0d0808';
+        cx.fillStyle='#080506';
         cx.fillRect(sx,sy,TILE,TILE);
         if((r+c)%4===0){
-          cx.fillStyle='#120a0a';
+          cx.fillStyle='#0d0809';
           cx.fillRect(sx+1,sy+1,TILE-2,TILE-2);
         }
-        // 血のシミ（ランダム）
-        if((r*7+c*13)%17===0){
-          cx.fillStyle='rgba(80,0,0,0.4)';
-          cx.beginPath(); cx.ellipse(sx+TILE/2,sy+TILE/2,(r*3+c*5)%12+8,(r*5+c*7)%10+6,0,0,Math.PI*2); cx.fill();
+        // 血のシミ（多め）
+        if((r*7+c*13)%11===0){
+          cx.fillStyle='rgba(80,0,0,0.5)';
+          cx.beginPath(); cx.ellipse(sx+TILE/2,sy+TILE/2,(r*3+c*5)%14+8,(r*5+c*7)%12+6,0,0,Math.PI*2); cx.fill();
         }
       }
-      // 鍵
       if(t===T_KEY){
         const k=keyPositions.find(k=>k.r===r&&k.c===c);
         if(k&&!k.got){
           const bob=Math.sin(Date.now()*0.003+r)*4;
-          cx.font=`${TILE*0.7}px sans-serif`;
-          cx.textAlign='center';
+          cx.font=`${TILE*0.7}px sans-serif`; cx.textAlign='center';
           cx.fillText('🗝️',sx+TILE/2,sy+TILE/2+10+bob);
-          // 光る
           const gl=cx.createRadialGradient(sx+TILE/2,sy+TILE/2,0,sx+TILE/2,sy+TILE/2,TILE*0.8);
-          gl.addColorStop(0,'rgba(255,200,0,0.15)');
-          gl.addColorStop(1,'transparent');
+          gl.addColorStop(0,'rgba(255,200,0,0.15)'); gl.addColorStop(1,'transparent');
           cx.fillStyle=gl;
           cx.fillRect(sx,sy-TILE/2,TILE*2,TILE*2);
         }
       }
-      // 出口
       if(t===T_EXIT){
         const open=keys_collected>=totalKeys;
-        cx.fillStyle=open?'#004400':'#440000';
+        cx.fillStyle=open?'#003300':'#330000';
         cx.fillRect(sx+4,sy+4,TILE-8,TILE-8);
-        cx.font=`${TILE*0.65}px sans-serif`;
-        cx.textAlign='center';
+        cx.font=`${TILE*0.65}px sans-serif`; cx.textAlign='center';
         cx.fillText(open?'🚪':'🔒',sx+TILE/2,sy+TILE*0.75);
         if(open){
           const gl=cx.createRadialGradient(sx+TILE/2,sy+TILE/2,0,sx+TILE/2,sy+TILE/2,TILE);
-          gl.addColorStop(0,'rgba(0,255,100,0.2)');
-          gl.addColorStop(1,'transparent');
+          gl.addColorStop(0,'rgba(0,255,100,0.2)'); gl.addColorStop(1,'transparent');
           cx.fillStyle=gl;
           cx.fillRect(sx-TILE,sy-TILE,TILE*3,TILE*3);
         }
       }
     }
   }
+  // 血のしたたり
+  for(const d of bloodDrips){
+    const sx=d.x-camX, sy=d.y-camY;
+    if(sx<-10||sx>W+10||sy<-10||sy>H+80) continue;
+    d.cur=Math.min(d.cur+d.speed,d.len);
+    cx.fillStyle=`rgba(120,0,0,${d.alpha})`;
+    cx.fillRect(sx-2,sy,3,d.cur);
+    // 滴
+    if(d.cur>=d.len){
+      cx.beginPath(); cx.arc(sx,sy+d.len+3,3,0,Math.PI*2);
+      cx.fillStyle=`rgba(120,0,0,${d.alpha*0.7})`; cx.fill();
+    }
+  }
 }
 
 function drawPlayer(){
-  const sx=player.x-camX, sy=player.y-camY;
-  // 懐中電灯の光のコーン
-  const flashAngle = player.dir>0?0:Math.PI;
-  const flashRange = flickerOn?220:30;
+  const sx=player.x-camX+shakeX, sy=player.y-camY+shakeY;
+  const flashAngle=player.dir>0?0:Math.PI;
+  const flashRange=flickerOn?200:25; // さらに暗く
   const flashGrad=cx.createRadialGradient(sx,sy,0,sx,sy,flashRange);
-  flashGrad.addColorStop(0,'rgba(255,240,180,0.18)');
-  flashGrad.addColorStop(0.5,'rgba(255,240,180,0.06)');
+  flashGrad.addColorStop(0,'rgba(255,230,150,0.16)');
+  flashGrad.addColorStop(0.5,'rgba(255,230,150,0.05)');
   flashGrad.addColorStop(1,'transparent');
   cx.save();
   cx.translate(sx,sy);
   cx.rotate(flashAngle);
   cx.fillStyle=flashGrad;
-  cx.beginPath(); cx.moveTo(0,0); cx.arc(0,0,flashRange,-Math.PI*0.45,Math.PI*0.45); cx.fill();
+  cx.beginPath(); cx.moveTo(0,0); cx.arc(0,0,flashRange,-Math.PI*0.4,Math.PI*0.4); cx.fill();
   cx.restore();
-
-  // プレイヤー（暗くてほぼシルエット）
   cx.save();
   cx.translate(sx,sy);
   if(player.dir<0) cx.scale(-1,1);
-  cx.fillStyle='#554433';
+  cx.fillStyle='#443322';
   cx.fillRect(-10,-26,20,26);
-  cx.fillStyle='#ffe0b0';
+  cx.fillStyle='#ddc090';
   cx.beginPath(); cx.arc(0,-30,13,0,Math.PI*2); cx.fill();
-  cx.fillStyle='rgba(255,150,0,0.9)';
-  cx.beginPath(); cx.arc(16,-28,6,0,Math.PI*2); cx.fill(); // 懐中電灯
+  cx.fillStyle='rgba(255,140,0,0.9)';
+  cx.beginPath(); cx.arc(16,-28,6,0,Math.PI*2); cx.fill();
   cx.restore();
   if(attackFlash>0){
     attackFlash--;
-    const sx2=player.x-camX, sy2=player.y-camY;
     cx.save();
-    cx.translate(sx2,sy2);
+    cx.translate(sx,sy);
     cx.globalAlpha=attackFlash/15;
-    cx.strokeStyle='#ffffff';
-    cx.lineWidth=4;
+    cx.strokeStyle='#ffffff'; cx.lineWidth=4;
     cx.beginPath();
-    cx.arc(player.dir*30, 0, TILE*1.5, -Math.PI*0.5, Math.PI*0.5);
+    cx.arc(player.dir*30,0,TILE*1.5,-Math.PI*0.5,Math.PI*0.5);
     cx.stroke();
     cx.globalAlpha=1;
     cx.restore();
@@ -589,167 +811,210 @@ function drawPlayer(){
 
 function drawMonster(m){
   if(m.respawnTimer>0) return;
-  const sx=m.x-camX, sy=m.y-camY;
-  if(sx<-80||sx>W+80||sy<-80||sy>H+80) return;
+  const sx=m.x-camX+shakeX, sy=m.y-camY+shakeY;
+  if(sx<-100||sx>W+100||sy<-100||sy>H+100) return;
   const t=Date.now()*0.004;
-  // モンスターは暗くてぼんやり
   cx.save();
   cx.translate(sx,sy);
-  cx.globalAlpha = m.dying ? m.dyingTimer/60 : (m.hitFlash>0 ? 0.5+Math.sin(m.hitFlash)*0.5 : 0.85);
-  // 体（影のようなもや）
-  const grad=cx.createRadialGradient(0,0,0,0,0,m.size*2.5);
+  cx.globalAlpha=m.dying?m.dyingTimer/60:(m.hitFlash>0?0.5+Math.sin(m.hitFlash)*0.5:0.9);
+  const grad=cx.createRadialGradient(0,0,0,0,0,m.size*2.8);
   grad.addColorStop(0,m.color);
   grad.addColorStop(0.5,m.color+'88');
   grad.addColorStop(1,'transparent');
   cx.fillStyle=grad;
-  cx.beginPath(); cx.arc(0,Math.sin(t)*3,m.size*2.5,0,Math.PI*2); cx.fill();
-  // 目（赤く光る）
-  cx.globalAlpha=0.9+Math.sin(t*3)*0.1;
+  cx.beginPath(); cx.arc(0,Math.sin(t)*4,m.size*2.8,0,Math.PI*2); cx.fill();
+  cx.globalAlpha=0.95+Math.sin(t*3)*0.05;
   cx.fillStyle=m.eyeColor;
   cx.beginPath(); cx.ellipse(-8,Math.sin(t)*3-4,7,9,0,0,Math.PI*2); cx.fill();
   cx.beginPath(); cx.ellipse(8,Math.sin(t)*3-4,7,9,0,0,Math.PI*2); cx.fill();
   cx.fillStyle='#000';
   cx.beginPath(); cx.ellipse(-8,Math.sin(t)*3-4,3,4,0,0,Math.PI*2); cx.fill();
   cx.beginPath(); cx.ellipse(8,Math.sin(t)*3-4,3,4,0,0,Math.PI*2); cx.fill();
+  // モンスター名（暗くて見えにくい）
+  cx.globalAlpha=0.25;
+  cx.fillStyle='#ff0000'; cx.font='9px serif'; cx.textAlign='center';
+  cx.fillText(m.name,-0,-m.size*3);
   if(m.hitFlash>0){
-    cx.globalAlpha=m.hitFlash/20*0.6;
+    cx.globalAlpha=m.hitFlash/20*0.7;
     cx.fillStyle='#fff';
     cx.beginPath(); cx.arc(0,0,m.size*2,0,Math.PI*2); cx.fill();
   }
   if(m.dying){
     cx.globalAlpha=m.dyingTimer/60;
-    cx.fillStyle='#ff0000';
-    cx.font=`${30+~~(m.dyingTimer*0.5)}px sans-serif`;
-    cx.textAlign='center';
-    cx.fillText('💥',0,-30);
+    cx.fillStyle='#ff0000'; cx.font=`${30+~~(m.dyingTimer*0.5)}px sans-serif`; cx.textAlign='center';
+    cx.fillText('💥',0,-35);
   }
   cx.restore();
 }
 
+// ゴーストの幻（画面の端に）
+function drawGhostApparition(){
+  if(ghostApparition<=0) return;
+  const alpha=Math.min(1,ghostApparition/30)*0.4;
+  cx.save();
+  cx.globalAlpha=alpha;
+  const gx=W*0.8, gy=H*0.3;
+  cx.fillStyle='rgba(150,200,255,0.5)';
+  cx.beginPath(); cx.ellipse(gx,gy,20,26,0,0,Math.PI*2); cx.fill();
+  cx.fillStyle='#000';
+  cx.beginPath(); cx.ellipse(gx-8,gy-5,5,7,0,0,Math.PI*2); cx.fill();
+  cx.beginPath(); cx.ellipse(gx+8,gy-5,5,7,0,0,Math.PI*2); cx.fill();
+  cx.restore();
+}
+
 function drawDarkness(){
-  // 画面全体を暗くする（懐中電灯エフェクト）
-  const sx=player.x-camX, sy=player.y-camY;
-  const flashRange=flickerOn?180:25;
-  const dark=cx.createRadialGradient(sx,sy,flashRange*0.3,sx,sy,flashRange*2.2);
+  const sx=player.x-camX+shakeX, sy=player.y-camY+shakeY;
+  const flashRange=flickerOn?155:18; // もっと暗い
+  const dark=cx.createRadialGradient(sx,sy,flashRange*0.25,sx,sy,flashRange*2.5);
   dark.addColorStop(0,'rgba(0,0,0,0)');
-  dark.addColorStop(0.5,'rgba(0,0,0,0.7)');
-  dark.addColorStop(1,'rgba(0,0,0,0.97)');
+  dark.addColorStop(0.45,'rgba(0,0,0,0.75)');
+  dark.addColorStop(1,'rgba(0,0,0,0.99)');
   cx.fillStyle=dark;
   cx.fillRect(0,0,W,H);
 }
 
 function drawHUD(){
-  // 上部のHUD（暗め）
-  cx.fillStyle='rgba(0,0,0,0.7)';
+  cx.fillStyle='rgba(0,0,0,0.75)';
   cx.fillRect(0,0,W,50);
-  // 鍵アイコン
   cx.font='20px sans-serif'; cx.textAlign='left';
   cx.fillText('🗝️ '+keys_collected+' / '+totalKeys, 10, 34);
-  cx.fillStyle='rgba(255,200,200,0.9)';
+  cx.fillStyle='rgba(255,190,190,0.9)';
   cx.font='16px sans-serif'; cx.textAlign='right';
   cx.fillText('💀 '+killCount+'体やっつけた', W-10, 34);
-  // 攻撃のヒント
-  cx.fillStyle='rgba(255,255,100,0.8)';
+  cx.fillStyle='rgba(255,255,80,0.75)';
   cx.font='13px sans-serif'; cx.textAlign='center';
   cx.fillText('Z/スペース：攻撃', W/2, H-10);
-  // 距離に応じて警告
-  const minDist=monsters.reduce((mn,m)=>Math.min(mn,Math.hypot(player.x-m.x,player.y-m.y)),9999);
-  if(minDist<TILE*4){
-    const danger=Math.min(1,(TILE*4-minDist)/(TILE*3));
-    cx.fillStyle=`rgba(200,0,0,${danger*0.4})`;
+
+  const minDist=monsters.reduce((mn,m)=>m.respawnTimer>0?mn:Math.min(mn,Math.hypot(player.x-m.x,player.y-m.y)),9999);
+  if(minDist<TILE*5){
+    const danger=Math.min(1,(TILE*5-minDist)/(TILE*4));
+    cx.fillStyle=`rgba(180,0,0,${danger*0.5})`;
     cx.fillRect(0,0,W,H);
     cx.fillStyle=`rgba(255,0,0,${danger})`;
-    cx.font=`bold ${24+~~(danger*20)}px serif`;
+    cx.font=`bold ${28+~~(danger*22)}px serif`;
     cx.textAlign='center';
-    cx.fillText('⚠ にげろ！！', W/2, 80);
+    cx.shadowColor='#ff0000'; cx.shadowBlur=20;
+    cx.fillText('⚠ にげろ！！', W/2, 85);
+    cx.shadowBlur=0;
   }
-  // 血エフェクト
+
+  // 不気味なメッセージ
+  if(creepyMsg){
+    const alpha=0.5+Math.sin(Date.now()*0.003)*0.3;
+    cx.fillStyle=`rgba(180,0,0,${alpha})`;
+    cx.font=`bold ${Math.min(36,W/14)}px serif`;
+    cx.textAlign='center';
+    cx.shadowColor='#ff0000'; cx.shadowBlur=25;
+    cx.fillText(creepyMsg, W/2+Math.sin(Date.now()*0.01)*5, H/2);
+    cx.shadowBlur=0;
+  }
+
   if(bloodAlpha>0){
     cx.fillStyle=`rgba(150,0,0,${bloodAlpha})`;
     cx.fillRect(0,0,W,H);
-    bloodAlpha-=0.015;
+    bloodAlpha-=0.012;
+  }
+}
+
+// グリッチエフェクト
+function drawGlitch(){
+  if(Math.random()>0.04) return;
+  const lines=3+~~(Math.random()*6);
+  for(let i=0;i<lines;i++){
+    const y=~~(Math.random()*H);
+    const h=1+~~(Math.random()*4);
+    const shift=(Math.random()-0.5)*20;
+    const imgData=cx.getImageData(0,y,W,h);
+    cx.putImageData(imgData,shift,y);
+    // 色ずれ
+    cx.fillStyle=`rgba(${~~(Math.random()*200)},0,0,0.15)`;
+    cx.fillRect(0,y,W,h);
   }
 }
 
 function drawTitle(){
   cx.fillStyle='#000'; cx.fillRect(0,0,W,H);
-  // ちらつく赤
-  if(Math.random()<0.05){
-    cx.fillStyle='rgba(100,0,0,0.3)';
+  if(Math.random()<0.08){
+    cx.fillStyle='rgba(120,0,0,0.35)';
     cx.fillRect(0,0,W,H);
   }
   const t=Date.now();
-  // タイトル（不気味なフォント）
   cx.save();
-  cx.translate(W/2, H/2);
-  const shake=Math.sin(t*0.002)*2;
+  cx.translate(W/2,H/2);
+  const shake=Math.sin(t*0.0025)*3;
   cx.rotate(shake*0.01);
-  cx.fillStyle='#660000';
-  cx.font=`bold ${Math.min(52,W/9)}px serif`;
+  cx.fillStyle='#770000';
+  cx.font=`bold ${Math.min(50,W/8)}px serif`;
   cx.textAlign='center';
-  cx.shadowColor='#ff0000'; cx.shadowBlur=30;
-  cx.fillText('廃病院からの脱出',shake,H*-0.28);
+  cx.shadowColor='#ff0000'; cx.shadowBlur=40;
+  cx.fillText('廃病院からの脱出',shake,H*-0.3);
   cx.shadowBlur=0;
-  cx.fillStyle='#aa0000';
-  cx.font=`bold ${Math.min(28,W/15)}px serif`;
-  cx.fillText('── 呪われた病院 ──',0,H*-0.18);
+  cx.fillStyle='#990000';
+  cx.font=`bold ${Math.min(26,W/16)}px serif`;
+  cx.fillText('── 呪われた廃病院 ──',0,H*-0.19);
+  cx.shadowBlur=0;
 
-  cx.fillStyle='#888';
-  cx.font='16px sans-serif';
-  cx.fillText('🗝️ カギを全部集めて出口へ逃げろ',0,H*-0.02);
-  cx.fillText('👻 モンスターに捕まったらおわり',0,H*0.07);
-  cx.fillStyle='#444';
-  cx.font='14px sans-serif';
-  cx.fillText('↑↓←→ / WASD で移動',0,H*0.18);
-  cx.fillStyle='#666';
-  cx.font='13px sans-serif';
-  cx.fillText('Z/スペース：攻撃！おばけをやっつけろ！',0,H*0.26);
+  cx.fillStyle='#777'; cx.font='15px sans-serif';
+  cx.fillText('🗝️ カギを全部集めて出口へ逃げろ',0,H*-0.04);
+  cx.fillText('👻 3体のモンスターが追いかけてくる！',0,H*0.05);
+  cx.fillStyle='#444'; cx.font='14px sans-serif';
+  cx.fillText('↑↓←→ / WASD で移動',0,H*0.15);
+  cx.fillStyle='#555'; cx.font='13px sans-serif';
+  cx.fillText('Z/スペース：攻撃してやっつけろ！',0,H*0.23);
 
-  const blink=Math.floor(t/700)%2;
+  const blink=Math.floor(t/650)%2;
   if(blink){
-    cx.fillStyle='#cc0000'; cx.shadowColor='#ff0000'; cx.shadowBlur=15;
-    cx.font=`bold 22px serif`;
-    cx.fillText('▶ スペースキーでスタート',0,H*0.3);
+    cx.fillStyle='#dd0000'; cx.shadowColor='#ff0000'; cx.shadowBlur=20;
+    cx.font='bold 22px serif';
+    cx.fillText('▶ スペースキーでスタート',0,H*0.28);
     cx.shadowBlur=0;
   }
 
-  // 赤い目
+  // タイトルの赤い目
+  const ep=Math.sin(t*0.002)*0.1+1;
   cx.fillStyle='#cc0000';
-  cx.beginPath(); cx.ellipse(-W*0.35, H*0.35, 18,25,0,0,Math.PI*2); cx.fill();
-  cx.beginPath(); cx.ellipse(W*0.35, H*0.35, 18,25,0,0,Math.PI*2); cx.fill();
+  cx.beginPath(); cx.ellipse(-W*0.38,H*0.38,18*ep,25*ep,0,0,Math.PI*2); cx.fill();
+  cx.beginPath(); cx.ellipse(W*0.38,H*0.38,18*ep,25*ep,0,0,Math.PI*2); cx.fill();
   cx.fillStyle='#000';
-  cx.beginPath(); cx.ellipse(-W*0.35, H*0.35, 7,10,0,0,Math.PI*2); cx.fill();
-  cx.beginPath(); cx.ellipse(W*0.35, H*0.35, 7,10,0,0,Math.PI*2); cx.fill();
-
+  cx.beginPath(); cx.ellipse(-W*0.38,H*0.38,7,10,0,0,Math.PI*2); cx.fill();
+  cx.beginPath(); cx.ellipse(W*0.38,H*0.38,7,10,0,0,Math.PI*2); cx.fill();
   cx.restore();
+
+  // タイトルでもグリッチ
+  if(Math.random()<0.03) drawGlitch();
 }
 
 function drawDeath(){
   deathTimer++;
   if(jumpScare>0){
     drawScaryFace(jumpscareFace);
-    // ノイズライン
-    for(let i=0;i<8;i++){
-      cx.fillStyle=`rgba(255,0,0,${Math.random()*0.3})`;
-      cx.fillRect(0,~~(Math.random()*H),W,2+~~(Math.random()*4));
+    for(let i=0;i<12;i++){
+      cx.fillStyle=`rgba(255,0,0,${Math.random()*0.35})`;
+      cx.fillRect(0,~~(Math.random()*H),W,2+~~(Math.random()*5));
     }
+    jumpScare--;
   } else {
     cx.fillStyle='#000'; cx.fillRect(0,0,W,H);
-    cx.fillStyle='#880000';
-    cx.font=`bold ${Math.min(64,W/8)}px serif`;
+    // 血の滴り
+    for(let i=0;i<5;i++){
+      cx.fillStyle=`rgba(150,0,0,${0.4+Math.random()*0.3})`;
+      cx.fillRect(W*0.1+i*W*0.18,0,8,H*0.3+Math.random()*H*0.4);
+    }
+    cx.fillStyle='#990000';
+    cx.font=`bold ${Math.min(62,W/8)}px serif`;
     cx.textAlign='center';
-    cx.shadowColor='#ff0000'; cx.shadowBlur=40;
+    cx.shadowColor='#ff0000'; cx.shadowBlur=50;
     cx.fillText('つかまった…', W/2, H/2-40);
     cx.shadowBlur=0;
-    cx.fillStyle='#555';
+    cx.fillStyle='#444';
     cx.font='20px sans-serif';
-    cx.fillText('スペースでもういっかい', W/2, H/2+40);
+    cx.fillText('スペースでもういっかい', W/2, H/2+50);
   }
 }
 
 function drawWin(){
   winTimer++;
-  cx.fillStyle='rgba(0,50,0,'+Math.min(1,winTimer/60)+')';
+  cx.fillStyle=`rgba(0,40,0,${Math.min(1,winTimer/60)})`;
   cx.fillRect(0,0,W,H);
   if(winTimer>60){
     cx.fillStyle='#00ff66';
@@ -758,8 +1023,7 @@ function drawWin(){
     cx.shadowColor='#00ff00'; cx.shadowBlur=30;
     cx.fillText('脱出成功！！', W/2, H/2-40);
     cx.shadowBlur=0;
-    cx.fillStyle='#aaa';
-    cx.font='20px sans-serif';
+    cx.fillStyle='#aaa'; cx.font='20px sans-serif';
     cx.fillText('よく生き残った…', W/2, H/2+20);
     cx.fillText('スペースでタイトルへ', W/2, H/2+60);
   }
@@ -778,30 +1042,44 @@ function loop(){
     updateJumpScare();
     updateFlicker();
     updateHeartbeat();
+    updateShake();
+    updateCreepyMsg();
+    updateGhostApparition();
     if(bloodAlpha>0) bloodAlpha-=0.008;
   }
+
+  cx.save();
+  cx.translate(~~shakeX, ~~shakeY); // 画面シェイク
 
   drawMap();
   for(const m of monsters) drawMonster(m);
   drawPlayer();
+  drawGhostApparition();
   drawDarkness();
   drawHUD();
+  drawGlitch();
 
-  // スタティックノイズ
-  if(Math.random()<0.02||!flickerOn){
-    for(let i=0;i<6;i++){
-      cx.fillStyle=`rgba(255,255,255,${Math.random()*0.06})`;
+  // スタティックノイズ（多め）
+  if(Math.random()<0.04||!flickerOn){
+    for(let i=0;i<10;i++){
+      cx.fillStyle=`rgba(255,255,255,${Math.random()*0.07})`;
       cx.fillRect(0,~~(Math.random()*H),W,1+~~(Math.random()*3));
     }
   }
+  // 暗闇フリッカー時のフラッシュ
+  if(!flickerOn){
+    cx.fillStyle='rgba(0,0,0,0.6)';
+    cx.fillRect(0,0,W,H);
+  }
 
-  // ジャンプスケア（プレイ中もランダムで）
+  cx.restore();
+
+  // ジャンプスケア（全画面で上書き）
   if(jumpScare>0 && state==='play'){
-    const alpha=jumpScare>20?1:jumpScare/20;
+    const alpha=jumpScare>25?1:jumpScare/25;
     cx.globalAlpha=alpha;
     drawScaryFace(jumpscareFace);
     cx.globalAlpha=1;
-    jumpScare--;
   }
 
   if(state==='death') drawDeath();
@@ -813,9 +1091,9 @@ document.addEventListener('keydown',e=>{
   gameKeys[e.key.toLowerCase()]=true;
   if(e.key===' ') e.preventDefault();
   if(state==='title'&&(e.key===' '||e.key==='Enter')){ initAudio(); initGame(); state='play'; }
-  if(state==='death'&&jumpScare<=0&&(e.key===' '||e.key==='Enter')){ initGame(); state='play'; }
+  if(state==='death'&&jumpScare<=0&&deathTimer>30&&(e.key===' '||e.key==='Enter')){ initGame(); state='play'; }
   if(state==='win'&&winTimer>120&&(e.key===' '||e.key==='Enter')) state='title';
-  if(state==='play' && (e.key==='z'||e.key==='Z')) doAttack();
+  if(state==='play'&&(e.key==='z'||e.key==='Z')) doAttack();
 });
 document.addEventListener('keyup',e=>gameKeys[e.key.toLowerCase()]=false);
 
@@ -823,7 +1101,7 @@ window.addEventListener('touchstart',e=>{
   initAudio();
   document.getElementById('tc').classList.add('show');
   if(state==='title'){ initGame(); state='play'; }
-  if(state==='death'&&jumpScare<=0){ initGame(); state='play'; }
+  if(state==='death'&&jumpScare<=0&&deathTimer>30){ initGame(); state='play'; }
   if(state==='win'&&winTimer>120) state='title';
 },{once:false});
 
