@@ -58,10 +58,10 @@ body{
 #craft-ttl{font-size:clamp(14px,4.2vw,19px);font-weight:bold;color:#2d3436;flex:1;}
 
 #step-track{
-  width:100%;padding:7px 13px;display:flex;gap:4px;
-  background:#fff;border-bottom:1px solid #f0f0f0;
+  width:100%;padding:7px 13px;display:flex;gap:3px;
+  background:#fff;border-bottom:1px solid #f0f0f0;overflow-x:auto;
 }
-.stk{flex:1;height:6px;border-radius:4px;background:#dfe6e9;transition:background .4s;}
+.stk{flex:0 0 auto;min-width:18px;height:6px;border-radius:4px;background:#dfe6e9;transition:background .4s;}
 .stk.done{background:#00b894;}
 .stk.cur{background:#fdcb6e;box-shadow:0 0 5px rgba(253,203,110,.7);}
 
@@ -192,38 +192,79 @@ const CLICK='click', CIRCLE='circle', DRAG_LR='drag_lr', DRAG_UD='drag_ud', CRAC
 
 // ===== プロジェクト定義 =====
 const PROJECTS = [
+  // ========== ケーキ ==========
+  { id:'cake', emoji:'🎂', name:'ケーキ', desc:'農場から作る本格バースデーケーキ！', border:'#fdcb6e', steps:[
+    { emoji:'🚗', bg:['#e3f2fd','#90caf9'], label:'🚗 農場へドライブ！', hint:'← → 車を左右に操縦して農場へ！', interact:DRAG_LR, target:500, result:'農場に到着', rE:'🚗', freq:280 },
+    { emoji:'🍓', bg:['#fce4ec','#f48fb1'], label:'🍓 いちごを摘む', hint:'← → 左右に手を動かして摘もう！', interact:DRAG_LR, target:700, result:'いちご', rE:'🍓', freq:310 },
+    { emoji:'🐄', bg:['#e8f5e9','#c8e6c9'], label:'🥛 牛のおちちを搾る', hint:'↑↓ 上下に搾ろう！モー！', interact:DRAG_UD, target:650, result:'バター・クリーム', rE:'🧈', freq:280 },
+    { emoji:'🐔', bg:['#fffde7','#fff9c4'], label:'🥚 にわとりから卵を集める', hint:'👆 巣をタップ！コッコッコ！', interact:CLICK, target:6, result:'たまご', rE:'🥚', freq:340 },
+    { emoji:'🛒', bg:['#f3e5f5','#ce93d8'], label:'🌾 お店で小麦粉を買う', hint:'👆 棚の小麦粉をタップ！', interact:CLICK, target:4, result:'小麦粉', rE:'🌾', freq:360 },
+    { emoji:'🥣', bg:['#fce4ec','#f48fb1'], label:'🌀 全部ぐるぐる混ぜる！', hint:'ぐるぐる円を描こう！速く回すほどいい！', interact:CIRCLE, target:8, result:'生地', rE:'🫙', freq:300 },
+    { emoji:'🏺', bg:['#e8eaf6','#9fa8da'], label:'🏺 型に生地を流し込む', hint:'↑↓ 上からドバドバ流し込もう！', interact:DRAG_UD, target:600, result:'型入り生地', rE:'🫙', freq:320 },
+    { emoji:'🔥', bg:['#fbe9e7','#ffccbc'], label:'🔥 オーブンでじっくり焼く', hint:'温度を保って押し続けよう！離すと冷える！', interact:HOLD, target:5000, result:'焼きたてケーキ', rE:'🍮', freq:400 },
+    { emoji:'🌬️', bg:['#e0f7fa','#80deea'], label:'🌬️ 冷ます！うちわでパタパタ', hint:'👆 どんどんタップして扇ごう！', interact:CLICK, target:10, result:'冷めたケーキ', rE:'🍰', freq:420 },
+    { emoji:'🍦', bg:['#fce4ec','#f48fb1'], label:'🍦 クリームをぬりぬり', hint:'← → スパチュラを左右に動かして！', interact:DRAG_LR, target:800, result:'クリームがけ', rE:'🤍', freq:350 },
+    { emoji:'🍓', bg:['#fce4ec','#f48fb1'], label:'🍓 いちごをのせる！', hint:'👆 いちごをひとつずつのせよう！', interact:CLICK, target:7, result:'いちごのせ', rE:'🍓', freq:380 },
+    { emoji:'🕯️', bg:['#fffde7','#fff59d'], label:'🕯️ ろうそくをさす＆火をつける', hint:'👆 一本ずつさして火をつけよう！', interact:CLICK, target:6, result:'ケーキ', rE:'🎂', freq:450, final:true },
+  ]},
+
+  // ========== ロボット ==========
+  { id:'robot', emoji:'🤖', name:'ロボット', desc:'最強のロボットを素材から組み立てろ！', border:'#74b9ff', steps:[
+    { emoji:'⛏️', bg:['#efebe9','#bcaaa4'], label:'⛏️ 鉄鉱石を掘り出す', hint:'↑↓ 上から振り下ろそう！トンカン！', interact:DRAG_UD, target:900, result:'鉄鉱石', rE:'🪨', freq:180 },
+    { emoji:'🔥', bg:['#fbe9e7','#ffab91'], label:'🔥 溶鉱炉で鉄を溶かす', hint:'押し続けよう！離したら冷える！', interact:HOLD, target:4500, result:'溶けた鉄', rE:'🟥', freq:200 },
+    { emoji:'🔨', bg:['#eceff1','#b0bec5'], label:'🔨 鉄板にトンカン打つ', hint:'↑↓ 上から打ち込め！', interact:DRAG_UD, target:800, result:'鉄板', rE:'⬛', freq:220 },
+    { emoji:'✂️', bg:['#e8eaf6','#c5cae9'], label:'✂️ 金属を正確に切る', hint:'← → ハサミを左右にスパッと！', interact:DRAG_LR, target:700, result:'切った金属', rE:'🔩', freq:260 },
+    { emoji:'🔩', bg:['#e8f5e9','#a5d6a7'], label:'🔩 穴をぐるぐるドリルで開ける', hint:'ぐるぐる回してドリル！', interact:CIRCLE, target:5, result:'穴あき板', rE:'🔩', freq:280 },
+    { emoji:'⚙️', bg:['#f3e5f5','#ce93d8'], label:'⚙️ ネジを押し出す機械を動かす', hint:'👆 ガチャン！ガチャン！タップ！', interact:CLICK, target:8, result:'ネジ', rE:'🔩', freq:300 },
+    { emoji:'⚡', bg:['#fffde7','#fff59d'], label:'⚡ 電線を配線する', hint:'← → 丁寧に左右に引き回す！', interact:DRAG_LR, target:700, result:'回路', rE:'⚡', freq:320 },
+    { emoji:'🔋', bg:['#e0f2f1','#80cbc4'], label:'🔋 バッテリーをセット', hint:'👆 パチッとはめ込もう！', interact:CLICK, target:3, result:'電池', rE:'🔋', freq:340 },
+    { emoji:'🦾', bg:['#e8eaf6','#9fa8da'], label:'🦾 腕と足を一本ずつ取り付ける', hint:'👆 カチカチ！パーツをはめよう！', interact:CLICK, target:6, result:'四肢', rE:'🦾', freq:360 },
+    { emoji:'🔧', bg:['#eceff1','#b0bec5'], label:'🔧 全部のネジをぐるぐる締める', hint:'ぐるぐる回してしっかり締めよう！', interact:CIRCLE, target:6, result:'ロボット', rE:'🤖', freq:400, final:true },
+  ]},
+
+  // ========== ぬいぐるみ ==========
   { id:'stuffed', emoji:'🐰', name:'ぬいぐるみ', desc:'ふわふわのうさぎを一から作ろう！', border:'#fd79a8', steps:[
     { emoji:'🐑', bg:['#e8f5e9','#a5d6a7'], label:'✂️ 羊の毛を刈る', hint:'← → ハサミを左右に振ろう！', interact:DRAG_LR, target:700, result:'羊の毛', rE:'🧶', freq:300 },
-    { emoji:'🪢', bg:['#fce4ec','#f48fb1'], label:'🌀 糸に紡ぐ', hint:'ぐるぐる回そう！', interact:CIRCLE, target:5, result:'糸', rE:'🪡', freq:350 },
-    { emoji:'🧵', bg:['#e3f2fd','#90caf9'], label:'🪡 布を縫い合わせる', hint:'↑↓ 針を上下に動かそう！', interact:DRAG_UD, target:700, result:'縫った布', rE:'🟫', freq:380 },
-    { emoji:'☁️', bg:['#f3e5f5','#ce93d8'], label:'☁️ 綿をギュッと詰める', hint:'👆 どんどんタップ！', interact:CLICK, target:10, result:'ぬいぐるみ', rE:'🐰', freq:430, final:true },
+    { emoji:'🛁', bg:['#e3f2fd','#90caf9'], label:'🫧 ウールを洗う', hint:'ぐるぐるかき混ぜて洗おう！', interact:CIRCLE, target:5, result:'洗った毛', rE:'🪸', freq:320 },
+    { emoji:'🧵', bg:['#fce4ec','#f48fb1'], label:'🌀 糸に紡ぐ', hint:'ぐるぐる糸車を回そう！', interact:CIRCLE, target:6, result:'糸', rE:'🪡', freq:350 },
+    { emoji:'🧵', bg:['#e3f2fd','#90caf9'], label:'↔️ 布に織り込む', hint:'← → 横糸を左右に通そう！', interact:DRAG_LR, target:700, result:'布', rE:'🟫', freq:370 },
+    { emoji:'✂️', bg:['#f3e5f5','#ce93d8'], label:'✂️ 型紙で布を切る', hint:'← → はさみを左右に切り進もう！', interact:DRAG_LR, target:600, result:'切った布', rE:'🧩', freq:390 },
+    { emoji:'📌', bg:['#fffde7','#fff59d'], label:'📌 布をまち針で留める', hint:'👆 まち針をひとつずつ刺す！', interact:CLICK, target:6, result:'留めた布', rE:'📌', freq:410 },
+    { emoji:'🪡', bg:['#fce4ec','#f48fb1'], label:'🪡 端を縫い合わせる', hint:'↑↓ 針を上下に動かそう！', interact:DRAG_UD, target:800, result:'縫った布', rE:'🪡', freq:380 },
+    { emoji:'☁️', bg:['#f3e5f5','#ce93d8'], label:'☁️ 綿をギュッと詰める', hint:'👆 綿をどんどん押し込もう！', interact:CLICK, target:10, result:'詰めた布', rE:'☁️', freq:430 },
+    { emoji:'🪡', bg:['#e8f5e9','#a5d6a7'], label:'🪡 最後の穴を縫い閉じる', hint:'↑↓ 丁寧に縫おう！', interact:DRAG_UD, target:600, result:'縫い閉じ', rE:'✅', freq:450 },
+    { emoji:'👁️', bg:['#fffde7','#fff59d'], label:'👁️ 目と鼻のボタンをつける', hint:'👆 目・鼻・口をひとつずつ！', interact:CLICK, target:4, result:'顔パーツ', rE:'👁️', freq:470 },
+    { emoji:'🎀', bg:['#fce4ec','#f48fb1'], label:'🎀 リボンをぐるぐる結ぶ', hint:'ぐるぐる回して可愛く結ぼう！', interact:CIRCLE, target:3, result:'ぬいぐるみ', rE:'🐰', freq:500, final:true },
   ]},
-  { id:'robot', emoji:'🤖', name:'ロボット', desc:'最強のロボットを組み立てろ！', border:'#74b9ff', steps:[
-    { emoji:'⛏️', bg:['#efebe9','#bcaaa4'], label:'⛏️ 鉄鉱石を掘る', hint:'↑↓ 上から振り下ろそう！トンカン！', interact:DRAG_UD, target:900, result:'鉄鉱石', rE:'🪨', freq:180 },
-    { emoji:'🔥', bg:['#fbe9e7','#ffab91'], label:'🔥 溶鉱炉で溶かす', hint:'押し続けよう！離したら冷える！', interact:HOLD, target:4500, result:'鉄板', rE:'⬛', freq:200 },
-    { emoji:'🔨', bg:['#eceff1','#b0bec5'], label:'🔨 ネジを打ち出す', hint:'← → 横にバシバシ打とう！', interact:DRAG_LR, target:700, result:'ネジ', rE:'🔩', freq:260 },
-    { emoji:'⚡', bg:['#fffde7','#fff59d'], label:'⚡ 銅線を巻く', hint:'ぐるぐる巻きつけよう！', interact:CIRCLE, target:5, result:'電池', rE:'🔋', freq:300 },
-    { emoji:'🔧', bg:['#e8eaf6','#9fa8da'], label:'🔧 全部組み立てる', hint:'ぐるぐるネジを締めよう！', interact:CIRCLE, target:6, result:'ロボット', rE:'🤖', freq:340, final:true },
+
+  // ========== みずてっぽう ==========
+  { id:'watergun', emoji:'💦', name:'みずてっぽう', desc:'夏最強の水鉄砲を一から作ろう！', border:'#55efc4', steps:[
+    { emoji:'🛢️', bg:['#fffde7','#ffee58'], label:'🛢️ 地面から石油を汲み上げる', hint:'↑↓ シュコシュコ！ポンプを動かす！', interact:DRAG_UD, target:700, result:'石油', rE:'🟫', freq:200 },
+    { emoji:'🏭', bg:['#f5f5f5','#e0e0e0'], label:'🏭 石油を熱してプラスチックに！', hint:'押し続けよう！加工中は離さないで！', interact:HOLD, target:4000, result:'プラスチック', rE:'⬜', freq:240 },
+    { emoji:'🔩', bg:['#e3f2fd','#90caf9'], label:'🔩 水鉄砲の型に流し込む', hint:'↑↓ どばどば流し込もう！', interact:DRAG_UD, target:600, result:'型入り素材', rE:'🔷', freq:260 },
+    { emoji:'❄️', bg:['#e0f7fa','#80deea'], label:'❄️ 冷やして固める！', hint:'👆 タップで冷却！どんどんタップ！', interact:CLICK, target:8, result:'固まった！', rE:'🔷', freq:280 },
+    { emoji:'🪄', bg:['#f3e5f5','#ce93d8'], label:'🪄 型から取り出す！パコン！', hint:'👆 ぱこんと取り出そう！', interact:CLICK, target:3, result:'水鉄砲の形', rE:'🔷', freq:300 },
+    { emoji:'🌳', bg:['#e8f5e9','#a5d6a7'], label:'🌳 ゴムの木からゴム液を集める', hint:'👆 ゴムの木をタップ！ポタポタ…', interact:CLICK, target:6, result:'天然ゴム', rE:'⚫', freq:320 },
+    { emoji:'🤸', bg:['#fce4ec','#f48fb1'], label:'🤸 ゴムをびよーんと引き伸ばす', hint:'← → 思いっきり引き伸ばそう！', interact:DRAG_LR, target:700, result:'ゴムパッキン', rE:'⚫', freq:340 },
+    { emoji:'🌀', bg:['#fffde7','#fff59d'], label:'🌀 バネを取り付ける', hint:'👆 パチンと取り付けよう！', interact:CLICK, target:3, result:'バネ内蔵', rE:'🌀', freq:360 },
+    { emoji:'🔧', bg:['#e8eaf6','#9fa8da'], label:'🔧 ノズルをぐるぐる締める', hint:'ぐるぐる回してしっかり締めよう！', interact:CIRCLE, target:4, result:'ノズル付き', rE:'💧', freq:380 },
+    { emoji:'💧', bg:['#e3f2fd','#64b5f6'], label:'💧 水をたっぷり補充', hint:'↑↓ シュコシュコ水を入れよう！', interact:DRAG_UD, target:700, result:'水入り', rE:'💦', freq:400 },
+    { emoji:'🎯', bg:['#e8f5e9','#a5d6a7'], label:'🎯 試射！バシュー！', hint:'👆 ターゲットを狙ってタップ！', interact:CLICK, target:5, result:'みずてっぽう', rE:'💦', freq:450, final:true },
   ]},
-  { id:'watergun', emoji:'🔫', name:'みずてっぽう', desc:'夏最強の水鉄砲を作ろう！', border:'#55efc4', steps:[
-    { emoji:'🛢️', bg:['#fffde7','#ffee58'], label:'🛢️ ポンプで石油を汲む', hint:'↑↓ シュコシュコ！', interact:DRAG_UD, target:700, result:'石油', rE:'🟫', freq:200 },
-    { emoji:'🏭', bg:['#f5f5f5','#e0e0e0'], label:'🏭 プラスチックに加工', hint:'押し続けて加工しよう！', interact:HOLD, target:4000, result:'プラスチック', rE:'⬜', freq:240 },
-    { emoji:'🌳', bg:['#e8f5e9','#a5d6a7'], label:'🌳 ゴムを引き伸ばす', hint:'← → 左右に引っ張ろう！', interact:DRAG_LR, target:600, result:'ゴム', rE:'⚫', freq:290 },
-    { emoji:'🔧', bg:['#e3f2fd','#90caf9'], label:'🔧 組み立てる', hint:'👆 パーツをタップ！', interact:CLICK, target:10, result:'みずてっぽう', rE:'🔫', freq:340, final:true },
-  ]},
-  { id:'cake', emoji:'🎂', name:'ケーキ', desc:'手作りのおいしいケーキを焼こう！', border:'#fdcb6e', steps:[
-    { emoji:'🌾', bg:['#f9fbe7','#dce775'], label:'🌾 小麦をザックザック刈る', hint:'← → 鎌を左右に振ろう！', interact:DRAG_LR, target:700, result:'小麦', rE:'🌾', freq:310 },
-    { emoji:'🐄', bg:['#e8f5e9','#c8e6c9'], label:'🥛 牛乳を搾る', hint:'↑↓ 上下に搾ろう！モー！', interact:DRAG_UD, target:600, result:'牛乳', rE:'🥛', freq:280 },
-    { emoji:'🥚', bg:['#fffde7','#fff9c4'], label:'💥 卵を割る！', hint:'ひびのところをタップ！', interact:CRACK, target:3, result:'たまご', rE:'🍳', freq:340 },
-    { emoji:'🥣', bg:['#fce4ec','#f48fb1'], label:'🌀 生地をぐるぐる混ぜる', hint:'ぐるぐる混ぜよう！速く回すほどいい！', interact:CIRCLE, target:8, result:'生地', rE:'🫙', freq:300 },
-    { emoji:'🔥', bg:['#fbe9e7','#ffccbc'], label:'🔥 オーブンで焼く', hint:'温度を保って押し続けよう！', interact:HOLD, target:5000, result:'ケーキ', rE:'🎂', freq:400, final:true },
-  ]},
+
+  // ========== たんけんのつるぎ ==========
   { id:'sword', emoji:'⚔️', name:'たんけんのつるぎ', desc:'勇者の伝説の剣を鍛えよう！', border:'#e17055', steps:[
-    { emoji:'⛏️', bg:['#90a4ae','#546e7a'], label:'⛏️ 特別な鉱石を掘る', hint:'↑↓ 力いっぱい振り下ろせ！', interact:DRAG_UD, target:900, result:'特別な鉄鉱石', rE:'🪨', freq:160 },
+    { emoji:'⛏️', bg:['#90a4ae','#546e7a'], label:'⛏️ 特別な鉱石を掘り出す', hint:'↑↓ 力いっぱい振り下ろせ！', interact:DRAG_UD, target:900, result:'特別な鉄鉱石', rE:'🪨', freq:160 },
     { emoji:'🔥', bg:['#fbe9e7','#ef9a9a'], label:'🔥 炉で真っ赤に熱する', hint:'真っ赤になるまで押し続けよう！', interact:HOLD, target:5000, result:'赤熱した鉄', rE:'🟥', freq:190 },
-    { emoji:'🔨', bg:['#78909c','#546e7a'], label:'🔨 形を整えるトンカン！', hint:'↑↓ トンカントンカン打ち込め！', interact:DRAG_UD, target:1100, result:'剣の形', rE:'🗡️', freq:220 },
-    { emoji:'💧', bg:['#e3f2fd','#64b5f6'], label:'💧 水でジュ〜ッ！と冷やす', hint:'← → 左右にジャブジャブ！', interact:DRAG_LR, target:700, result:'焼き入れ完了', rE:'🪃', freq:260 },
-    { emoji:'🟫', bg:['#d7ccc8','#a1887f'], label:'🌀 柄をくるくる取り付ける', hint:'ぐるぐる回してしっかり締めよう！', interact:CIRCLE, target:5, result:'つるぎ', rE:'⚔️', freq:380, final:true },
+    { emoji:'🔨', bg:['#78909c','#546e7a'], label:'🔨 表面をトンカントンカン打つ', hint:'↑↓ 打ち込め！打ち込め！', interact:DRAG_UD, target:1000, result:'一面平ら', rE:'🗡️', freq:210 },
+    { emoji:'🔨', bg:['#607d8b','#455a64'], label:'🔨 裏面もトンカン打つ！', hint:'↑↓ 逆面もしっかり打つんだ！', interact:DRAG_UD, target:900, result:'両面完成', rE:'🗡️', freq:220 },
+    { emoji:'🪨', bg:['#eceff1','#cfd8dc'], label:'🪨 刃をといしで研ぐ', hint:'← → 丁寧に左右に研ぎ進もう！', interact:DRAG_LR, target:800, result:'研いだ刃', rE:'🌟', freq:250 },
+    { emoji:'💧', bg:['#e3f2fd','#64b5f6'], label:'💧 水でジュ〜ッ！と急冷', hint:'👆 素早くタップ！ジュ〜！', interact:CLICK, target:8, result:'焼き入れ完了', rE:'💧', freq:270 },
+    { emoji:'✨', bg:['#fce4ec','#f48fb1'], label:'✨ 刃をぐるぐる磨いて輝かせる', hint:'ぐるぐる丁寧に磨こう！', interact:CIRCLE, target:5, result:'輝く刃', rE:'⚡', freq:300 },
+    { emoji:'🪵', bg:['#efebe9','#d7ccc8'], label:'🪵 木から柄を削り出す', hint:'← → 丁寧に削ろう！', interact:DRAG_LR, target:700, result:'柄の木', rE:'🪵', freq:320 },
+    { emoji:'🌀', bg:['#d7ccc8','#a1887f'], label:'🌀 皮ひもを柄にぐるぐる巻く', hint:'ぐるぐるしっかり巻こう！', interact:CIRCLE, target:5, result:'柄の完成', rE:'🤎', freq:360 },
+    { emoji:'🛡️', bg:['#e8eaf6','#9fa8da'], label:'🛡️ 鍔（ガード）を取り付ける', hint:'👆 カチっとはめ込もう！', interact:CLICK, target:3, result:'鍔付き', rE:'🛡️', freq:380 },
+    { emoji:'🔪', bg:['#eceff1','#b0bec5'], label:'🔪 最終研ぎ！鋭さを確かめる', hint:'← → シュッシュッと最後の研ぎ！', interact:DRAG_LR, target:700, result:'つるぎ', rE:'⚔️', freq:420, final:true },
   ]},
 ];
 
@@ -283,7 +324,15 @@ function replayCurrent(){ if(proj) startProject(proj); }
 
 function buildTrack(){
   const t=document.getElementById('step-track'); t.innerHTML='';
-  proj.steps.forEach((_,i)=>{ const d=document.createElement('div'); d.className='stk'+(i===0?' cur':''); d.id='tk'+i; t.appendChild(d); });
+  const total=proj.steps.length;
+  proj.steps.forEach((_,i)=>{
+    const d=document.createElement('div');
+    const w=Math.max(18, Math.floor(300/total));
+    d.className='stk'+(i===0?' cur':'');
+    d.id='tk'+i;
+    d.style.width=w+'px';
+    t.appendChild(d);
+  });
 }
 function updateTrack(){
   proj.steps.forEach((_,i)=>{ const d=document.getElementById('tk'+i); if(!d)return; d.className='stk'+(i<stepIdx?' done':i===stepIdx?' cur':''); });
@@ -472,17 +521,14 @@ function render(canvas, step){
 
 // ===== DRAG_LR =====
 function renderDragLR(ctx,W,H,cx,cy,step){
-  // トレイル
   drawTrail(ctx,'rgba(255,160,50,');
 
-  // ← → 矢印 ガイド
   const a=0.6+0.4*Math.sin(IS.frame*0.08);
   ctx.globalAlpha=a;
   ctx.font=`bold ${Math.floor(W*0.1)}px sans-serif`; ctx.textAlign='center'; ctx.textBaseline='middle';
   ctx.fillText('← →',cx,H*0.82);
   ctx.globalAlpha=1;
 
-  // ツール (IS.mx に追従)
   const toolX=IS.down?IS.mx:cx;
   const toolY=IS.down?IS.my:cy;
   const tilt=IS.down?(IS.mx-cx)*0.03:0;
@@ -491,7 +537,6 @@ function renderDragLR(ctx,W,H,cx,cy,step){
   ctx.fillText(step.emoji,0,0);
   ctx.restore();
 
-  // プログレス波紋
   if(IS.down){
     ctx.strokeStyle='rgba(255,140,50,0.35)';ctx.lineWidth=3;
     ctx.beginPath();ctx.arc(toolX,toolY,30+Math.sin(IS.frame*0.3)*8,0,Math.PI*2);ctx.stroke();
@@ -511,14 +556,12 @@ function renderDragUD(ctx,W,H,cx,cy,step){
   const toolX=IS.down?IS.mx:cx;
   const toolY=IS.down?IS.my:cy;
   ctx.save(); ctx.translate(toolX,toolY);
-  // 下に動かしたとき傾く
   const tilt=IS.down?(IS.my-cy)*0.02:0;
   ctx.rotate(tilt);
   ctx.font=`${Math.floor(W*0.28)}px serif`; ctx.textAlign='center'; ctx.textBaseline='middle';
   ctx.fillText(step.emoji,0,0);
   ctx.restore();
 
-  // 衝撃エフェクト
   if(IS.down && IS.my>cy && Math.abs(IS.my-IS.lastY)>8){
     ctx.strokeStyle='rgba(80,180,120,0.45)';ctx.lineWidth=4;
     ctx.beginPath();ctx.arc(toolX,toolY+30,15+Math.random()*10,0,Math.PI*2);ctx.stroke();
@@ -529,12 +572,10 @@ function renderDragUD(ctx,W,H,cx,cy,step){
 function renderCircle(ctx,W,H,cx,cy,step){
   const r=Math.min(W,H)*0.34;
 
-  // ガイド円
   ctx.strokeStyle='rgba(150,100,255,0.2)'; ctx.lineWidth=r*0.18; ctx.setLineDash([10,8]);
   ctx.beginPath(); ctx.arc(cx,cy,r,0,Math.PI*2); ctx.stroke();
   ctx.setLineDash([]);
 
-  // プログレス弧
   const totalTarget=Math.PI*2*(step.target||5);
   const pAngle=IS.totalAngle;
   if(pAngle>0){
@@ -543,14 +584,12 @@ function renderCircle(ctx,W,H,cx,cy,step){
     ctx.stroke();
   }
 
-  // 完了周ごとの光輪
   const fullCircles=Math.floor(IS.totalAngle/(Math.PI*2));
   for(let i=0;i<fullCircles;i++){
     ctx.strokeStyle=`rgba(120,60,255,${0.12+i*0.03})`; ctx.lineWidth=2;
     ctx.beginPath(); ctx.arc(cx,cy,r*(0.9-i*0.06),0,Math.PI*2); ctx.stroke();
   }
 
-  // マウスに追従するスプーン/ツール
   const toolAngle=IS.lastAngle||0;
   const toolX=cx+Math.cos(toolAngle)*r;
   const toolY=cy+Math.sin(toolAngle)*r;
@@ -559,11 +598,9 @@ function renderCircle(ctx,W,H,cx,cy,step){
   ctx.fillText('🥄',0,0);
   ctx.restore();
 
-  // 中央のメイン絵文字
   ctx.font=`${Math.floor(W*0.2)}px serif`; ctx.textAlign='center'; ctx.textBaseline='middle';
   ctx.fillText(step.emoji,cx,cy);
 
-  // 回転矢印ヒント
   const a=0.5+0.4*Math.sin(IS.frame*0.07);
   ctx.globalAlpha=a;
   ctx.font=`${Math.floor(W*0.07)}px sans-serif`; ctx.fillStyle='rgba(100,60,200,0.7)';
@@ -573,40 +610,32 @@ function renderCircle(ctx,W,H,cx,cy,step){
 
 // ===== CRACK =====
 function renderCrack(ctx,W,H,cx,cy,step){
-  // 卵を描く
   const eW=W*0.42, eH=H*0.52;
   ctx.save(); ctx.translate(cx,cy*0.92);
-  // 影
   ctx.fillStyle='rgba(0,0,0,0.08)';
   ctx.beginPath(); ctx.ellipse(0,eH*0.52,eW*0.6,eH*0.12,0,0,Math.PI*2); ctx.fill();
-  // 卵本体
   const eGrad=ctx.createRadialGradient(-eW*.15,-eH*.2,eW*.05,0,0,eW*.7);
   eGrad.addColorStop(0,'#fffef0'); eGrad.addColorStop(0.6,'#fff8e1'); eGrad.addColorStop(1,'#f5e6c8');
   ctx.fillStyle=eGrad;
   ctx.beginPath(); ctx.ellipse(0,0,eW*.5,eH*.5,0,0,Math.PI*2); ctx.fill();
   ctx.strokeStyle='rgba(180,140,80,0.3)'; ctx.lineWidth=2; ctx.stroke();
 
-  // 割れ目アニメーション
   IS.crackSpots.forEach((sp,i)=>{
     const lx=sp.x-cx, ly=sp.y-cy*0.92;
     if(sp.hit){
-      // ヒビ線
       ctx.strokeStyle='rgba(120,80,30,0.7)'; ctx.lineWidth=3;
       ctx.beginPath();
       ctx.moveTo(lx-20,ly-10); ctx.lineTo(lx+5,ly+5); ctx.lineTo(lx-10,ly+20); ctx.stroke();
       ctx.beginPath();
       ctx.moveTo(lx+20,ly-12); ctx.lineTo(lx-5,ly+3); ctx.lineTo(lx+12,ly+22); ctx.stroke();
-      // 割れた部分の強調
       ctx.fillStyle='rgba(250,200,50,0.15)';
       ctx.beginPath(); ctx.arc(lx,ly,24,0,Math.PI*2); ctx.fill();
     } else {
-      // タップゾーン
       const pulse=0.6+0.4*Math.sin(IS.frame*0.12+i*1.2);
       ctx.strokeStyle=`rgba(220,50,50,${pulse*0.7})`; ctx.lineWidth=3;
       ctx.beginPath(); ctx.arc(lx,ly,26*pulse,0,Math.PI*2); ctx.stroke();
       ctx.fillStyle=`rgba(255,80,80,${pulse*0.15})`;
       ctx.beginPath(); ctx.arc(lx,ly,26,0,Math.PI*2); ctx.fill();
-      // X マーク
       ctx.strokeStyle=`rgba(220,50,50,${pulse*0.9})`; ctx.lineWidth=3;
       ctx.beginPath(); ctx.moveTo(lx-10,ly-10); ctx.lineTo(lx+10,ly+10);
       ctx.moveTo(lx+10,ly-10); ctx.lineTo(lx-10,ly+10); ctx.stroke();
@@ -614,13 +643,11 @@ function renderCrack(ctx,W,H,cx,cy,step){
   });
   ctx.restore();
 
-  // 割れたら黄身が出る
   if(IS.crackHit>=(step.target||3)){
     ctx.font=`${Math.floor(W*0.25)}px serif`; ctx.textAlign='center'; ctx.textBaseline='middle';
     ctx.fillText('🍳',cx,H*0.75);
   }
 
-  // ヒント
   if(IS.crackHit<(step.target||3)){
     ctx.font=`${Math.floor(W*0.052)}px sans-serif`; ctx.fillStyle='rgba(180,60,60,0.75)';
     ctx.textAlign='center'; ctx.textBaseline='top';
@@ -635,7 +662,6 @@ function renderCrack(ctx,W,H,cx,cy,step){
 function renderHold(ctx,W,H,cx,cy,step){
   const r=Math.min(W,H)*0.3;
 
-  // 炎エフェクト (押している間)
   if(IS.holdActive){
     for(let i=0;i<6;i++){
       const fx=cx+(Math.random()-.5)*r*.8;
@@ -647,7 +673,6 @@ function renderHold(ctx,W,H,cx,cy,step){
     }
   }
 
-  // 外側リング (温度ゲージ)
   const col=IS.prog<.4?'rgba(50,180,255,':'rgba(255,'+Math.floor(200-IS.prog*200)+',0,';
   ctx.strokeStyle='rgba(200,200,200,0.3)'; ctx.lineWidth=r*.2;
   ctx.beginPath(); ctx.arc(cx,cy,r,0,Math.PI*2); ctx.stroke();
@@ -655,20 +680,17 @@ function renderHold(ctx,W,H,cx,cy,step){
   ctx.strokeStyle=col+'0.8)'; ctx.lineWidth=r*.2;
   ctx.beginPath(); ctx.arc(cx,cy,r,-Math.PI/2,-Math.PI/2+IS.prog*Math.PI*2); ctx.stroke();
 
-  // 温度テキスト
   const temp=Math.floor(IS.prog*1500);
   ctx.font=`bold ${Math.floor(W*0.07)}px sans-serif`; ctx.fillStyle='rgba(200,80,20,0.9)';
   ctx.textAlign='center'; ctx.textBaseline='middle';
   ctx.fillText(temp+'℃',cx,cy+r+24);
 
-  // メイン絵文字
   const scale=IS.holdActive?1+Math.sin(IS.frame*0.25)*0.04:1;
   ctx.save(); ctx.translate(cx,cy); ctx.scale(scale,scale);
   ctx.font=`${Math.floor(W*0.26)}px serif`; ctx.textAlign='center'; ctx.textBaseline='middle';
   ctx.fillText(step.emoji,0,0);
   ctx.restore();
 
-  // ヒント
   const a=0.6+0.4*Math.sin(IS.frame*0.07);
   ctx.globalAlpha=a;
   ctx.font=`${Math.floor(W*0.048)}px sans-serif`; ctx.fillStyle='rgba(180,80,20,0.8)';
@@ -679,7 +701,6 @@ function renderHold(ctx,W,H,cx,cy,step){
 
 // ===== CLICK =====
 function renderClick(ctx,W,H,cx,cy,step){
-  // タップエフェクト
   IS.trail.filter(t=>t.type==='click').forEach(t=>{
     const age=(Date.now()-t.t)/300;
     if(age>1) return;
@@ -688,12 +709,10 @@ function renderClick(ctx,W,H,cx,cy,step){
     ctx.beginPath(); ctx.arc(t.x,t.y,r,0,Math.PI*2); ctx.stroke();
   });
 
-  // メイン絵文字
   const bounce=Math.sin(IS.frame*0.15)*4;
   ctx.font=`${Math.floor(W*0.3)}px serif`; ctx.textAlign='center'; ctx.textBaseline='middle';
   ctx.fillText(step.emoji,cx,cy+bounce);
 
-  // タップヒント
   const a=0.6+0.4*Math.sin(IS.frame*0.1);
   ctx.globalAlpha=a;
   ctx.font=`${Math.floor(W*0.07)}px sans-serif`; ctx.fillStyle='rgba(220,120,0,0.8)';

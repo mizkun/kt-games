@@ -26,6 +26,75 @@ body{
   overflow:hidden;
 }
 
+/* レベルセレクト */
+#level-select{
+  position:fixed;inset:0;
+  z-index:200;
+  background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:flex-start;
+  padding:20px 16px;
+  overflow-y:auto;
+}
+#level-select h1{
+  font-size:clamp(20px,6vw,32px);
+  color:#fff;
+  text-shadow:0 2px 8px rgba(0,0,0,0.3);
+  margin-bottom:4px;
+  text-align:center;
+}
+#level-select p{
+  font-size:clamp(11px,3vw,14px);
+  color:rgba(255,255,255,0.85);
+  margin-bottom:20px;
+  text-align:center;
+}
+#level-grid{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:12px;
+  width:100%;
+  max-width:420px;
+}
+.level-card{
+  background:rgba(255,255,255,0.95);
+  border-radius:20px;
+  padding:18px 14px;
+  text-align:center;
+  cursor:pointer;
+  box-shadow:0 6px 20px rgba(0,0,0,0.2);
+  transition:transform 0.15s,box-shadow 0.15s;
+  border:3px solid transparent;
+}
+.level-card:active{transform:scale(0.96);}
+.level-card:hover{transform:scale(1.03);box-shadow:0 8px 28px rgba(0,0,0,0.3);}
+.lc-num{
+  font-size:clamp(10px,2.8vw,13px);
+  font-weight:bold;
+  margin-bottom:4px;
+}
+.lc-emoji{font-size:clamp(40px,12vw,56px);line-height:1;margin-bottom:6px;}
+.lc-name{
+  font-size:clamp(14px,4vw,18px);
+  font-weight:bold;
+  color:#333;
+  margin-bottom:3px;
+}
+.lc-desc{
+  font-size:clamp(9px,2.5vw,11px);
+  color:#888;
+}
+.lc1{border-color:#43e97b;}
+.lc2{border-color:#4facfe;}
+.lc3{border-color:#f7971e;}
+.lc4{border-color:#fd79a8;}
+.lc1 .lc-num{color:#43e97b;}
+.lc2 .lc-num{color:#4facfe;}
+.lc3 .lc-num{color:#f7971e;}
+.lc4 .lc-num{color:#fd79a8;}
+
 /* 背景 */
 #sky{
   position:absolute;inset:0;
@@ -224,6 +293,23 @@ body{
   text-align:center;
 }
 
+/* もどるボタン */
+#back-to-level{
+  position:absolute;
+  top:10px;right:12px;
+  z-index:30;
+  background:rgba(255,255,255,0.85);
+  border:none;
+  border-radius:16px;
+  padding:5px 11px;
+  font-size:clamp(10px,2.8vw,13px);
+  font-weight:bold;
+  color:#555;
+  cursor:pointer;
+  font-family:inherit;
+  box-shadow:0 2px 6px rgba(0,0,0,0.15);
+}
+
 /* 吹き出し */
 #speech{
   position:absolute;
@@ -283,7 +369,7 @@ body{
   100%{transform:scale(1) rotate(0deg);opacity:1}
 }
 
-/* 週まとめ */
+/* 結果画面 */
 #week-result{
   position:fixed;inset:0;
   z-index:100;
@@ -294,6 +380,7 @@ body{
   background:linear-gradient(135deg,#667eea,#764ba2);
   padding:24px;
   text-align:center;
+  overflow-y:auto;
 }
 #week-result h1{
   font-size:clamp(22px,6vw,36px);
@@ -326,6 +413,15 @@ body{
   line-height:1.8;
   margin:8px 0;
   text-align:left;
+  max-width:340px;
+  width:100%;
+}
+#result-life-special{
+  font-size:clamp(13px,3.5vw,17px);
+  color:#ffd700;
+  font-weight:bold;
+  margin:10px 0;
+  text-align:center;
 }
 #replay-btn{
   background:#fff;
@@ -338,6 +434,18 @@ body{
   cursor:pointer;
   margin-top:12px;
   box-shadow:0 4px 16px rgba(0,0,0,0.2);
+  font-family:inherit;
+}
+#level-select-btn{
+  background:rgba(255,255,255,0.2);
+  color:#fff;
+  border:2px solid rgba(255,255,255,0.5);
+  border-radius:16px;
+  padding:10px 24px;
+  font-size:clamp(13px,3.5vw,17px);
+  font-weight:bold;
+  cursor:pointer;
+  margin-top:8px;
   font-family:inherit;
 }
 #home-link{
@@ -362,7 +470,7 @@ body{
   <div id="ground"></div>
   <div id="sun-moon">☀️</div>
   <div id="clouds">☁️ &nbsp; ☁️</div>
-  <div id="rain-layer" id="rain-layer"></div>
+  <div id="rain-layer"></div>
   <div id="house-wrap">🏠</div>
 
   <div id="chars">
@@ -384,6 +492,8 @@ body{
     </div>
   </div>
 
+  <button id="back-to-level" onclick="showLevelSelect()">← レベルえらびにもどる</button>
+
   <div id="card-wrap">
     <div id="event-card">
       <div id="event-icon">🌞</div>
@@ -396,14 +506,48 @@ body{
   <div id="effect"><div id="big-effect"></div></div>
 </div>
 
+<!-- レベルセレクト -->
+<div id="level-select">
+  <h1>🏠 ふつうのじんせい</h1>
+  <p>どの時間をすごす？</p>
+  <div id="level-grid">
+    <div class="level-card lc1" onclick="startLevel(1)">
+      <div class="lc-num">レベル 1</div>
+      <div class="lc-emoji">📅</div>
+      <div class="lc-name">一週間</div>
+      <div class="lc-desc">月〜日の7日間</div>
+    </div>
+    <div class="level-card lc2" onclick="startLevel(2)">
+      <div class="lc-num">レベル 2</div>
+      <div class="lc-emoji">🗓️</div>
+      <div class="lc-name">一ヶ月</div>
+      <div class="lc-desc">30日間のできごと</div>
+    </div>
+    <div class="level-card lc3" onclick="startLevel(3)">
+      <div class="lc-num">レベル 3</div>
+      <div class="lc-emoji">🌸</div>
+      <div class="lc-name">一年</div>
+      <div class="lc-desc">1月〜12月をすごす</div>
+    </div>
+    <div class="level-card lc4" onclick="startLevel(4)">
+      <div class="lc-num">レベル 4</div>
+      <div class="lc-emoji">👶</div>
+      <div class="lc-name">100年</div>
+      <div class="lc-desc">赤ちゃんから100歳まで！</div>
+    </div>
+  </div>
+</div>
+
 <div id="week-result">
-  <h1>🎉 一週間おわったよ！</h1>
+  <h1 id="result-title">🎉 一週間おわったよ！</h1>
   <div class="score-area">
     <div id="result-score">0</div>
     <div id="result-rank">ふつうのかぞく</div>
   </div>
   <div id="result-memories"></div>
-  <button id="replay-btn" onclick="startGame()">もう一週間 やってみる！</button>
+  <div id="result-life-special"></div>
+  <button id="replay-btn" onclick="replayLevel()">もう一回やってみる！</button>
+  <button id="level-select-btn" onclick="backToLevelSelect()">↩ レベルえらびにもどる</button>
   <a href="../../index.html" style="color:rgba(255,255,255,0.7);margin-top:12px;font-size:14px;">🏠 ゲームいちらんにもどる</a>
 </div>
 
@@ -414,6 +558,8 @@ let memories = [];
 let eventQueue = [];
 let qIdx = 0;
 let isRaining = false;
+let currentLevel = 1;
+let lifeAge = 0; // Level4用
 
 // ===== 背景テーマ =====
 const themes = {
@@ -421,6 +567,10 @@ const themes = {
   noon:    { sky:'linear-gradient(180deg,#4fa8dc 0%,#87ceeb 100%)', ground:'#4a8e42', sun:'🌤', sunPos:'top:5%;right:20%' },
   evening: { sky:'linear-gradient(180deg,#ff7043 0%,#ffb74d 50%,#7e57c2 100%)', ground:'#3a7032', sun:'🌆', sunPos:'top:10%;right:8%' },
   night:   { sky:'linear-gradient(180deg,#0d1b4b 0%,#1a237e 100%)', ground:'#1a3a18', sun:'🌙', sunPos:'top:8%;right:12%' },
+  spring:  { sky:'linear-gradient(180deg,#a8edea 0%,#fed6e3 100%)', ground:'#7ec87e', sun:'🌸', sunPos:'top:8%;right:10%' },
+  summer:  { sky:'linear-gradient(180deg,#2196f3 0%,#87ceeb 100%)', ground:'#2e8b57', sun:'☀️', sunPos:'top:5%;right:15%' },
+  autumn:  { sky:'linear-gradient(180deg,#ffa726 0%,#ffe0b2 100%)', ground:'#8b6914', sun:'🍂', sunPos:'top:8%;right:12%' },
+  winter:  { sky:'linear-gradient(180deg,#b3c6e0 0%,#e8eaf6 100%)', ground:'#dce8f5', sun:'❄️', sunPos:'top:8%;right:10%' },
 };
 
 function setTheme(t, rainy=false){
@@ -478,7 +628,6 @@ function showSpeech(charId, text, ms=2200){
   s.style.bottom = '42%';
   s.style.left = '';
   s.style.right = '';
-  // 位置
   const cx = rect.left - gameRect.left + rect.width/2;
   const gw = gameRect.width;
   if(cx < gw/2){
@@ -500,7 +649,6 @@ function showEffect(emoji, delta){
   const big = document.getElementById('big-effect');
   big.textContent = emoji + (delta>0?'\n+'+delta+'😊':'');
   eff.style.display='flex';
-  // 紙吹雪
   if(delta>0) makeConfetti();
   setTimeout(()=>{ eff.style.display='none'; eff.innerHTML='<div id="big-effect"></div>'; },1600);
 }
@@ -521,13 +669,26 @@ function makeConfetti(){
   }
 }
 
-// ===== イベント定義 =====
-// {icon, title, text, theme, char(喋るキャラ), speech(セリフ), choices:[{label,delta,next_text,icon}], memory}
-function buildEvents(){
-  const rainDay = Math.floor(Math.random()*5); // 平日のどこかで雨
+// ===== Level4: 年齢→キャラ =====
+function ageToChar(age){
+  if(age<=12) return '🧒';
+  if(age<=17) return '👦';
+  if(age<=25) return '🧑';
+  if(age<=45) return '👨';
+  if(age<=60) return '👨‍🦳';
+  if(age<=75) return '🧓';
+  return '👴';
+}
 
+function updateCharsForAge(age){
+  const emoji = ageToChar(age);
+  document.getElementById('char-k1').querySelector('.char-emoji').textContent = emoji;
+  document.getElementById('char-k2').querySelector('.char-emoji').textContent = emoji;
+}
+
+// ===== イベント定義: Level 1 (一週間) =====
+function buildEventsLevel1(){
   return [
-    // ===== 月曜日 =====
     {
       day:'月曜日 🌅', phase:'あさ', theme:'morning',
       icon:'⏰', title:'おはようございます！',
@@ -537,17 +698,10 @@ function buildEvents(){
                {label:'😴 もうちょっとだけ寝る…', delta:-3, txt:'うーん…5分だけって言ったのに！あわてて準備！', icon:'😅'}]
     },
     {
-      day:'月曜日 🌅', phase:'あさごはん',
-      theme: Math.random()<0.55 ? 'morning' : 'morning',
-      icon:'🍳', title: Math.random()<0.55 ? 'ママが朝ごはんを作ってくれる！' : '今日は自分で朝ごはん',
-      text: (()=>{
-        if(Math.random()<0.55){
-          return 'ママが「今日は私が作るよ！」って言ってくれた。\nトーストと目玉焼きとサラダ！';
-        } else {
-          return 'ママは今日は忙しそう。\n自分でパンを焼いて食べよう！';
-        }
-      })(),
-      char:'mama', speech: Math.random()<0.55 ? '召し上がれ🍳' : '自分でできるかな？',
+      day:'月曜日 🌅', phase:'あさごはん', theme:'morning',
+      icon:'🍳', title:'朝ごはんを食べよう',
+      text:'ママが「今日は私が作るよ！」って言ってくれた。\nトーストと目玉焼きとサラダ！',
+      char:'mama', speech:'召し上がれ🍳',
       choices:[{label:'🍽️ おいしく食べる', delta:5, txt:'「いただきます！」 朝ごはんを食べると元気が出る！', icon:'😋'},
                {label:'🏃 時間ないから急いで食べる', delta:2, txt:'あわてて食べたら少し残しちゃった…ごめんね', icon:'😅'}],
       memory:'月曜日の朝ごはん'
@@ -570,8 +724,6 @@ function buildEvents(){
                {label:'🙈 宿題…？なんだっけ？', delta:-5, txt:'先生に怒られちゃった！明日は必ずやろう！', icon:'😨'}],
       memory:'月曜日の宿題'
     },
-
-    // ===== 火曜日 =====
     {
       day:'火曜日 🌅', phase:'あさ', theme:'morning',
       icon:'☀️', title:'火曜日の朝',
@@ -606,8 +758,6 @@ function buildEvents(){
       choices:[{label:'🛁 さっとお風呂に入って早く寝る', delta:6, txt:'ゆっくり眠れた！明日も元気！', icon:'😴'},
                {label:'📺 もうちょっとテレビ見てから', delta:-2, txt:'寝るのが遅くなってしまった…眠い朝になりそう', icon:'😴'}]
     },
-
-    // ===== 水曜日 =====
     {
       day:'水曜日 🌧️', phase:'あさ', theme:'morning', rainy:true,
       icon:'🌧️', title:'雨だ〜！',
@@ -636,8 +786,6 @@ function buildEvents(){
                {label:'🥗 普通に食べる', delta:5, txt:'「おいしい！」ふたりとも完食！', icon:'😊'}],
       memory:'ママのカレー最高！'
     },
-
-    // ===== 木曜日 =====
     {
       day:'木曜日 🌅', phase:'あさ', theme:'morning',
       icon:'🌟', title:'木曜日！もうすぐ週末',
@@ -664,8 +812,6 @@ function buildEvents(){
                {label:'😊 「普通だった〜」とだけ言う', delta:3, txt:'パパは「そっか」とうなずいた。ふつうの会話もいいね。', icon:'😊'}],
       memory:'パパに今日のこと話した'
     },
-
-    // ===== 金曜日 =====
     {
       day:'金曜日 🎉', phase:'あさ', theme:'morning',
       icon:'🎉', title:'やったー！金曜日！',
@@ -693,8 +839,6 @@ function buildEvents(){
                {label:'🦁 動物園！', delta:5, txt:'「動物園行こう！」何の動物に会えるかな！', icon:'🦁'},
                {label:'🏠 おうちでのんびり', delta:4, txt:'「ゆっくり過ごそうよ」家でまったりする週末もいいね', icon:'😌'}]
     },
-
-    // ===== 土曜日 =====
     {
       day:'土曜日 🎡', phase:'あさ', theme:'morning',
       icon:'🌅', title:'土曜日！お出かけの朝',
@@ -730,8 +874,6 @@ function buildEvents(){
       choices:[{label:'😴 帰りの車でぐっすり眠る', delta:5, txt:'ふたりとも車でおねむ。かわいい！', icon:'😴'},
                {label:'📸 「写真みせて！」と振り返る', delta:6, txt:'今日の写真を見てみんなで笑った！いい思い出！', icon:'😊'}]
     },
-
-    // ===== 日曜日 =====
     {
       day:'日曜日 😴', phase:'あさ', theme:'morning',
       icon:'😴', title:'日曜日はゆっくり起きる',
@@ -741,7 +883,7 @@ function buildEvents(){
                {label:'🌅 早起きして朝の散歩', delta:7, txt:'朝の静かな空気が気持ちいい！小鳥の声が聞こえた！', icon:'😊'}]
     },
     {
-      day:'日曜日ひる 🎬', phase:'ひる', theme:'noon',
+      day:'日曜日 🎬', phase:'ひる', theme:'noon',
       icon:'🎬', title:'映画館に行こう！',
       text:'今日は映画館で映画を見ることになった！\n何を選ぶ？（けんたとさくらは怖い映画はムリ！）',
       char:'k2', speech:'ホラーはぜったいダメ！！',
@@ -774,18 +916,470 @@ function buildEvents(){
   ];
 }
 
+// ===== イベント定義: Level 2 (一ヶ月) =====
+function buildEventsLevel2(){
+  return [
+    {
+      day:'1日目 🌅', phase:'はじまり', theme:'morning',
+      icon:'📋', title:'新しい月がはじまった！',
+      text:'今月の目標を立ててみよう！\n何か新しいことに挑戦する？',
+      char:'papa', speech:'今月もがんばろう！',
+      choices:[{label:'💪 「今月はこれをがんばる！」と決める', delta:8, txt:'目標を立てると、やる気が出てくるね！さあ、スタート！', icon:'🌟'},
+               {label:'🤔 うーん、まだ決められない…', delta:2, txt:'ゆっくり考えよう。今月のうちに見つかるはず！', icon:'😊'}],
+      memory:'新しい月の目標を立てた'
+    },
+    {
+      day:'3日目 🛒', phase:'おかいもの', theme:'noon',
+      icon:'🛒', title:'スーパーに買い物',
+      text:'週末のご飯の材料を買いに行こう！\nカートを押すの、だれがやる？',
+      char:'k2', speech:'わたしがおす！',
+      choices:[{label:'🛒 カートを元気よく押す', delta:5, txt:'レジに並んでパパがお金を払った。買い物上手！', icon:'😊'},
+               {label:'🍬 おやつを一個だけ選んでいい？', delta:6, txt:'好きなお菓子をゲット！やったー！', icon:'😋'}],
+      memory:'スーパーで買い物した'
+    },
+    {
+      day:'5日目 📝', phase:'ゆうがた', theme:'evening',
+      icon:'📝', title:'子供がテスト勉強',
+      text:'来週テストがあるんだって。\n一緒に勉強する？',
+      char:'k1', speech:'算数むずかしい〜！',
+      choices:[{label:'📚 一緒に問題を解く', delta:10, txt:'わかった！「できた！」って笑顔になった！一緒に勉強するっていいね', icon:'🌟'},
+               {label:'💡 「自分で考えてみな」と見守る', delta:6, txt:'少し時間はかかったけど、自分で答えを出せた！たくましい！', icon:'😊'}],
+      memory:'テスト勉強を一緒にがんばった'
+    },
+    {
+      day:'8日目 🌧️', phase:'ひる', theme:'noon', rainy:true,
+      icon:'🏠', title:'雨の日に家で工作',
+      text:'今日は雨！外に出れないね。\n家で何か作ろうか。',
+      char:'k2', speech:'段ボールで何か作ろう！',
+      choices:[{label:'📦 段ボールで基地を作る', delta:9, txt:'巨大ダンボール基地が完成！中に入ってみんな大はしゃぎ！', icon:'🎉'},
+               {label:'🖼️ 絵を描いて飾る', delta:7, txt:'かわいい絵が完成！壁に飾ったらお部屋が明るくなった！', icon:'🎨'}],
+      memory:'雨の日の工作が楽しかった'
+    },
+    {
+      day:'11日目 🗑️', phase:'あさ', theme:'morning',
+      icon:'🗑️', title:'ゴミ出しの朝',
+      text:'今日は燃えるゴミの日！\n急いで袋を持って出さなきゃ。',
+      char:'papa', speech:'あ！ゴミの日だ！急げ！',
+      choices:[{label:'🏃 急いでゴミを出す！間に合った！', delta:5, txt:'ギリギリセーフ！収集車が来る直前に出せた！よかった！', icon:'😅'},
+               {label:'😴 寝坊して出しそびれた…', delta:-4, txt:'ゴミが溜まってしまった…次の収集日まで待つしかない…', icon:'😞'}]
+    },
+    {
+      day:'14日目 🏫', phase:'がっこう', theme:'noon',
+      icon:'🏫', title:'学校の参観日',
+      text:'今日はお父さんかお母さんが\n学校の授業を見に来てくれる日！',
+      char:'k1', speech:'ちゃんとできるかな〜ドキドキ',
+      choices:[{label:'💪 いつもよりはりきって答える', delta:10, txt:'手をたくさん挙げて先生にほめられた！パパ・ママも笑顔だった！', icon:'🌟'},
+               {label:'😖 緊張してうまくできなかった…', delta:2, txt:'少し緊張したけど、それでいい。見に来てくれただけで十分うれしい！', icon:'😊'}],
+      memory:'参観日でがんばった！'
+    },
+    {
+      day:'16日目 🍪', phase:'ゆうがた', theme:'evening',
+      icon:'🍪', title:'お菓子を一緒に作る',
+      text:'今日はクッキーを焼こう！\nエプロンをつけてキッチンへ。',
+      char:'mama', speech:'一緒に作ろうよ！',
+      choices:[{label:'🥣 生地を一生懸命こねる', delta:9, txt:'手がベタベタになったけど楽しい！焼き上がりのいい匂い〜！', icon:'😋'},
+               {label:'🎨 型抜きをする！星とハートの形に！', delta:8, txt:'ハート型とお星さま型、かわいいクッキーができた！', icon:'🍪'}],
+      memory:'クッキーを手作りした！'
+    },
+    {
+      day:'18日目 👕', phase:'ゆうがた', theme:'evening',
+      icon:'👕', title:'急な洗濯物',
+      text:'天気予報を見てなかった…\n急に雨が降ってきた！',
+      char:'mama', speech:'洗濯物ー！！取り込んでー！！',
+      choices:[{label:'🏃 全力ダッシュで取り込む！', delta:5, txt:'ほとんど濡れずに済んだ！チームワークで乗り越えた！', icon:'😅'},
+               {label:'😱 間に合わなかった…', delta:-3, txt:'全部濡れちゃった…もう一回洗い直しだ！', icon:'😞'}]
+    },
+    {
+      day:'20日目 💰', phase:'あさ', theme:'morning',
+      icon:'💰', title:'給料日！',
+      text:'今日はパパの給料日！\n「何か買おうかな」ってウキウキしてる。',
+      char:'papa', speech:'今日は少し豪華にしよう！',
+      choices:[{label:'🍣 今夜はお寿司にしよう！', delta:10, txt:'みんなで特上寿司！美味しくて幸せ〜！', icon:'😄'},
+               {label:'🎁 子供に小さなプレゼントを', delta:9, txt:'「これあげる！」子供たちがとびはねて喜んだ！', icon:'🎉'}],
+      memory:'給料日にごちそうを食べた！'
+    },
+    {
+      day:'22日目 👫', phase:'ゆうがた', theme:'evening',
+      icon:'👫', title:'子供の友達が遊びに来た',
+      text:'「お友達を家に連れてきていい？」\nって聞かれた！',
+      char:'k1', speech:'〇〇くんを呼んでいいー？',
+      choices:[{label:'😊 「いいよ！いらっしゃい！」', delta:8, txt:'みんなでゲームして大盛り上がり！楽しい時間だったね！', icon:'😄'},
+               {label:'🏠 「今日は家が片付いてないな…」', delta:3, txt:'少し片付けてからお友達を迎えた！次はもっときれいにしておこう！', icon:'😊'}],
+      memory:'友達がいっぱい来て楽しかった'
+    },
+    {
+      day:'24日目 🍴', phase:'よる', theme:'evening',
+      icon:'🍴', title:'外食！',
+      text:'今日はみんなで外食しよう！\nどこに食べに行く？',
+      char:'k2', speech:'ハンバーガー食べたい！',
+      choices:[{label:'🍔 ハンバーガーショップ！', delta:8, txt:'ジューシーなバーガーとポテト！最高においしかった！', icon:'😋'},
+               {label:'🍣 お寿司！', delta:9, txt:'回転寿司でお気に入りのネタをたくさん食べた！', icon:'😋'},
+               {label:'🍜 ラーメン！', delta:7, txt:'熱々のラーメンで体が温まった！おいしい！', icon:'😊'}],
+      memory:'外食が楽しかった！'
+    },
+    {
+      day:'26日目 🎬', phase:'よる', theme:'night',
+      icon:'🎬', title:'家族で映画',
+      text:'今夜は家族みんなでDVD鑑賞会！\n好きな映画を選ぼう。',
+      char:'mama', speech:'みんなで見ようよ〜',
+      choices:[{label:'🚀 アクション・冒険映画', delta:8, txt:'ドキドキわくわく！家族みんなで「わあ！」と盛り上がった！', icon:'😄'},
+               {label:'🐾 動物・ファミリーアニメ', delta:9, txt:'かわいいキャラクターに大笑い！最後はちょっとホロリ…', icon:'😊'}],
+      memory:'家族で映画を楽しんだ'
+    },
+    {
+      day:'28日目 🧹', phase:'ひる', theme:'noon',
+      icon:'🧹', title:'大掃除！',
+      text:'月末だ！家をきれいにしよう。\nみんなで分担して大掃除！',
+      char:'papa', speech:'よし、みんなで掃除だ！',
+      choices:[{label:'💪 自分の部屋をピカピカにする', delta:9, txt:'床も机も窓もピカピカ！スッキリして気持ちいい！', icon:'✨'},
+               {label:'🧴 お風呂やトイレを磨く', delta:8, txt:'ゴシゴシ磨いてきれいになった！頑張った！', icon:'💪'}],
+      memory:'みんなで大掃除した！'
+    },
+    {
+      day:'30日目 🌙', phase:'よる', theme:'night',
+      icon:'🌙', title:'一ヶ月の終わり、振り返り',
+      text:'今月もいろんなことがあったね。\nどんな一ヶ月だった？',
+      char:'mama', speech:'今月もよくがんばったね！',
+      choices:[{label:'😊 「楽しいことがいっぱいあった！」', delta:10, txt:'今月もいっぱい笑って、いっぱい頑張ったね！来月も楽しもう！', icon:'🌟'},
+               {label:'💪 「大変なこともあったけど乗り越えた！」', delta:8, txt:'困難があっても乗り越えた！それだけ強くなったってこと！すごい！', icon:'😄'},
+               {label:'😴 「あっという間だったな…」', delta:5, txt:'時間が経つのは早いね。来月はもっと充実させよう！', icon:'😊'}],
+      memory:'一ヶ月おつかれさま！'
+    },
+  ];
+}
+
+// ===== イベント定義: Level 3 (一年) =====
+function buildEventsLevel3(){
+  return [
+    {
+      day:'1月 🎍', phase:'お正月', theme:'winter',
+      icon:'🎍', title:'お正月！おとしだまもらった',
+      text:'あけましておめでとう！\nおじいちゃんおばあちゃんからお年玉が！',
+      char:'k1', speech:'やったーお年玉！！',
+      choices:[{label:'💰 「貯金しよう！」とがんばる', delta:8, txt:'えらい！しっかり貯金できた！夢が近づいてきた！', icon:'🌟'},
+               {label:'🎮 「全部使っちゃおう！」', delta:5, txt:'楽しいものを買ったけど、あっという間になくなっちゃった…', icon:'😅'}],
+      memory:'お正月のお年玉'
+    },
+    {
+      day:'2月 👹', phase:'節分・バレンタイン', theme:'winter',
+      icon:'👹', title:'節分・バレンタイン',
+      text:'節分だ！豆まきしよう。\n「鬼は外！福は内！」',
+      char:'k2', speech:'鬼は外〜！福は内〜！',
+      choices:[{label:'💪 力いっぱい豆を投げる！', delta:7, txt:'豆まきで鬼退治！今年も健康でいられそう！', icon:'😄'},
+               {label:'🍫 バレンタインにチョコを作る', delta:9, txt:'手作りチョコが完成！喜んでもらえてうれしい！', icon:'💖'}],
+      memory:'節分とバレンタインを楽しんだ'
+    },
+    {
+      day:'3月 🎎', phase:'ひな祭り・卒業', theme:'spring',
+      icon:'🎎', title:'ひな祭り・卒業式',
+      text:'3月はひな祭り！\nそして学年の終わり、卒業式もある。',
+      char:'mama', speech:'ひな人形を飾ろうよ！',
+      choices:[{label:'🎎 ひな人形を家族で飾る', delta:8, txt:'きれいな人形を飾って、ちらし寿司を食べた！ 素敵な春の始まり！', icon:'🌸'},
+               {label:'🎓 卒業式でしっかり証書をもらう', delta:9, txt:'立派に卒業！先生や友達に感謝の気持ちを伝えた！', icon:'🎓'}],
+      memory:'ひな祭りと卒業式'
+    },
+    {
+      day:'4月 🌸', phase:'入学式・花見', theme:'spring',
+      icon:'🌸', title:'入学式・花見',
+      text:'桜が満開！入学式の季節だ。\nみんなで花見もしよう！',
+      char:'k1', speech:'桜きれい〜！',
+      choices:[{label:'🌸 花見でお弁当を食べる', delta:9, txt:'ピンクの桜の下でお弁当！最高の春の思い出！', icon:'🌸'},
+               {label:'🎒 ピカピカのランドセルで入学！', delta:10, txt:'新しい学校！新しいお友達！わくわくドキドキの始まり！', icon:'🌟'}],
+      memory:'春の花見と入学式'
+    },
+    {
+      day:'5月 🚗', phase:'GW', theme:'spring',
+      icon:'🚗', title:'GW！旅行orレジャー',
+      text:'ゴールデンウィーク！\n家族でどこへ行く？',
+      char:'papa', speech:'どこ行きたい？',
+      choices:[{label:'🏖️ 海へドライブ旅行！', delta:10, txt:'青い海と砂浜！波打ち際で遊んで最高の思い出！', icon:'🌊'},
+               {label:'🏕️ キャンプへ行く！', delta:9, txt:'テントを立てて、バーベキュー！満点の星空を見た！', icon:'⛺'},
+               {label:'🎡 テーマパーク！', delta:9, txt:'夢の国でジェットコースターに乗った！大冒険！', icon:'🎡'}],
+      memory:'GWの大冒険！'
+    },
+    {
+      day:'6月 🌂', phase:'梅雨', theme:'morning', rainy:true,
+      icon:'🌂', title:'梅雨・うっかり外干し',
+      text:'雨が続く梅雨の季節。\nうっかり外に洗濯物を出してたまま！',
+      char:'mama', speech:'洗濯物ーー！！',
+      choices:[{label:'🏃 急いで取り込む！', delta:4, txt:'少し濡れちゃったけどセーフ！これからは天気予報を確認しよう！', icon:'😅'},
+               {label:'😢 全部びしょびしょ…', delta:-3, txt:'全部濡れてしまった…でも次回は気をつけよう！', icon:'😞'}]
+    },
+    {
+      day:'7月 ⭐', phase:'七夕・夏休み', theme:'summer',
+      icon:'⭐', title:'七夕・夏休みスタート',
+      text:'七夕！願い事を書こう！\nそして夏休みもはじまるよ！',
+      char:'k2', speech:'なんでも願おうよ！',
+      choices:[{label:'⭐ 短冊に願い事を書く', delta:8, txt:'「かしこくなれますように」…叶うといいね！', icon:'🌟'},
+               {label:'🏖️ 「やったー夏休みだー！」とはしゃぐ', delta:9, txt:'夏休みスタート！何をしようか考えるだけでわくわく！', icon:'😄'}],
+      memory:'七夕と夏休みのスタート'
+    },
+    {
+      day:'8月 🌊', phase:'海・花火', theme:'summer',
+      icon:'🌊', title:'海・花火',
+      text:'夏の定番！\n海で遊んで夜は花火大会！',
+      char:'k1', speech:'海だーーー！！',
+      choices:[{label:'🌊 海で思いっきり泳ぐ！', delta:10, txt:'波に乗って大はしゃぎ！砂のお城も作った！最高の夏！', icon:'😄'},
+               {label:'🎆 花火大会で「わあ！」ってなる', delta:9, txt:'どーーん！大きな花火が夜空に広がった！きれい！', icon:'🎆'}],
+      memory:'夏の海と花火が最高だった！'
+    },
+    {
+      day:'9月 📚', phase:'新学期', theme:'morning',
+      icon:'📚', title:'新学期・夏休みの宿題',
+      text:'夏休みが終わった！\n宿題は終わってる…かな？',
+      char:'k1', speech:'あ！読書感想文まだだ！！',
+      choices:[{label:'💪 「全部終わってるよ！」自信満々', delta:10, txt:'ちゃんと終わらせてたんだね！えらい！新学期もスタート！', icon:'🌟'},
+               {label:'😱 「全然終わってない！！」焦る', delta:-3, txt:'最終日に大慌て…なんとか間に合ったけど次は早めにやろう！', icon:'😅'}],
+      memory:'新学期のスタート'
+    },
+    {
+      day:'10月 🏃', phase:'運動会・ハロウィン', theme:'autumn',
+      icon:'🏃', title:'運動会・ハロウィン',
+      text:'秋の大イベント！\n運動会にハロウィンも楽しみ！',
+      char:'k2', speech:'かけっこがんばるよ！',
+      choices:[{label:'🏃 運動会のかけっこで全力疾走！', delta:9, txt:'ゴールテープを切った！一番でも最後でも、全力が大事！', icon:'🌟'},
+               {label:'🎃 ハロウィンで仮装する！', delta:8, txt:'魔女とオバケに変身！お菓子をいっぱいもらった！', icon:'🎃'}],
+      memory:'運動会とハロウィンを楽しんだ'
+    },
+    {
+      day:'11月 🍂', phase:'紅葉・七五三', theme:'autumn',
+      icon:'🍂', title:'紅葉・七五三',
+      text:'もみじが赤くきれいな季節。\n七五三のお参りにも行こう！',
+      char:'mama', speech:'着物着てみようよ！',
+      choices:[{label:'🍂 紅葉狩りに行く', delta:8, txt:'赤・黄・橙のカーペット！落ち葉を踏むサクサクの音が気持ちいい！', icon:'🍂'},
+               {label:'⛩️ 七五三でお参り', delta:9, txt:'晴れ着を着てお参り！「大きくなれますように」', icon:'⛩️'}],
+      memory:'秋の紅葉と七五三'
+    },
+    {
+      day:'12月 🎄', phase:'クリスマス・大晦日', theme:'winter',
+      icon:'🎄', title:'クリスマス・大晦日',
+      text:'今年最後のビッグイベント！\nクリスマスと大晦日がやってきた！',
+      char:'k1', speech:'サンタさんくるかな〜！',
+      choices:[{label:'🎄 クリスマスツリーを飾る', delta:9, txt:'キラキラのツリーが完成！部屋が魔法みたいにきれいになった！', icon:'🌟'},
+               {label:'🎁 プレゼントを贈り合う', delta:10, txt:'みんなの笑顔！プレゼントって贈るのも嬉しいね！', icon:'🎁'},
+               {label:'🍜 大晦日に年越し蕎麦を食べる', delta:8, txt:'細く長く年を越す！今年もいい一年だったね！', icon:'😊'}],
+      memory:'クリスマスと大晦日！最高の締めくくり'
+    },
+  ];
+}
+
+// ===== イベント定義: Level 4 (100年) =====
+function buildEventsLevel4(){
+  return [
+    {
+      age:5, day:'5歳 👶', phase:'', theme:'morning',
+      icon:'👶', title:'はじめての幼稚園',
+      text:'今日からはじめて幼稚園！\nどきどきするけど、わくわくもする！',
+      char:'k1', speech:'ようちえんたのしいな〜！',
+      choices:[{label:'😊 「たのしいー！」と元気いっぱい遊ぶ', delta:8, txt:'砂場でお山を作って、新しいお友達ができた！幸せな始まり！', icon:'🌟'},
+               {label:'😢 「かえりたい…」ってないてしまう', delta:2, txt:'最初は泣いても大丈夫。みんなそうやって大きくなるんだよ！', icon:'😊'}],
+      memory:'5歳：はじめての幼稚園'
+    },
+    {
+      age:7, day:'7歳 🎒', phase:'', theme:'morning',
+      icon:'🎒', title:'小学校入学！',
+      text:'ピカピカのランドセルを背負って\n小学校に入学する日！',
+      char:'k1', speech:'にっぽんいちのしょうがくせいになる！',
+      choices:[{label:'🌸 元気よく「いってきます！」', delta:9, txt:'新しい先生、新しいお友達！小学校生活のスタート！楽しみだね！', icon:'🌟'},
+               {label:'😖 ちょっと緊張して泣きそう…', delta:5, txt:'大丈夫！最初は誰でも緊張するよ。すぐ楽しくなるから！', icon:'😊'}],
+      memory:'7歳：小学校に入学した'
+    },
+    {
+      age:10, day:'10歳 🏃', phase:'', theme:'noon',
+      icon:'🏃', title:'運動会で1等賞？',
+      text:'小学校の運動会！\nかけっこで1等を目指すよ！',
+      char:'k1', speech:'ぜったい1番になる！！',
+      choices:[{label:'🏆 全力疾走！1等賞！', delta:10, txt:'1番でゴール！みんなが応援してくれて最高の瞬間！', icon:'🏆'},
+               {label:'💪 全力を出し切ったから満足！', delta:8, txt:'順位より全力を出せたことが大事！よくがんばった！', icon:'😊'}],
+      memory:'10歳：運動会で全力疾走した'
+    },
+    {
+      age:13, day:'13歳 🏫', phase:'', theme:'morning',
+      icon:'🏫', title:'中学入学・部活',
+      text:'中学生になった！\nどの部活に入る？',
+      char:'k1', speech:'どの部活にしようかな〜',
+      choices:[{label:'⚽ サッカー部に入る！', delta:9, txt:'放課後は毎日サッカー！汗かいて、チームワークを学んだ！', icon:'⚽'},
+               {label:'🎵 吹奏楽部に入る！', delta:8, txt:'はじめての楽器！最初は難しいけど少しずつ音が出てきた！', icon:'🎵'},
+               {label:'🖌️ 美術部に入る！', delta:8, txt:'好きな絵をのびのびと描ける！先生にほめられた！', icon:'🎨'}],
+      memory:'13歳：中学入学・部活スタート'
+    },
+    {
+      age:15, day:'15歳 💕', phase:'', theme:'evening',
+      icon:'💕', title:'初恋？',
+      text:'あのクラスの子が気になってるんだけど…\nどうしたらいいんだろう？',
+      char:'k1', speech:'どきどきするな〜…',
+      choices:[{label:'💌 勇気を出して話しかける！', delta:10, txt:'緊張しながら話しかけたら笑顔で返してくれた！ドキドキが止まらない！', icon:'💕'},
+               {label:'😳 やっぱり恥ずかしくて見てるだけ…', delta:5, txt:'遠くから見てるだけでも、この気持ちは本物！青春だね！', icon:'😊'}],
+      memory:'15歳：初恋のドキドキ'
+    },
+    {
+      age:18, day:'18歳 🎓', phase:'', theme:'morning',
+      icon:'🎓', title:'高校卒業・大学受験',
+      text:'ついに高校卒業！\n大学受験の結果は…？',
+      char:'k1', speech:'ドキドキ！合格してるかな！',
+      choices:[{label:'🎉 合格！！わーい！！', delta:10, txt:'やった〜！合格！！涙が出るくらい嬉しい！努力は裏切らない！', icon:'🌟'},
+               {label:'💪 不合格…でも浪人してもう一年！', delta:6, txt:'悔しいけど、もう一年頑張る！この経験が必ず力になる！', icon:'💪'}],
+      memory:'18歳：高校卒業・受験の結果'
+    },
+    {
+      age:22, day:'22歳 💼', phase:'', theme:'morning',
+      icon:'💼', title:'就職！社会人デビュー',
+      text:'大学を卒業して、いよいよ就職！\n社会人としての一歩を踏み出す！',
+      char:'k1', speech:'よし！はたらくぞー！',
+      choices:[{label:'💼 やる気満々で初出勤！', delta:10, txt:'スーツを着て電車に乗った！ちょっと緊張したけどわくわくが止まらない！', icon:'🌟'},
+               {label:'😅 わからないことだらけ…', delta:6, txt:'最初は誰だってわからないよ！少しずつ覚えていこう！', icon:'😊'}],
+      memory:'22歳：社会人デビュー！'
+    },
+    {
+      age:26, day:'26歳 💖', phase:'', theme:'evening',
+      icon:'💖', title:'好きな人ができた',
+      text:'職場で素敵な人に出会った！\n気持ちを伝えてみる？',
+      char:'k1', speech:'ドキドキするな〜…',
+      choices:[{label:'💌 「好きです！」と告白する！', delta:10, txt:'「私もです！」って言ってくれた！！夢じゃないよね？！嬉しすぎる！！', icon:'💕'},
+               {label:'😳 もうちょっと仲良くなってから…', delta:6, txt:'じっくり距離を縮めていこう。いつか気持ちを伝えようね！', icon:'😊'}],
+      memory:'26歳：好きな人ができた！'
+    },
+    {
+      age:30, day:'30歳 💍', phase:'', theme:'morning',
+      icon:'💍', title:'結婚！！',
+      text:'プロポーズが成功して\nついに結婚式の日！',
+      char:'k1', speech:'こんなに幸せでいいの！？',
+      choices:[{label:'💍 最高の結婚式！永遠の愛を誓う', delta:10, txt:'白いドレスと黒いタキシード！ゲスト全員が笑顔で涙！最高の日！', icon:'🌟'}],
+      memory:'30歳：結婚！！最高の日！'
+    },
+    {
+      age:33, day:'33歳 🍼', phase:'', theme:'morning',
+      icon:'🍼', title:'子供が生まれた！',
+      text:'赤ちゃんが生まれた！\nちっちゃくて、かわいい！',
+      char:'k1', speech:'かわいい〜！！！',
+      choices:[{label:'👶 「世界一かわいい！」と抱っこする', delta:10, txt:'泣き声もかわいい！眠れない夜もあるけど、幸せで一杯！', icon:'💕'}],
+      memory:'33歳：かわいい赤ちゃんが生まれた！'
+    },
+    {
+      age:40, day:'40歳 📈', phase:'', theme:'noon',
+      icon:'📈', title:'仕事で昇進',
+      text:'長年の努力が実って\n係長から課長に昇進！',
+      char:'k1', speech:'やった！認めてもらえた！',
+      choices:[{label:'🎉 チームのみんなとお祝い！', delta:9, txt:'チームみんなで祝ってくれた！みんなのおかげだよ、ありがとう！', icon:'🌟'},
+               {label:'💪 「もっとがんばるぞ！」と奮起', delta:8, txt:'昇進はスタートライン！さらに上を目指して頑張るぞ！', icon:'💪'}],
+      memory:'40歳：仕事で昇進した！'
+    },
+    {
+      age:45, day:'45歳 🎒', phase:'', theme:'morning',
+      icon:'🎒', title:'子供が小学生に',
+      text:'自分の子供がランドセルを背負って\n小学校に入学する日！',
+      char:'k1', speech:'うちの子も大きくなったなあ…',
+      choices:[{label:'😭 感動して涙が出てきた…', delta:8, txt:'あの小さかった赤ちゃんが…！親ってこういう気持ちなんだね！', icon:'💕'},
+               {label:'📸 写真をいっぱい撮る！', delta:9, txt:'「ちゃんと笑ってー！」ランドセル姿の写真、一生の宝物！', icon:'😄'}],
+      memory:'45歳：子供の小学校入学'
+    },
+    {
+      age:55, day:'55歳 🕊️', phase:'', theme:'evening',
+      icon:'🕊️', title:'子供が独立',
+      text:'育てた子供が一人立ち！\n家から巣立っていく日。',
+      char:'k1', speech:'大きくなったなあ…さびしいけど嬉しい',
+      choices:[{label:'😊 「元気でね、いつでも帰っておいで」', delta:8, txt:'ちゃんと独り立ちできる子に育った！立派だよ！', icon:'💕'},
+               {label:'😢 「急に家が静かになった…」', delta:5, txt:'寂しいけど、それが成功の証。よく育ててきたね！', icon:'😊'}],
+      memory:'55歳：子供が独立した'
+    },
+    {
+      age:60, day:'60歳 🎊', phase:'', theme:'morning',
+      icon:'🎊', title:'定年退職！',
+      text:'38年間働いて、ついに定年退職！\n今日が最後の出勤日。',
+      char:'k1', speech:'お疲れ様でした！！',
+      choices:[{label:'🎊 「お世話になりました！」と盛大にお別れ', delta:10, txt:'同僚みんなが花束を持って送り出してくれた！泣けてきた！！', icon:'💕'},
+               {label:'😌 「これからは自由だー！」とほっとする', delta:9, txt:'肩の力がスッと抜けた！さあ、第二の人生のスタートだ！', icon:'😄'}],
+      memory:'60歳：定年退職！お疲れさまでした'
+    },
+    {
+      age:65, day:'65歳 ✈️', phase:'', theme:'summer',
+      icon:'✈️', title:'念願の旅行',
+      text:'ずっと行きたかった場所へ！\n旅行に行こう！',
+      char:'k1', speech:'ずっと行きたかったんだ〜！',
+      choices:[{label:'🗼 ヨーロッパへ！', delta:10, txt:'エッフェル塔を見た！本場のパスタを食べた！夢が叶った！', icon:'🌟'},
+               {label:'🌺 ハワイへ！', delta:10, txt:'青い海！やし色のビーチ！最高のバカンス！来て良かった！', icon:'😄'},
+               {label:'⛩️ 国内の温泉旅行', delta:8, txt:'絶景の露天風呂！おいしい料理！最高の旅！', icon:'😊'}],
+      memory:'65歳：念願の旅行が叶った！'
+    },
+    {
+      age:70, day:'70歳 👶', phase:'', theme:'morning',
+      icon:'👶', title:'孫が生まれた！',
+      text:'子供に赤ちゃんが生まれた！\nおじいちゃん・おばあちゃんになった！',
+      char:'k1', speech:'まごが生まれたぞーーー！！',
+      choices:[{label:'😭 感動で涙が止まらない！', delta:10, txt:'孫の小さな手を見て、また涙が出た。人生って素晴らしい！', icon:'💕'}],
+      memory:'70歳：孫が生まれた！'
+    },
+    {
+      age:77, day:'77歳 🎊', phase:'', theme:'morning',
+      icon:'🎊', title:'喜寿のお祝い🎊',
+      text:'77歳！喜寿のお祝いパーティー！\n家族みんなが集まってくれた！',
+      char:'k1', speech:'みんなありがとう〜！！',
+      choices:[{label:'🎊 「みんなありがとう！」と大声で言う', delta:9, txt:'子供も孫も全員集合！こんなに幸せでいいの？感謝しかない！', icon:'💕'}],
+      memory:'77歳：喜寿のお祝いパーティー'
+    },
+    {
+      age:88, day:'88歳 🎊', phase:'', theme:'morning',
+      icon:'🎊', title:'米寿のお祝い🎊',
+      text:'88歳！米寿のお祝い！\nもう曾孫まで来てくれた！',
+      char:'k1', speech:'ひまごがかわいいのう〜！',
+      choices:[{label:'💕 曾孫に囲まれて最高に幸せ！', delta:10, txt:'4世代が一つの部屋に！こんなにぎやかな家族になったんだね！', icon:'🌟'}],
+      memory:'88歳：米寿、4世代集合！'
+    },
+    {
+      age:100, day:'100歳 🎉', phase:'', theme:'morning',
+      icon:'🎉', title:'100歳！！おめでとう！！',
+      text:'ついに100歳！！！\n市長さんからお祝い状が届いた！',
+      char:'k1', speech:'わしゃ100歳になったんか〜！！',
+      choices:[{label:'🎉 「100年間、ありがとう！」', delta:10, txt:'100年の大冒険がここで完結！笑いあり涙あり、最高の人生だった！！', icon:'🌟'}],
+      memory:'100歳：おめでとう！！最高の人生！！'
+    },
+  ];
+}
+
 // ===== ゲーム状態 =====
 let events = [];
 let eventIndex = 0;
 
-function startGame(){
+function showLevelSelect(){
+  document.getElementById('level-select').style.display='flex';
+  document.getElementById('week-result').style.display='none';
+}
+
+function backToLevelSelect(){
+  document.getElementById('week-result').style.display='none';
+  document.getElementById('level-select').style.display='flex';
+}
+
+function startLevel(level){
+  currentLevel = level;
+  document.getElementById('level-select').style.display='none';
   happy = 60;
   memories = [];
   eventIndex = 0;
-  events = buildEvents();
-  document.getElementById('week-result').style.display='none';
+  lifeAge = 0;
   setHappy(0);
+
+  // キャラをリセット
+  document.getElementById('char-k1').querySelector('.char-emoji').textContent='👦';
+  document.getElementById('char-k2').querySelector('.char-emoji').textContent='👧';
+  document.getElementById('char-k1').querySelector('.char-name').textContent='けんた';
+  document.getElementById('char-k2').querySelector('.char-name').textContent='さくら';
+
+  if(level===1) events = buildEventsLevel1();
+  else if(level===2) events = buildEventsLevel2();
+  else if(level===3) events = buildEventsLevel3();
+  else if(level===4){
+    events = buildEventsLevel4();
+    document.getElementById('char-k1').querySelector('.char-name').textContent='あなた';
+    document.getElementById('char-k2').querySelector('.char-name').textContent='あなた';
+  }
+
+  document.getElementById('week-result').style.display='none';
   showEvent();
+}
+
+function replayLevel(){
+  startLevel(currentLevel);
 }
 
 function showEvent(){
@@ -795,19 +1389,29 @@ function showEvent(){
   }
   const ev = events[eventIndex];
 
-  // 背景
-  setTheme(ev.theme || 'morning', ev.rainy || false);
+  // Level4: 年齢を更新
+  if(currentLevel===4 && ev.age !== undefined){
+    lifeAge = ev.age;
+    updateCharsForAge(lifeAge);
+    document.getElementById('day-label').textContent = ev.day;
+    document.getElementById('phase-label').textContent = '';
+  } else {
+    setTheme(ev.theme || 'morning', ev.rainy || false);
+    document.getElementById('day-label').textContent = ev.day + ' ' + (ev.phase||'');
+    document.getElementById('phase-label').textContent = '';
+  }
 
-  // ヘッダー
-  document.getElementById('day-label').textContent = ev.day + ' ' + (ev.phase||'');
-  document.getElementById('phase-label').textContent = '';
+  if(currentLevel===4){
+    // level4は年齢ベースの背景
+    const age = ev.age || 0;
+    const themeKey = age<=20 ? 'morning' : age<=40 ? 'noon' : age<=60 ? 'evening' : age<=80 ? 'autumn' : 'night';
+    setTheme(themeKey, false);
+  }
 
-  // カード
   document.getElementById('event-icon').textContent = ev.icon;
   document.getElementById('event-title').textContent = ev.title;
   document.getElementById('event-text').textContent = ev.text || '';
 
-  // ボタン
   const choicesEl = document.getElementById('choices');
   choicesEl.innerHTML = '';
   const cols = ['','green','orange','red'];
@@ -819,12 +1423,10 @@ function showEvent(){
     choicesEl.appendChild(btn);
   });
 
-  // 吹き出し
   if(ev.char && ev.speech){
     setTimeout(()=>showSpeech(ev.char, ev.speech), 600);
   }
 
-  // カードアニメーション再実行
   const card = document.getElementById('event-card');
   card.style.animation='none';
   void card.offsetWidth;
@@ -835,14 +1437,11 @@ function doChoice(choice, ev){
   const delta = choice.delta || 0;
   setHappy(delta);
 
-  // メモリー登録
   if(ev.memory && delta > 0) memories.push(ev.memory);
 
-  // エフェクト
   if(delta >= 8) showEffect(choice.icon||'✨', delta);
   else if(delta <= -5) showEffect('😱', delta);
 
-  // 次のイベントテキストを一瞬見せる
   const titleEl = document.getElementById('event-title');
   const textEl = document.getElementById('event-text');
   titleEl.textContent = choice.txt || '';
@@ -862,24 +1461,37 @@ function showResult(){
   const resultEl = document.getElementById('week-result');
   resultEl.style.display='flex';
 
+  const levelNames = ['','一週間','一ヶ月','一年間','100年の人生'];
+  document.getElementById('result-title').textContent = `🎉 ${levelNames[currentLevel]}おわったよ！`;
+
   document.getElementById('result-score').textContent = happy + '点';
 
   let rank, rankEmoji;
-  if(happy >= 90){ rank='最高のかぞく！🌟'; rankEmoji='🏆'; }
-  else if(happy >= 75){ rank='たのしい一週間だった！😄'; rankEmoji='🎉'; }
-  else if(happy >= 55){ rank='ふつうにいい一週間👨‍👩‍👦‍👦'; rankEmoji='😊'; }
-  else if(happy >= 35){ rank='ちょっとくたびれた一週間…'; rankEmoji='😐'; }
-  else { rank='たいへんな一週間だったね😢'; rankEmoji='💪'; }
+  if(happy >= 90){ rank='最高の人生！🌟'; rankEmoji='🏆'; }
+  else if(happy >= 75){ rank='たのしかったね！😄'; rankEmoji='🎉'; }
+  else if(happy >= 55){ rank='ふつうにいい毎日👨‍👩‍👦‍👦'; rankEmoji='😊'; }
+  else if(happy >= 35){ rank='ちょっとくたびれた…'; rankEmoji='😐'; }
+  else { rank='たいへんだったね😢'; rankEmoji='💪'; }
 
   document.getElementById('result-rank').textContent = rankEmoji + ' ' + rank;
 
   const mem = document.getElementById('result-memories');
   if(memories.length > 0){
-    mem.innerHTML = '<strong style="color:#fff">📔 今週の思い出：</strong><br>' +
+    const label = currentLevel===4 ? '📔 人生の思い出：' : '📔 おもいで：';
+    mem.innerHTML = `<strong style="color:#fff">${label}</strong><br>` +
       memories.map(m=>'✨ '+m).join('<br>');
   } else {
-    mem.innerHTML = '<span style="color:rgba(255,255,255,0.7)">来週はいっぱい思い出を作ろう！</span>';
+    mem.innerHTML = '<span style="color:rgba(255,255,255,0.7)">もっといっぱい思い出を作ろう！</span>';
   }
+
+  const special = document.getElementById('result-life-special');
+  if(currentLevel===4){
+    special.textContent = 'すごい！100年の大冒険だったね！🎉';
+  } else {
+    special.textContent = '';
+  }
+
+  document.getElementById('replay-btn').textContent = `もう一回${['','一週間','一ヶ月','一年間','100年'][currentLevel]}やってみる！`;
 
   makeConfetti();
   document.getElementById('effect').style.display='flex';
@@ -890,7 +1502,7 @@ function showResult(){
 }
 
 // ===== START =====
-startGame();
+showLevelSelect();
 </script>
 </body>
 </html>
