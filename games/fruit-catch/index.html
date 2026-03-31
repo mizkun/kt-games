@@ -78,10 +78,13 @@ function initGame(){
 // ========== アイテム生成 ==========
 // ⭐ 1億個！ずっと降り続ける！爆弾なし！
 let fruitIndex = 0;
-let rainbowSpawned = 0; // 船長スター出現数
-const RAINBOW_TOTAL = 10; // 全部で10個出る
+let rainbowSpawned = 0;
+const RAINBOW_TOTAL = 10;
+let muryouSpawned = 0;    // 無量大数スター出現数
+const MURYOU_TOTAL = 3;   // 全部で3個だけ！レア！
+let muryouCaught = 0;     // 捕まえた数（スコア表示用）
 
-function buildFruitQueue(){ fruitIndex = 0; rainbowSpawned = 0; }
+function buildFruitQueue(){ fruitIndex = 0; rainbowSpawned = 0; muryouSpawned = 0; muryouCaught = 0; }
 
 function spawnStar(){
   fruitIndex++;
@@ -109,8 +112,25 @@ function spawnRainbowStar(){
     angle: 0,
     emoji: '⭐', pts: 100000000, color: '#fff',
     isBad: false, isRainbow: true,
-    r: 56,   // でっかい！
+    r: 56,
     hue: Math.random() * 360,
+  });
+}
+
+// 🌟 無量大数スター！通常星の10倍のでかさ！
+function spawnMuryouStar(){
+  if(muryouSpawned >= MURYOU_TOTAL) return;
+  muryouSpawned++;
+  const spawnX = W / 2 + (Math.random()-0.5)*60; // 真ん中あたりからど〜ん
+  items.push({
+    x: spawnX, y: -200,
+    vy: 0.8,   // 超ゆっくり落ちてくる
+    rot: 0.015,
+    angle: 0,
+    emoji: '⭐', pts: 0, color: '#fff',
+    isBad: false, isRainbow: false, isMuryou: true,
+    r: 280,   // 通常星(28)の10倍！画面の半分ぐらいでっかい！
+    hue: 0,
   });
 }
 
@@ -127,8 +147,11 @@ function update(){
   for(let i = 0; i < burst; i++) spawnStar();
   if(frameCount % 40 === 0) for(let i = 0; i < 10; i++) setTimeout(spawnStar, i * 40);
 
-  // 🌈 船長スター！180フレームごとに1個ずつ、全10個登場！
+  // 🌈 千兆スター！180フレームごとに1個ずつ、全10個登場！
   if(rainbowSpawned < RAINBOW_TOTAL && frameCount % 180 === 90) spawnRainbowStar();
+
+  // 🌟 無量大数スター！600フレームごとに1個、全3個だけ！超レア！
+  if(muryouSpawned < MURYOU_TOTAL && frameCount % 600 === 300) spawnMuryouStar();
 
   // プレイヤー移動
   const goL = keys['arrowleft']||keys['a']||touchL;
@@ -158,8 +181,19 @@ function update(){
       it.x > player.x - BASKET_W/2 - r*0.5 &&
       it.x < player.x + BASKET_W/2 + r*0.5
     ){
-      if(it.isRainbow){
-        // 🌈 船長ポイント！！
+      if(it.isMuryou){
+        // 🌟 1000無量大数ポイント！！！
+        muryouCaught++;
+        combo += 100;
+        comboTimer = 300;
+        score += 1e68; // 無量大数は10^68！
+        addEffect(it.x, H/2 - 60, '🌟🌟🌟', '#ffffff', 120);
+        addEffect(it.x, H/2,      '1000無量大数ポイント！！', '#ffff00', 120);
+        addEffect(it.x, H/2 + 50, 'やばすぎる…', '#ff88ff', 100);
+        shakeScreen(60);
+        for(let j=0;j<60;j++) addParticle(it.x, playerY, `hsl(${j*6},100%,60%)`);
+      } else if(it.isRainbow){
+        // 🌈 千兆ポイント！！
         combo += 10;
         comboTimer = 180;
         score += 1000000000000000;
@@ -310,7 +344,41 @@ function drawItems(){
     cx.translate(it.x, it.y);
     cx.rotate(it.angle);
 
-    if(it.isRainbow){
+    if(it.isMuryou){
+      // 🌟 無量大数スター！画面の半分ぐらいのでかさ！
+      const t = Date.now() * 0.002;
+      const pulse = 1 + Math.sin(t * 1.5) * 0.08;
+      const R = it.r * pulse;
+
+      // 超巨大な輝き（何重にも重なるオーラ）
+      for(let ring = 6; ring >= 0; ring--){
+        const hue = (t * 60 + ring * 50) % 360;
+        const glow = cx.createRadialGradient(0,0,0,0,0,R*1.2+ring*20);
+        glow.addColorStop(0, `hsla(${hue},100%,80%,0.4)`);
+        glow.addColorStop(1, 'transparent');
+        cx.fillStyle = glow; cx.beginPath(); cx.arc(0,0,R*1.2+ring*20,0,Math.PI*2); cx.fill();
+      }
+      // 白銀の本体
+      const grad = cx.createRadialGradient(0,0,0,0,0,R);
+      grad.addColorStop(0, '#ffffff');
+      grad.addColorStop(0.2, `hsl(${(t*80)%360},100%,90%)`);
+      grad.addColorStop(0.5, `hsl(${(t*80+90)%360},100%,75%)`);
+      grad.addColorStop(0.8, `hsl(${(t*80+180)%360},100%,60%)`);
+      grad.addColorStop(1,   `hsl(${(t*80+270)%360},100%,50%)`);
+      cx.fillStyle = grad; cx.beginPath(); cx.arc(0,0,R,0,Math.PI*2); cx.fill();
+
+      // 超でっかい星
+      cx.font = `${R*1.4}px sans-serif`;
+      cx.textAlign = 'center'; cx.textBaseline = 'middle';
+      cx.fillText('⭐', 0, 0);
+
+      // ラベル（点滅）
+      if(Math.floor(t*3)%2===0){
+        cx.fillStyle = '#fff';
+        cx.font = `bold ${~~(R*0.22)}px sans-serif`;
+        cx.fillText('1000無量大数', 0, R + 22);
+      }
+    } else if(it.isRainbow){
       // 🌈 船長スター！虹色でっかく輝く！
       const t = Date.now() * 0.003;
       const pulse = 1 + Math.sin(t * 2) * 0.12;
