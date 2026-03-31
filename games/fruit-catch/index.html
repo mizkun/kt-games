@@ -76,20 +76,14 @@ function initGame(){
 }
 
 // ========== アイテム生成 ==========
-const TOTAL_STARS = 600;  // 星の総数
-const FINAL_BOMBS = 5;    // 最後に落ちてくる爆弾の数
+// ⭐ 1億個！ずっと降り続ける！爆弾なし！
 let fruitIndex = 0;
-let bombsSpawned = 0;
-let gameFinale = false; // フィナーレ（爆弾タイム）
-let finaleTimer = 0;
-
-function buildFruitQueue(){ fruitIndex = 0; bombsSpawned = 0; gameFinale = false; finaleTimer = 0; }
+function buildFruitQueue(){ fruitIndex = 0; }
 
 function spawnStar(){
-  if(fruitIndex >= TOTAL_STARS) return; // 星はもう終わり
   fruitIndex++;
   const spawnX = ITEM_R + Math.random() * (W - ITEM_R * 2); // 画面中どこからでも！
-  const baseSpeed = 3.5 + level * 0.25 + Math.random() * 2.5;
+  const baseSpeed = 3.5 + level * 0.2 + Math.random() * 2.5;
   items.push({
     x: spawnX,
     y: -ITEM_R,
@@ -103,21 +97,6 @@ function spawnStar(){
   });
 }
 
-function spawnBomb(){
-  const spawnX = ITEM_R + Math.random() * (W - ITEM_R * 2);
-  items.push({
-    x: spawnX,
-    y: -ITEM_R,
-    vy: 5 + Math.random() * 3,
-    rot: 0.08,
-    angle: 0,
-    emoji: '💣',
-    pts: -1,
-    color: '#333',
-    isBad: true,
-  });
-}
-
 // ========== 更新 ==========
 function update(){
   frameCount++;
@@ -126,32 +105,12 @@ function update(){
   // レベルアップ
   level = 1 + ~~(frameCount / 900);
 
-  // ⭐ 星が画面中からバーーーっと降りまくる！
-  if(!gameFinale && fruitIndex < TOTAL_STARS){
-    // 毎フレーム2〜4個スポーン（めちゃくちゃ大量！）
-    const burst = 2 + (frameCount % 3 === 0 ? 1 : 0);
-    for(let i = 0; i < burst; i++) spawnStar();
-    // 50フレームごとに追加どばっと（さらに増やす）
-    if(frameCount % 50 === 0) for(let i=0;i<5;i++) setTimeout(spawnStar, i*60);
-  }
-  // 星が全部出たらフィナーレ：爆弾5個ドーン！
-  if(!gameFinale && fruitIndex >= TOTAL_STARS && items.filter(it=>!it.isBad).length === 0){
-    gameFinale = true;
-    finaleTimer = 0;
-    addEffect(W/2, H/2-60, '⚠ 最後の試練！爆弾だ！！', '#ff4400', 120);
-  }
-  if(gameFinale){
-    finaleTimer++;
-    if(bombsSpawned < FINAL_BOMBS && finaleTimer % 60 === 0){
-      spawnBomb();
-      bombsSpawned++;
-      addEffect(W/2, 80, `💣 爆弾 ${bombsSpawned}/${FINAL_BOMBS}！`, '#ff2200', 60);
-    }
-    // 全部落ちたらクリア
-    if(bombsSpawned >= FINAL_BOMBS && items.length === 0){
-      state = 'clear';
-    }
-  }
+  // ⭐ 1億個！画面中からバーーーっとずっと降り続ける！爆弾なし！
+  // 毎フレーム3〜5個スポーン（めちゃくちゃ大量！）
+  const burst = 3 + (frameCount % 2 === 0 ? 2 : 0);
+  for(let i = 0; i < burst; i++) spawnStar();
+  // 40フレームごとにさらにどばっと10個
+  if(frameCount % 40 === 0) for(let i = 0; i < 10; i++) setTimeout(spawnStar, i * 40);
 
   // プレイヤー移動
   const goL = keys['arrowleft']||keys['a']||touchL;
@@ -180,40 +139,21 @@ function update(){
       it.x > player.x - BASKET_W/2 - ITEM_R*0.5 &&
       it.x < player.x + BASKET_W/2 + ITEM_R*0.5
     ){
-      if(it.isBad){
-        // 爆弾・トウガラシ
-        if(it.pts === -1){
-          lives--;
-          shakeScreen(20);
-          addEffect(it.x, playerY, '💥 -1ライフ！', '#ff4444', 40);
-          for(let j=0;j<15;j++) addParticle(it.x, playerY, '#ff4444');
-          if(lives <= 0){ state='gameover'; return; }
-        } else {
-          score = Math.max(0, score + it.pts);
-          addEffect(it.x, playerY, `${it.pts}`, '#ff6600', 35);
-          combo = 0; comboTimer = 0;
-        }
-      } else {
-        // 果物キャッチ！
-        combo++;
-        comboTimer = 90;
-        const pts = it.pts * (combo >= 5 ? 3 : combo >= 3 ? 2 : 1);
-        score += pts;
-        const label = combo >= 3 ? `${combo}コンボ！ +${pts}` : `+${pts}`;
-        addEffect(it.x, playerY, label, combo>=3?'#ffdd00':'#44dd44', 40);
-        for(let j=0;j<8;j++) addParticle(it.x, playerY, it.color);
-      }
+      // ⭐ 星キャッチ！爆弾なし！
+      combo++;
+      comboTimer = 90;
+      const pts = it.pts * (combo >= 5 ? 3 : combo >= 3 ? 2 : 1);
+      score += pts;
+      const label = combo >= 3 ? `${combo}コンボ！ +${pts}` : `+${pts}`;
+      addEffect(it.x, playerY, label, combo>=3?'#ffdd00':'#ffee44', 40);
+      for(let j=0;j<8;j++) addParticle(it.x, playerY, '#ffee00');
       items.splice(i, 1);
       continue;
     }
 
-    // 画面外に落ちた
+    // 画面外に落ちた（ミスしても終わらない！）
     if(it.y > H + ITEM_R){
-      if(!it.isBad){
-        // 果物を落とした
-        combo = 0; comboTimer = 0;
-        addEffect(it.x, H-60, 'ミス！', '#ff6666', 30);
-      }
+      combo = 0; comboTimer = 0;
       items.splice(i, 1);
     }
   }
@@ -379,12 +319,11 @@ function drawHUD(){
   cx.font='bold 26px sans-serif'; cx.textAlign='left';
   cx.fillText('❤️'.repeat(Math.max(0,lives)), 10, 40);
 
-  // 残り星の数
-  const remaining = Math.max(0, TOTAL_STARS - fruitIndex);
+  // 落ちた星の数
   cx.fillStyle='rgba(255,255,200,.85)';
-  cx.beginPath(); cx.roundRect(W-120,8,110,34,10); cx.fill();
+  cx.beginPath(); cx.roundRect(W-130,8,120,34,10); cx.fill();
   cx.fillStyle='#885500'; cx.font='bold 15px monospace'; cx.textAlign='center';
-  cx.fillText(gameFinale ? `💣 爆弾:${bombsSpawned}/${FINAL_BOMBS}` : `⭐ のこり:${remaining}`, W-65, 30);
+  cx.fillText(`⭐ ${fruitIndex}こ`, W-70, 30);
 
   // コンボ
   if(combo>=3 && comboTimer>0){
