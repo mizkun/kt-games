@@ -72,24 +72,48 @@ function initGame(){
   frameCount = 0;
   combo = 0;
   comboTimer = 0;
+  fruitIndex = 0;
+  buildFruitQueue();
 }
 
 // ========== アイテム生成 ==========
+let fruitQueue = []; // 全種類をキューに詰める
+let fruitIndex = 0;
+function buildFruitQueue(){
+  fruitQueue = [];
+  // 全種類の果物を繰り返し並べる（1000個分）
+  for(let i=0;i<1000;i++){
+    fruitQueue.push(FRUITS[i % FRUITS.length]);
+  }
+}
+
 function spawnItem(){
-  const isBad = Math.random() < 0.12 + level * 0.01;
-  const data = isBad
-    ? BAD[~~(Math.random()*BAD.length)]
-    : FRUITS[~~(Math.random()*FRUITS.length)];
-  const baseSpeed = 2.5 + level * 0.4;
+  // 1個の場所（画面の上の中央）から落ちてくる！
+  const spawnX = W / 2 + (Math.random()-0.5)*30; // ほぼ中央、少しだけぶれる
+  const data = fruitQueue[fruitIndex % fruitQueue.length];
+  fruitIndex++;
+  const baseSpeed = 3.5 + level * 0.3 + Math.random() * 2;
   items.push({
-    x: ITEM_R + Math.random() * (W - ITEM_R*2),
+    x: spawnX,
     y: -ITEM_R,
-    vy: baseSpeed + Math.random() * 1.5,
-    rot: (Math.random()-0.5)*0.1,
+    vy: baseSpeed,
+    rot: (Math.random()-0.5)*0.15,
     angle: 0,
     ...data,
-    isBad: isBad,
+    isBad: false,
   });
+  // たまに爆弾も混ぜる
+  if(fruitIndex % 40 === 0){
+    items.push({
+      x: spawnX + (Math.random()-0.5)*20,
+      y: -ITEM_R,
+      vy: baseSpeed + 1,
+      rot: 0.05,
+      angle: 0,
+      ...BAD[0],
+      isBad: true,
+    });
+  }
 }
 
 // ========== 更新 ==========
@@ -100,11 +124,13 @@ function update(){
   // レベルアップ
   level = 1 + ~~(frameCount / 900);
 
-  // アイテム生成間隔（レベルが上がると増える）
-  const spawnRate = Math.max(20, 70 - level * 5);
+  // 1個の場所からドバドバ果物が落ちてくる！（超高頻度）
+  const spawnRate = Math.max(4, 12 - level); // 4〜12フレームごとに1個
   if(frameCount % spawnRate === 0) spawnItem();
-  // たまにまとめて降ってくる
-  if(frameCount % 300 === 0) for(let i=0;i<3;i++) setTimeout(spawnItem, i*200);
+  // 5フレームごとに追加でもう1個（2本線で落ちる感じ）
+  if(frameCount % 5 === 2) spawnItem();
+  // まとめて3個どばっと
+  if(frameCount % 90 === 0) for(let i=0;i<3;i++) setTimeout(spawnItem, i*80);
 
   // プレイヤー移動
   const goL = keys['arrowleft']||keys['a']||touchL;
