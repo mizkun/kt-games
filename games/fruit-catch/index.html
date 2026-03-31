@@ -78,22 +78,39 @@ function initGame(){
 // ========== アイテム生成 ==========
 // ⭐ 1億個！ずっと降り続ける！爆弾なし！
 let fruitIndex = 0;
-function buildFruitQueue(){ fruitIndex = 0; }
+let rainbowSpawned = 0; // 船長スター出現数
+const RAINBOW_TOTAL = 10; // 全部で10個出る
+
+function buildFruitQueue(){ fruitIndex = 0; rainbowSpawned = 0; }
 
 function spawnStar(){
   fruitIndex++;
-  const spawnX = ITEM_R + Math.random() * (W - ITEM_R * 2); // 画面中どこからでも！
+  const spawnX = ITEM_R + Math.random() * (W - ITEM_R * 2);
   const baseSpeed = 3.5 + level * 0.2 + Math.random() * 2.5;
   items.push({
-    x: spawnX,
-    y: -ITEM_R,
+    x: spawnX, y: -ITEM_R,
     vy: baseSpeed,
     rot: (Math.random() - 0.5) * 0.1,
     angle: 0,
-    emoji: '⭐',
-    pts: 100000000,
-    color: '#ffee00',
-    isBad: false,
+    emoji: '⭐', pts: 100000000, color: '#ffee00',
+    isBad: false, isRainbow: false,
+    r: ITEM_R,
+  });
+}
+
+function spawnRainbowStar(){
+  if(rainbowSpawned >= RAINBOW_TOTAL) return;
+  rainbowSpawned++;
+  const spawnX = 80 + Math.random() * (W - 160);
+  items.push({
+    x: spawnX, y: -60,
+    vy: 1.8 + Math.random(),   // ゆっくり落ちてくる
+    rot: 0.04,
+    angle: 0,
+    emoji: '⭐', pts: 100000000, color: '#fff',
+    isBad: false, isRainbow: true,
+    r: 56,   // でっかい！
+    hue: Math.random() * 360,
   });
 }
 
@@ -106,11 +123,12 @@ function update(){
   level = 1 + ~~(frameCount / 900);
 
   // ⭐ 1億個！画面中からバーーーっとずっと降り続ける！爆弾なし！
-  // 毎フレーム3〜5個スポーン（めちゃくちゃ大量！）
   const burst = 3 + (frameCount % 2 === 0 ? 2 : 0);
   for(let i = 0; i < burst; i++) spawnStar();
-  // 40フレームごとにさらにどばっと10個
   if(frameCount % 40 === 0) for(let i = 0; i < 10; i++) setTimeout(spawnStar, i * 40);
+
+  // 🌈 船長スター！180フレームごとに1個ずつ、全10個登場！
+  if(rainbowSpawned < RAINBOW_TOTAL && frameCount % 180 === 90) spawnRainbowStar();
 
   // プレイヤー移動
   const goL = keys['arrowleft']||keys['a']||touchL;
@@ -133,20 +151,32 @@ function update(){
 
     // バスケットとの当たり判定
     const playerY = H - BASKET_H - 20;
+    const r = it.r || ITEM_R;
     if(
-      it.y + ITEM_R > playerY &&
-      it.y - ITEM_R < playerY + BASKET_H &&
-      it.x > player.x - BASKET_W/2 - ITEM_R*0.5 &&
-      it.x < player.x + BASKET_W/2 + ITEM_R*0.5
+      it.y + r > playerY &&
+      it.y - r < playerY + BASKET_H &&
+      it.x > player.x - BASKET_W/2 - r*0.5 &&
+      it.x < player.x + BASKET_W/2 + r*0.5
     ){
-      // ⭐ 星キャッチ！爆弾なし！
-      combo++;
-      comboTimer = 90;
-      const pts = it.pts * (combo >= 5 ? 3 : combo >= 3 ? 2 : 1);
-      score += pts;
-      const label = combo >= 3 ? `${combo}コンボ！ +${pts}` : `+${pts}`;
-      addEffect(it.x, playerY, label, combo>=3?'#ffdd00':'#ffee44', 40);
-      for(let j=0;j<8;j++) addParticle(it.x, playerY, '#ffee00');
+      if(it.isRainbow){
+        // 🌈 船長ポイント！！
+        combo += 10;
+        comboTimer = 180;
+        score += 100000000;
+        addEffect(it.x, playerY - 30, '🌈 船長ポイント！！', '#ff00ff', 90);
+        addEffect(it.x, playerY + 10, '+1億コンボ！！', '#ffdd00', 80);
+        shakeScreen(30);
+        for(let j=0;j<30;j++) addParticle(it.x, playerY, `hsl(${j*12},100%,60%)`);
+      } else {
+        // ⭐ 通常星キャッチ！
+        combo++;
+        comboTimer = 90;
+        const pts = it.pts * (combo >= 5 ? 3 : combo >= 3 ? 2 : 1);
+        score += pts;
+        const label = combo >= 3 ? `${combo}コンボ！ +${pts}` : `+${pts}`;
+        addEffect(it.x, playerY, label, combo>=3?'#ffdd00':'#ffee44', 40);
+        for(let j=0;j<8;j++) addParticle(it.x, playerY, '#ffee00');
+      }
       items.splice(i, 1);
       continue;
     }
@@ -279,10 +309,46 @@ function drawItems(){
     cx.save();
     cx.translate(it.x, it.y);
     cx.rotate(it.angle);
-    cx.font=`${ITEM_R*1.6}px sans-serif`;
-    cx.textAlign='center';
-    cx.textBaseline='middle';
-    cx.fillText(it.emoji, 0, 0);
+
+    if(it.isRainbow){
+      // 🌈 船長スター！虹色でっかく輝く！
+      const t = Date.now() * 0.003;
+      const pulse = 1 + Math.sin(t * 2) * 0.12;
+      const R = it.r * pulse;
+
+      // 虹色のオーラ（外側）
+      for(let ring = 3; ring >= 0; ring--){
+        const hue = (it.hue + t * 80 + ring * 30) % 360;
+        const glow = cx.createRadialGradient(0,0,0,0,0,R*1.5+ring*12);
+        glow.addColorStop(0, `hsla(${hue},100%,70%,0.35)`);
+        glow.addColorStop(1, 'transparent');
+        cx.fillStyle = glow;
+        cx.beginPath(); cx.arc(0,0,R*1.5+ring*12,0,Math.PI*2); cx.fill();
+      }
+      // 虹グラデの本体
+      const grad = cx.createRadialGradient(0,0,0,0,0,R);
+      grad.addColorStop(0,   `hsl(${(it.hue+t*80)%360},100%,90%)`);
+      grad.addColorStop(0.3, `hsl(${(it.hue+t*80+60)%360},100%,70%)`);
+      grad.addColorStop(0.6, `hsl(${(it.hue+t*80+120)%360},100%,60%)`);
+      grad.addColorStop(1,   `hsl(${(it.hue+t*80+180)%360},100%,50%)`);
+      cx.fillStyle = grad;
+      cx.beginPath(); cx.arc(0,0,R,0,Math.PI*2); cx.fill();
+
+      // 星の絵文字をのせる
+      cx.font = `${R * 1.5}px sans-serif`;
+      cx.textAlign = 'center'; cx.textBaseline = 'middle';
+      cx.fillText('⭐', 0, 0);
+
+      // 「船長」ラベル
+      cx.fillStyle = `hsl(${(it.hue+t*80)%360},100%,90%)`;
+      cx.font = `bold ${~~(R*0.5)}px sans-serif`;
+      cx.fillText('船長', 0, R + 14);
+    } else {
+      // 通常星
+      cx.font=`${ITEM_R*1.6}px sans-serif`;
+      cx.textAlign='center'; cx.textBaseline='middle';
+      cx.fillText(it.emoji, 0, 0);
+    }
     cx.restore();
   }
 }
