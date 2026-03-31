@@ -204,7 +204,11 @@ function drawGoal(x,y,s){
 
 // --- Toolbar layout ---
 const BTN_W = Math.floor(W / BLOCK_INFO.length);
-const BTN_H = TOOL_H - 10;
+const BTN_H = Math.floor((TOOL_H - 14) * 0.52);
+const GO_W = Math.min(W * 0.56, 230);
+const GO_H = Math.max(26, TOOL_H - BTN_H - 14);
+const GO_X = (W - GO_W) / 2;
+const GO_Y = GH + BTN_H + 10;
 function getToolbarBtn(x,y){
   if(y<GH+5||y>GH+5+BTN_H)return -1;
   return Math.min(BLOCK_INFO.length-1, Math.floor(x/BTN_W));
@@ -284,22 +288,16 @@ function draw(){
     ctx.fillText(info.label,bx+BTN_W/2,by+BTN_H-4);
   }
 
-  // State overlays
+  // Action button (centered below block buttons)
   if(state==='edit'){
-    // Buttons
-    const btnY=GH+TOOL_H*0.05;const btnH2=Math.max(32,TOOL_H*0.28);
-    // Draw GO button top-right of toolbar
-    const goX=W-BTN_W*1.2,goY=GH+TOOL_H*0.5-btnH2*0.5;
-    ctx.fillStyle='#22aa33';ctx.fillRect(goX,goY,BTN_W*1.1,btnH2);
-    ctx.fillStyle='#fff';ctx.font=`bold ${btnH2*0.45}px sans-serif`;ctx.textAlign='center';
-    ctx.fillText('▶ためしてみる！',goX+BTN_W*0.55,goY+btnH2*0.65);
+    ctx.fillStyle='#22aa33';ctx.fillRect(GO_X,GO_Y,GO_W,GO_H);
+    ctx.fillStyle='#fff';ctx.font=`bold ${Math.max(11,GO_H*0.5)}px sans-serif`;ctx.textAlign='center';
+    ctx.fillText('▶ ためしてみる！',GO_X+GO_W/2,GO_Y+GO_H*0.68);
   }
-
   if(state==='play'){
-    const bW=BTN_W*1.2,bH=Math.max(30,TOOL_H*0.35);
-    ctx.fillStyle='#aa2200';ctx.fillRect(W-bW-4,GH+TOOL_H*0.5-bH*0.5,bW,bH);
-    ctx.fillStyle='#fff';ctx.font=`bold ${bH*0.45}px sans-serif`;ctx.textAlign='center';
-    ctx.fillText('■もどす',W-bW*0.5-4,GH+TOOL_H*0.5+bH*0.15);
+    ctx.fillStyle='#aa2200';ctx.fillRect(GO_X,GO_Y,GO_W,GO_H);
+    ctx.fillStyle='#fff';ctx.font=`bold ${Math.max(11,GO_H*0.5)}px sans-serif`;ctx.textAlign='center';
+    ctx.fillText('■ もどす',GO_X+GO_W/2,GO_Y+GO_H*0.68);
   }
 
   if(state==='win'){
@@ -353,11 +351,13 @@ function onDown(x,y){
   }
   // Toolbar area
   if(y>GH){
+    // Go/Back button (centered below block buttons)
+    if(x>=GO_X&&x<=GO_X+GO_W&&y>=GO_Y&&y<=GO_Y+GO_H){
+      if(state==='edit'){state='play';spawnBall();beep(440,0.1,0.2,'triangle');}
+      else if(state==='play'){state='edit';ball=null;trail=[];}
+      return;
+    }
     const btn=getToolbarBtn(x,y);
-    // Go/Back buttons
-    const goX=W-BTN_W*1.2;
-    if(x>=goX&&state==='edit'){state='play';spawnBall();beep(440,0.1,0.2,'triangle');return;}
-    if(x>=goX&&state==='play'){state='edit';ball=null;trail=[];return;}
     if(btn>=0){sel=BLOCK_INFO[btn].type;beep(600,0.05,0.1);}
     return;
   }
