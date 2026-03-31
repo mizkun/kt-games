@@ -1,0 +1,896 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ふつうの一週間</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+body{
+  font-family:'Hiragino Maru Gothic Pro','Yu Gothic',sans-serif;
+  background:#87ceeb;
+  min-height:100vh;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  overflow:hidden;
+  user-select:none;
+}
+#game{
+  width:min(480px,100vw);
+  min-height:100vh;
+  position:relative;
+  display:flex;
+  flex-direction:column;
+  overflow:hidden;
+}
+
+/* 背景 */
+#sky{
+  position:absolute;inset:0;
+  transition:background 1.2s;
+  z-index:0;
+}
+#ground{
+  position:absolute;bottom:0;left:0;right:0;
+  height:38%;
+  border-radius:40% 40% 0 0 / 8% 8% 0 0;
+  transition:background 1.2s;
+  z-index:1;
+}
+#house-wrap{
+  position:absolute;
+  bottom:34%;left:50%;
+  transform:translateX(-50%);
+  font-size:clamp(60px,22vw,110px);
+  z-index:2;
+  filter:drop-shadow(0 4px 8px rgba(0,0,0,0.25));
+  line-height:1;
+}
+#sun-moon{
+  position:absolute;
+  top:8%;right:10%;
+  font-size:clamp(28px,8vw,44px);
+  z-index:2;
+  transition:all 1.2s;
+}
+#clouds{
+  position:absolute;top:12%;left:5%;
+  font-size:clamp(20px,5vw,30px);
+  z-index:2;
+  opacity:0.85;
+}
+#rain-layer{
+  position:absolute;inset:0;
+  z-index:3;
+  pointer-events:none;
+  overflow:hidden;
+  display:none;
+}
+.raindrop{
+  position:absolute;
+  width:2px;height:14px;
+  background:rgba(100,160,255,0.55);
+  border-radius:2px;
+  animation:fall linear infinite;
+}
+@keyframes fall{from{top:-20px}to{top:100%}}
+
+/* UI上部 */
+#topbar{
+  position:relative;z-index:10;
+  padding:10px 14px 6px;
+  display:flex;
+  flex-direction:column;
+  gap:6px;
+}
+#day-label{
+  font-size:clamp(13px,3.5vw,17px);
+  font-weight:bold;
+  color:#fff;
+  text-shadow:0 1px 3px rgba(0,0,0,0.4);
+}
+#phase-label{
+  font-size:clamp(11px,3vw,14px);
+  color:rgba(255,255,255,0.9);
+  text-shadow:0 1px 2px rgba(0,0,0,0.3);
+}
+#happy-bar-wrap{
+  display:flex;align-items:center;gap:8px;
+}
+#happy-icon{font-size:16px;}
+#happy-bar-bg{
+  flex:1;height:12px;
+  background:rgba(255,255,255,0.35);
+  border-radius:8px;overflow:hidden;
+  border:1px solid rgba(255,255,255,0.5);
+}
+#happy-bar{
+  height:100%;
+  background:linear-gradient(90deg,#ffdd44,#ff8844);
+  border-radius:8px;
+  transition:width 0.8s;
+}
+#happy-num{
+  font-size:12px;color:#fff;
+  font-weight:bold;
+  text-shadow:0 1px 2px rgba(0,0,0,0.4);
+  min-width:32px;
+}
+
+/* キャラクターエリア */
+#chars{
+  position:absolute;
+  bottom:36%;left:0;right:0;
+  display:flex;
+  justify-content:center;
+  gap:clamp(4px,2vw,14px);
+  z-index:5;
+  padding:0 20px;
+}
+.char{
+  display:flex;flex-direction:column;align-items:center;
+  gap:2px;
+  animation:bounce 2.5s ease-in-out infinite;
+}
+.char:nth-child(2){animation-delay:0.4s;}
+.char:nth-child(3){animation-delay:0.8s;}
+.char:nth-child(4){animation-delay:1.2s;}
+@keyframes bounce{
+  0%,100%{transform:translateY(0)}
+  50%{transform:translateY(-5px)}
+}
+.char-emoji{font-size:clamp(28px,9vw,42px);line-height:1;}
+.char-name{
+  font-size:clamp(9px,2.5vw,12px);
+  color:#fff;
+  font-weight:bold;
+  text-shadow:0 1px 3px rgba(0,0,0,0.6);
+  white-space:nowrap;
+}
+.char.talking .char-emoji{animation:talk 0.3s ease-in-out 4;}
+@keyframes talk{
+  0%,100%{transform:scale(1)}
+  50%{transform:scale(1.2) translateY(-4px)}
+}
+
+/* イベントカード */
+#card-wrap{
+  position:absolute;
+  bottom:0;left:0;right:0;
+  z-index:20;
+  padding:0 0 0;
+}
+#event-card{
+  background:rgba(255,255,255,0.97);
+  border-radius:24px 24px 0 0;
+  padding:clamp(14px,4vw,22px) clamp(14px,4vw,22px) clamp(16px,4vw,24px);
+  box-shadow:0 -4px 20px rgba(0,0,0,0.15);
+  min-height:220px;
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+  animation:slideUp 0.4s ease;
+}
+@keyframes slideUp{
+  from{transform:translateY(60px);opacity:0}
+  to{transform:translateY(0);opacity:1}
+}
+#event-icon{font-size:clamp(24px,7vw,36px);text-align:center;}
+#event-title{
+  font-size:clamp(13px,3.8vw,18px);
+  font-weight:bold;
+  color:#333;
+  text-align:center;
+  line-height:1.4;
+}
+#event-text{
+  font-size:clamp(12px,3.3vw,15px);
+  color:#555;
+  line-height:1.7;
+  text-align:center;
+  min-height:44px;
+}
+#choices{
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+  margin-top:4px;
+}
+.choice-btn{
+  background:linear-gradient(135deg,#667eea,#764ba2);
+  color:#fff;
+  border:none;
+  border-radius:14px;
+  padding:clamp(10px,2.8vw,14px) 16px;
+  font-size:clamp(13px,3.5vw,16px);
+  font-weight:bold;
+  cursor:pointer;
+  transition:all 0.15s;
+  font-family:inherit;
+  box-shadow:0 3px 10px rgba(102,126,234,0.4);
+  text-align:left;
+  line-height:1.4;
+}
+.choice-btn:active{transform:scale(0.97);}
+.choice-btn.green{background:linear-gradient(135deg,#43e97b,#38f9d7);box-shadow:0 3px 10px rgba(67,233,123,0.4);color:#1a5a3a;}
+.choice-btn.orange{background:linear-gradient(135deg,#f7971e,#ffd200);box-shadow:0 3px 10px rgba(247,151,30,0.4);color:#5a3a00;}
+.choice-btn.red{background:linear-gradient(135deg,#ff6b6b,#ee0979);box-shadow:0 3px 10px rgba(255,107,107,0.4);}
+.choice-btn.next{
+  background:linear-gradient(135deg,#a8edea,#fed6e3);
+  color:#555;
+  box-shadow:0 3px 10px rgba(168,237,234,0.4);
+  text-align:center;
+}
+
+/* 吹き出し */
+#speech{
+  position:absolute;
+  z-index:15;
+  background:#fff;
+  border-radius:12px;
+  padding:6px 10px;
+  font-size:clamp(10px,2.8vw,13px);
+  color:#333;
+  font-weight:bold;
+  box-shadow:0 2px 8px rgba(0,0,0,0.2);
+  max-width:180px;
+  text-align:center;
+  line-height:1.4;
+  bottom:42%;
+  left:50%;
+  transform:translateX(-50%);
+  display:none;
+  white-space:pre-line;
+}
+#speech::after{
+  content:'';
+  position:absolute;
+  bottom:-8px;left:50%;
+  transform:translateX(-50%);
+  border:4px solid transparent;
+  border-top-color:#fff;
+}
+
+/* エフェクト */
+#effect{
+  position:fixed;inset:0;
+  z-index:50;
+  pointer-events:none;
+  display:none;
+  justify-content:center;
+  align-items:center;
+}
+.confetti{
+  position:absolute;
+  width:8px;height:8px;
+  border-radius:2px;
+  animation:confettiFall 1.8s ease-in forwards;
+}
+@keyframes confettiFall{
+  0%{transform:translateY(-20px) rotate(0deg);opacity:1}
+  100%{transform:translateY(100vh) rotate(720deg);opacity:0}
+}
+#big-effect{
+  font-size:clamp(36px,12vw,64px);
+  animation:popIn 0.5s ease;
+  text-align:center;
+}
+@keyframes popIn{
+  0%{transform:scale(0) rotate(-10deg);opacity:0}
+  70%{transform:scale(1.2) rotate(3deg)}
+  100%{transform:scale(1) rotate(0deg);opacity:1}
+}
+
+/* 週まとめ */
+#week-result{
+  position:fixed;inset:0;
+  z-index:100;
+  display:none;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  background:linear-gradient(135deg,#667eea,#764ba2);
+  padding:24px;
+  text-align:center;
+}
+#week-result h1{
+  font-size:clamp(22px,6vw,36px);
+  color:#fff;
+  margin-bottom:8px;
+  text-shadow:0 2px 8px rgba(0,0,0,0.3);
+}
+#week-result .score-area{
+  background:rgba(255,255,255,0.2);
+  border-radius:20px;
+  padding:20px 30px;
+  margin:16px 0;
+  width:100%;
+  max-width:340px;
+}
+#result-score{
+  font-size:clamp(36px,12vw,64px);
+  color:#ffd700;
+  font-weight:bold;
+  text-shadow:0 2px 8px rgba(0,0,0,0.4);
+}
+#result-rank{
+  font-size:clamp(18px,5vw,28px);
+  color:#fff;
+  margin:8px 0;
+}
+#result-memories{
+  font-size:clamp(11px,3vw,15px);
+  color:rgba(255,255,255,0.9);
+  line-height:1.8;
+  margin:8px 0;
+  text-align:left;
+}
+#replay-btn{
+  background:#fff;
+  color:#764ba2;
+  border:none;
+  border-radius:16px;
+  padding:14px 36px;
+  font-size:clamp(16px,4.5vw,22px);
+  font-weight:bold;
+  cursor:pointer;
+  margin-top:12px;
+  box-shadow:0 4px 16px rgba(0,0,0,0.2);
+  font-family:inherit;
+}
+#home-link{
+  position:absolute;top:12px;left:12px;
+  z-index:200;
+  background:rgba(255,255,255,0.85);
+  border-radius:20px;
+  padding:6px 12px;
+  font-size:clamp(11px,3vw,14px);
+  text-decoration:none;
+  color:#555;
+  font-weight:bold;
+  box-shadow:0 2px 6px rgba(0,0,0,0.15);
+}
+</style>
+</head>
+<body>
+<div id="game">
+  <a href="../../index.html" id="home-link">🏠 ゲームいちらんにもどる</a>
+
+  <div id="sky"></div>
+  <div id="ground"></div>
+  <div id="sun-moon">☀️</div>
+  <div id="clouds">☁️ &nbsp; ☁️</div>
+  <div id="rain-layer" id="rain-layer"></div>
+  <div id="house-wrap">🏠</div>
+
+  <div id="chars">
+    <div class="char" id="char-papa"><div class="char-emoji">👨</div><div class="char-name">パパ</div></div>
+    <div class="char" id="char-mama"><div class="char-emoji">👩</div><div class="char-name">ママ</div></div>
+    <div class="char" id="char-k1"><div class="char-emoji">👦</div><div class="char-name">けんた</div></div>
+    <div class="char" id="char-k2"><div class="char-emoji">👧</div><div class="char-name">さくら</div></div>
+  </div>
+
+  <div id="speech"></div>
+
+  <div id="topbar">
+    <div id="day-label">月曜日 🌅 あさ</div>
+    <div id="phase-label">ふつうの一週間がはじまるよ</div>
+    <div id="happy-bar-wrap">
+      <span id="happy-icon">😊</span>
+      <div id="happy-bar-bg"><div id="happy-bar" style="width:60%"></div></div>
+      <span id="happy-num">60</span>
+    </div>
+  </div>
+
+  <div id="card-wrap">
+    <div id="event-card">
+      <div id="event-icon">🌞</div>
+      <div id="event-title">読み込み中…</div>
+      <div id="event-text"></div>
+      <div id="choices"></div>
+    </div>
+  </div>
+
+  <div id="effect"><div id="big-effect"></div></div>
+</div>
+
+<div id="week-result">
+  <h1>🎉 一週間おわったよ！</h1>
+  <div class="score-area">
+    <div id="result-score">0</div>
+    <div id="result-rank">ふつうのかぞく</div>
+  </div>
+  <div id="result-memories"></div>
+  <button id="replay-btn" onclick="startGame()">もう一週間 やってみる！</button>
+  <a href="../../index.html" style="color:rgba(255,255,255,0.7);margin-top:12px;font-size:14px;">🏠 ゲームいちらんにもどる</a>
+</div>
+
+<script>
+// ===== 状態 =====
+let happy = 60;
+let memories = [];
+let eventQueue = [];
+let qIdx = 0;
+let isRaining = false;
+
+// ===== 背景テーマ =====
+const themes = {
+  morning: { sky:'linear-gradient(180deg,#87ceeb 0%,#ffe8cc 100%)', ground:'#5a9e52', sun:'☀️', sunPos:'top:8%;right:10%' },
+  noon:    { sky:'linear-gradient(180deg,#4fa8dc 0%,#87ceeb 100%)', ground:'#4a8e42', sun:'🌤', sunPos:'top:5%;right:20%' },
+  evening: { sky:'linear-gradient(180deg,#ff7043 0%,#ffb74d 50%,#7e57c2 100%)', ground:'#3a7032', sun:'🌆', sunPos:'top:10%;right:8%' },
+  night:   { sky:'linear-gradient(180deg,#0d1b4b 0%,#1a237e 100%)', ground:'#1a3a18', sun:'🌙', sunPos:'top:8%;right:12%' },
+};
+
+function setTheme(t, rainy=false){
+  isRaining = rainy;
+  const theme = themes[t] || themes.morning;
+  document.getElementById('sky').style.background = theme.sky;
+  document.getElementById('ground').style.background = theme.ground;
+  document.getElementById('sun-moon').textContent = rainy ? '🌧️' : theme.sun;
+  const rainEl = document.getElementById('rain-layer');
+  if(rainy){
+    rainEl.style.display='block';
+    if(rainEl.children.length===0) makeRain();
+    document.getElementById('clouds').textContent='🌧️ 🌧️';
+  } else {
+    rainEl.style.display='none';
+    document.getElementById('clouds').textContent='☁️  ☁️';
+  }
+}
+
+function makeRain(){
+  const r = document.getElementById('rain-layer');
+  for(let i=0;i<28;i++){
+    const d=document.createElement('div');
+    d.className='raindrop';
+    d.style.left=Math.random()*100+'%';
+    d.style.animationDuration=(0.5+Math.random()*0.7)+'s';
+    d.style.animationDelay=Math.random()*1.5+'s';
+    r.appendChild(d);
+  }
+}
+
+// ===== 幸せ度 =====
+function setHappy(delta, text=''){
+  happy = Math.max(0, Math.min(100, happy + delta));
+  document.getElementById('happy-bar').style.width = happy+'%';
+  document.getElementById('happy-num').textContent = happy;
+  const icon = happy>=80?'😄':happy>=50?'😊':happy>=30?'😐':'😢';
+  document.getElementById('happy-icon').textContent = icon;
+  document.getElementById('happy-bar').style.background =
+    happy>=70 ? 'linear-gradient(90deg,#43e97b,#38f9d7)' :
+    happy>=40 ? 'linear-gradient(90deg,#ffdd44,#ff8844)' :
+                'linear-gradient(90deg,#ff6b6b,#ee0979)';
+}
+
+// ===== 吹き出し =====
+function showSpeech(charId, text, ms=2200){
+  const charEl = document.getElementById('char-'+charId);
+  if(!charEl) return;
+  charEl.classList.add('talking');
+  const s = document.getElementById('speech');
+  s.textContent = text;
+  const rect = charEl.getBoundingClientRect();
+  const gameRect = document.getElementById('game').getBoundingClientRect();
+  s.style.display='block';
+  s.style.bottom = '42%';
+  s.style.left = '';
+  s.style.right = '';
+  // 位置
+  const cx = rect.left - gameRect.left + rect.width/2;
+  const gw = gameRect.width;
+  if(cx < gw/2){
+    s.style.left = Math.max(4,cx-60)+'px';
+    s.style.right='auto';
+  } else {
+    s.style.right = Math.max(4, gw-cx-60)+'px';
+    s.style.left='auto';
+  }
+  setTimeout(()=>{
+    s.style.display='none';
+    charEl.classList.remove('talking');
+  }, ms);
+}
+
+// ===== エフェクト =====
+function showEffect(emoji, delta){
+  const eff = document.getElementById('effect');
+  const big = document.getElementById('big-effect');
+  big.textContent = emoji + (delta>0?'\n+'+delta+'😊':'');
+  eff.style.display='flex';
+  // 紙吹雪
+  if(delta>0) makeConfetti();
+  setTimeout(()=>{ eff.style.display='none'; eff.innerHTML='<div id="big-effect"></div>'; },1600);
+}
+
+function makeConfetti(){
+  const eff = document.getElementById('effect');
+  const colors=['#ff6b6b','#ffd700','#43e97b','#667eea','#f093fb','#4facfe'];
+  for(let i=0;i<20;i++){
+    const c=document.createElement('div');
+    c.className='confetti';
+    c.style.left=Math.random()*100+'%';
+    c.style.top='-10px';
+    c.style.background=colors[Math.floor(Math.random()*colors.length)];
+    c.style.animationDelay=Math.random()*0.8+'s';
+    c.style.animationDuration=(1.2+Math.random()*0.8)+'s';
+    c.style.transform=`rotate(${Math.random()*360}deg)`;
+    eff.appendChild(c);
+  }
+}
+
+// ===== イベント定義 =====
+// {icon, title, text, theme, char(喋るキャラ), speech(セリフ), choices:[{label,delta,next_text,icon}], memory}
+function buildEvents(){
+  const rainDay = Math.floor(Math.random()*5); // 平日のどこかで雨
+
+  return [
+    // ===== 月曜日 =====
+    {
+      day:'月曜日 🌅', phase:'あさ', theme:'morning',
+      icon:'⏰', title:'おはようございます！',
+      text:'月曜日の朝。めざましが鳴ったよ。\nパパはもう起きてる。',
+      char:'papa', speech:'おはよう！今週もがんばろう！',
+      choices:[{label:'🌞 「おはよう！」と元気よく返事する', delta:5, txt:'一日のはじまりは元気な返事からだね！😊', icon:'😄'},
+               {label:'😴 もうちょっとだけ寝る…', delta:-3, txt:'うーん…5分だけって言ったのに！あわてて準備！', icon:'😅'}]
+    },
+    {
+      day:'月曜日 🌅', phase:'あさごはん',
+      theme: Math.random()<0.55 ? 'morning' : 'morning',
+      icon:'🍳', title: Math.random()<0.55 ? 'ママが朝ごはんを作ってくれる！' : '今日は自分で朝ごはん',
+      text: (()=>{
+        if(Math.random()<0.55){
+          return 'ママが「今日は私が作るよ！」って言ってくれた。\nトーストと目玉焼きとサラダ！';
+        } else {
+          return 'ママは今日は忙しそう。\n自分でパンを焼いて食べよう！';
+        }
+      })(),
+      char:'mama', speech: Math.random()<0.55 ? '召し上がれ🍳' : '自分でできるかな？',
+      choices:[{label:'🍽️ おいしく食べる', delta:5, txt:'「いただきます！」 朝ごはんを食べると元気が出る！', icon:'😋'},
+               {label:'🏃 時間ないから急いで食べる', delta:2, txt:'あわてて食べたら少し残しちゃった…ごめんね', icon:'😅'}],
+      memory:'月曜日の朝ごはん'
+    },
+    {
+      day:'月曜日 📚', phase:'がっこう', theme:'noon',
+      icon:'🎒', title:'学校へ出発！',
+      text:'けんたとさくらは学校へ。\n今日のお弁当はなんだろう？',
+      char:'k1', speech:'ランドセル重いな〜！',
+      choices:[{label:'🏃 元気よく「いってきまーす！」', delta:5, txt:'ふたりとも元気よく学校へ！いってらっしゃい！', icon:'😊'},
+               {label:'😒 なんとなくいやだな…', delta:-2, txt:'なんか気分が乗らない朝もあるよね。でも大丈夫！', icon:'😐'}]
+    },
+    {
+      day:'月曜日 🌆', phase:'ゆうがた', theme:'evening',
+      icon:'🏠', title:'ただいまー！',
+      text:'学校から帰ってきた。\n宿題がある。やる？それとも先に遊ぶ？',
+      char:'k2', speech:'先に遊んでもいいー？',
+      choices:[{label:'📝 先に宿題をやる', delta:8, txt:'えらい！宿題を終わらせてから遊んだら気持ちいい！', icon:'😄'},
+               {label:'🎮 先に遊んで、あとで宿題', delta:2, txt:'遊んだはいいけど、宿題が夜遅くなっちゃった…', icon:'😅'},
+               {label:'🙈 宿題…？なんだっけ？', delta:-5, txt:'先生に怒られちゃった！明日は必ずやろう！', icon:'😨'}],
+      memory:'月曜日の宿題'
+    },
+
+    // ===== 火曜日 =====
+    {
+      day:'火曜日 🌅', phase:'あさ', theme:'morning',
+      icon:'☀️', title:'火曜日の朝',
+      text:'今日はどんな天気かな？',
+      char:'papa', speech:'今日もいい天気だよ！',
+      choices:[{label:'🌸 窓をあけて深呼吸する', delta:5, txt:'きもちいい朝の空気！今日もいい一日になりそう！', icon:'😊'}]
+    },
+    {
+      day:'火曜日 📚', phase:'ひるやすみ', theme:'noon',
+      icon:'🍱', title:'お昼ごはんの時間！',
+      text:'学校でお昼ごはん。\n今日のメニューは「からあげ」だ！',
+      char:'k1', speech:'やったーからあげだ！',
+      choices:[{label:'😋 大好きなからあげをおいしく食べる', delta:7, txt:'うまーい！！からあげ最高！', icon:'😄'},
+               {label:'🥦 苦手な野菜もがんばって食べる', delta:10, txt:'えらい！苦手なものを食べたら大きくなれるよ！', icon:'🌟'}],
+      memory:'からあげのひるごはん'
+    },
+    {
+      day:'火曜日 🌆', phase:'ゆうがた', theme:'evening',
+      icon:'⚽', title:'公園で遊ぼう！',
+      text:'宿題が終わった！\n近くの公園で遊べるよ。',
+      char:'k2', speech:'ブランコしよう！',
+      choices:[{label:'⚽ サッカーをする', delta:8, txt:'公園でサッカー！パパも混じってきた！', icon:'😄'},
+               {label:'🏃 かけっこ・おにごっこ', delta:7, txt:'おにごっこでクタクタになるまで走った！', icon:'😊'},
+               {label:'🛝 遊具で遊ぶ', delta:6, txt:'ブランコで高く高く飛んだよ！', icon:'😊'}],
+      memory:'公園でいっぱい遊んだ'
+    },
+    {
+      day:'火曜日 🌙', phase:'よる', theme:'night',
+      icon:'🛁', title:'お風呂→就寝',
+      text:'今日もいっぱい遊んだ！\nお風呂に入って寝よう。',
+      char:'mama', speech:'早くお風呂入りなさい！',
+      choices:[{label:'🛁 さっとお風呂に入って早く寝る', delta:6, txt:'ゆっくり眠れた！明日も元気！', icon:'😴'},
+               {label:'📺 もうちょっとテレビ見てから', delta:-2, txt:'寝るのが遅くなってしまった…眠い朝になりそう', icon:'😴'}]
+    },
+
+    // ===== 水曜日 =====
+    {
+      day:'水曜日 🌧️', phase:'あさ', theme:'morning', rainy:true,
+      icon:'🌧️', title:'雨だ〜！',
+      text:'水曜日は雨。\n今日は外で遊べないね。',
+      char:'k1', speech:'えー！雨か〜',
+      choices:[{label:'😊 「雨の日も楽しいよ！」と言う', delta:3, txt:'雨の日は雨の日なりの楽しさがあるね！', icon:'😊'},
+               {label:'😢 「つまんない…」とぼやく', delta:-3, txt:'雨の日はみんなちょっと気分が落ちるよね…', icon:'😐'}]
+    },
+    {
+      day:'水曜日 🌧️', phase:'ひる', theme:'noon', rainy:true,
+      icon:'🏠', title:'おうちで過ごす',
+      text:'雨で外に出られないから、\n家でできることをしよう！',
+      char:'k2', speech:'何して遊ぼうか？',
+      choices:[{label:'🎨 絵を描く・工作する', delta:8, txt:'雨の日の工作！すごい作品ができたよ！', icon:'🎨'},
+               {label:'📚 本を読む', delta:7, txt:'図書館で借りてきた本を一冊読みきった！', icon:'📚'},
+               {label:'🎮 ゲームをする', delta:5, txt:'家族みんなでゲーム！けっこう盛り上がった！', icon:'🎮'},
+               {label:'🍪 ママとお菓子を作る', delta:10, txt:'クッキーを焼いた！ちょっと焦げたけど最高においしい！', icon:'🍪'}],
+      memory:'雨の日にお菓子作り'
+    },
+    {
+      day:'水曜日 🌆', phase:'ゆうがた', theme:'evening', rainy:true,
+      icon:'🍛', title:'今夜はカレー！',
+      text:'晩ごはんはカレーライス！\nいい匂いがしてきた〜',
+      char:'mama', speech:'カレーできたよ〜！',
+      choices:[{label:'😋 おかわりする！', delta:8, txt:'「おかわり！」ふたりともおかわりした！よく食べた！', icon:'😄'},
+               {label:'🥗 普通に食べる', delta:5, txt:'「おいしい！」ふたりとも完食！', icon:'😊'}],
+      memory:'ママのカレー最高！'
+    },
+
+    // ===== 木曜日 =====
+    {
+      day:'木曜日 🌅', phase:'あさ', theme:'morning',
+      icon:'🌟', title:'木曜日！もうすぐ週末',
+      text:'今週も折り返し地点！\n今日もがんばろう。',
+      char:'papa', speech:'あと2日で週末だ！',
+      choices:[{label:'💪 「よし！がんばるぞ！」と気合を入れる', delta:5, txt:'木曜日！週末まであと少し！ファイト！', icon:'💪'}]
+    },
+    {
+      day:'木曜日 📚', phase:'がっこう', theme:'noon',
+      icon:'📖', title:'授業でわからないことが…',
+      text:'算数の授業でわからない問題が出た！\nどうする？',
+      char:'k1', speech:'む〜難しい…！',
+      choices:[{label:'✋ 先生に「わかりません」と聞く', delta:10, txt:'わからないときは聞くのが一番！先生がやさしく教えてくれた！', icon:'😄'},
+               {label:'🤔 自分で考えてみる', delta:7, txt:'う〜んと頑張って、なんと自分で解けた！すごい！', icon:'🌟'},
+               {label:'😶 わかったふりをする', delta:-5, txt:'テストで間違えちゃった…次はちゃんと聞こう', icon:'😅'}],
+      memory:'算数でがんばった'
+    },
+    {
+      day:'木曜日 🌆', phase:'ゆうがた', theme:'evening',
+      icon:'👨‍👩‍👦‍👦', title:'家族の時間',
+      text:'パパが仕事から帰ってきた！\n今日はどうだった？って聞かれた。',
+      char:'papa', speech:'今日どうだった？',
+      choices:[{label:'📝 学校のこと全部話す', delta:8, txt:'パパとママがうれしそうに聞いてくれた！話すって楽しい！', icon:'😊'},
+               {label:'😊 「普通だった〜」とだけ言う', delta:3, txt:'パパは「そっか」とうなずいた。ふつうの会話もいいね。', icon:'😊'}],
+      memory:'パパに今日のこと話した'
+    },
+
+    // ===== 金曜日 =====
+    {
+      day:'金曜日 🎉', phase:'あさ', theme:'morning',
+      icon:'🎉', title:'やったー！金曜日！',
+      text:'ついに金曜日！今日が終われば週末だ！\nけんたとさくらもウキウキしてる。',
+      char:'k1', speech:'やったー週末だー！！',
+      choices:[{label:'🎉 「週末何しようか？」と話し合う', delta:8, txt:'みんなで週末の計画を立てはじめた！わくわく！', icon:'😄'}]
+    },
+    {
+      day:'金曜日 🌆', phase:'ゆうがた', theme:'evening',
+      icon:'🎬', title:'夜に映画を見よう！',
+      text:'今夜はみんなで映画を見ることになった！\n何を見る？',
+      char:'k2', speech:'ホラーはだめだよ！怖いもん！',
+      choices:[{label:'🦁 動物が主役のアニメ映画', delta:8, txt:'かわいい動物たちが大活躍！みんな大笑いした！', icon:'😄'},
+               {label:'🚀 宇宙・冒険のアクション映画', delta:8, txt:'ドキドキわくわくの冒険映画！かっこよかった！', icon:'🌟'},
+               {label:'🐟 海の生き物の映画', delta:9, txt:'きれいな海の映像にみんな「わあ〜！」ってなった！', icon:'😍'},
+               {label:'👻 「ちょっとだけホラー見てみたい…」', delta:-3, txt:'けんたとさくらが怖くて夜に眠れなくなった！大失敗！', icon:'😱'}],
+      memory:'家族で映画を見た'
+    },
+    {
+      day:'金曜日 🌙', phase:'よる', theme:'night',
+      icon:'🌙', title:'いい金曜日だったね',
+      text:'今日は映画もあって最高の金曜日！\n明日は週末！何をしよう？',
+      char:'mama', speech:'明日どこ行く？',
+      choices:[{label:'🎡 遊園地！', delta:5, txt:'「遊園地行こう！」みんなわくわくして眠れない！', icon:'🎡'},
+               {label:'🦁 動物園！', delta:5, txt:'「動物園行こう！」何の動物に会えるかな！', icon:'🦁'},
+               {label:'🏠 おうちでのんびり', delta:4, txt:'「ゆっくり過ごそうよ」家でまったりする週末もいいね', icon:'😌'}]
+    },
+
+    // ===== 土曜日 =====
+    {
+      day:'土曜日 🎡', phase:'あさ', theme:'morning',
+      icon:'🌅', title:'土曜日！お出かけの朝',
+      text:'週末だ！今日はみんなでお出かけ。\nパパがはりきって準備してる！',
+      char:'papa', speech:'早く行くぞー！',
+      choices:[{label:'🎒 「わーい！」とはしゃぐ', delta:6, txt:'みんなうきうきしながら準備完了！行くよ〜！', icon:'😄'}]
+    },
+    {
+      day:'土曜日 🎡', phase:'おでかけ', theme:'noon',
+      icon:'🎡', title:'遊園地 or 動物園、どっちへ？',
+      text:'さあどこへ行く？\nふたりで意見が分かれてる！',
+      char:'k1', speech:'遊園地がいい！！',
+      choices:[{label:'🎡 遊園地！乗り物いっぱい！', delta:10, txt:'コースターに絶叫！メリーゴーランドも乗った！最高！', icon:'😄'},
+               {label:'🦁 動物園！動物に会いたい！', delta:9, txt:'ライオン・キリン・パンダを見た！キリンの首ながーい！', icon:'😄'},
+               {label:'🌳 自然公園で虫取り・ハイキング', delta:8, txt:'大きなカブトムシを見つけた！自然満喫！', icon:'🌿'}],
+      memory:'土曜日のお出かけ楽しかった！'
+    },
+    {
+      day:'土曜日 🍦', phase:'おやつ', theme:'noon',
+      icon:'🍦', title:'おやつの時間！',
+      text:'お出かけの途中でおやつを買ってもらえる！\n何にする？',
+      char:'k2', speech:'アイス食べたーい！',
+      choices:[{label:'🍦 ソフトクリーム', delta:7, txt:'ふわふわのソフトクリーム！大きいやつを食べた！', icon:'😋'},
+               {label:'🍭 わたがし', delta:6, txt:'ふわふわのわたがし！口に入れたら消えちゃった！', icon:'😋'},
+               {label:'🥤 ジュースを飲む', delta:5, txt:'冷たいジュースで体が冷えた！おいしい！', icon:'😊'}],
+      memory:'おやつがおいしかった'
+    },
+    {
+      day:'土曜日 🌆', phase:'かえり', theme:'evening',
+      icon:'🏠', title:'お家に帰ろう',
+      text:'楽しいお出かけも終わり。\nふたりとも疲れてる。',
+      char:'k1', speech:'楽しかったー！また来たい！',
+      choices:[{label:'😴 帰りの車でぐっすり眠る', delta:5, txt:'ふたりとも車でおねむ。かわいい！', icon:'😴'},
+               {label:'📸 「写真みせて！」と振り返る', delta:6, txt:'今日の写真を見てみんなで笑った！いい思い出！', icon:'😊'}]
+    },
+
+    // ===== 日曜日 =====
+    {
+      day:'日曜日 😴', phase:'あさ', theme:'morning',
+      icon:'😴', title:'日曜日はゆっくり起きる',
+      text:'日曜日の朝。今日はゆっくりでいい。\nみんなのんびりしてる。',
+      char:'mama', speech:'今日はゆっくりしていいよ〜',
+      choices:[{label:'😴 10時までぐっすり寝る', delta:8, txt:'たっぷり寝てスッキリ！体も心も元気！', icon:'😄'},
+               {label:'🌅 早起きして朝の散歩', delta:7, txt:'朝の静かな空気が気持ちいい！小鳥の声が聞こえた！', icon:'😊'}]
+    },
+    {
+      day:'日曜日ひる 🎬', phase:'ひる', theme:'noon',
+      icon:'🎬', title:'映画館に行こう！',
+      text:'今日は映画館で映画を見ることになった！\n何を選ぶ？（けんたとさくらは怖い映画はムリ！）',
+      char:'k2', speech:'ホラーはぜったいダメ！！',
+      choices:[{label:'🐉 ドラゴンが出てくるファンタジー', delta:10, txt:'大迫力！ドラゴンがスクリーンいっぱいに！みんな釘付け！', icon:'🌟'},
+               {label:'🚂 乗り物・電車が主役の映画', delta:8, txt:'スピード感がすごかった！映画館の音響が最高！', icon:'😄'},
+               {label:'🎵 音楽・ダンスのミュージカル映画', delta:9, txt:'歌と踊りが最高！帰り道もみんな口ずさんでた！', icon:'🎵'},
+               {label:'😱 「ちょっとホラーっぽいやつにしよ…」', delta:-8, txt:'けんたとさくらが泣いた！大失敗！しばらくトラウマになりそう', icon:'😨'}],
+      memory:'映画館で映画を見た！'
+    },
+    {
+      day:'日曜日 🌆', phase:'ゆうがた', theme:'evening',
+      icon:'🍣', title:'日曜の晩ごはんは特別に！',
+      text:'今日の晩ごはんはなんと外食！\nどのお店に行く？',
+      char:'papa', speech:'今日はどこに食べに行く？',
+      choices:[{label:'🍣 回転ずし！', delta:10, txt:'回転ずしで好きなネタをいっぱい食べた！パパが一番たくさん食べてた！', icon:'😄'},
+               {label:'🍕 ピザのお店！', delta:9, txt:'大きなピザをみんなでシェア！チーズがのびのびー！', icon:'😋'},
+               {label:'🍜 ラーメン屋さん！', delta:8, txt:'熱々のラーメン！子供は子供ラーメンで麺を全部食べた！', icon:'😊'}],
+      memory:'外食が最高においしかった！'
+    },
+    {
+      day:'日曜日 🌙', phase:'よる', theme:'night',
+      icon:'🌙', title:'一週間の終わり',
+      text:'楽しい一週間もそろそろ終わり。\n明日からまた月曜日…',
+      char:'k1', speech:'もう月曜日か〜',
+      choices:[{label:'😊 「楽しい一週間だったな」と思う', delta:8, txt:'いい一週間だった！来週もがんばろう！', icon:'😄'},
+               {label:'💤 「疲れたけど楽しかった！」', delta:6, txt:'充実した一週間！よく眠れそう！', icon:'😴'},
+               {label:'😢 「週末終わっちゃった…」', delta:-2, txt:'月曜日がくると少し憂鬱だよね。でも来週もいいことあるよ！', icon:'😐'}],
+      memory:'一週間おつかれさま！'
+    },
+  ];
+}
+
+// ===== ゲーム状態 =====
+let events = [];
+let eventIndex = 0;
+
+function startGame(){
+  happy = 60;
+  memories = [];
+  eventIndex = 0;
+  events = buildEvents();
+  document.getElementById('week-result').style.display='none';
+  setHappy(0);
+  showEvent();
+}
+
+function showEvent(){
+  if(eventIndex >= events.length){
+    showResult();
+    return;
+  }
+  const ev = events[eventIndex];
+
+  // 背景
+  setTheme(ev.theme || 'morning', ev.rainy || false);
+
+  // ヘッダー
+  document.getElementById('day-label').textContent = ev.day + ' ' + (ev.phase||'');
+  document.getElementById('phase-label').textContent = '';
+
+  // カード
+  document.getElementById('event-icon').textContent = ev.icon;
+  document.getElementById('event-title').textContent = ev.title;
+  document.getElementById('event-text').textContent = ev.text || '';
+
+  // ボタン
+  const choicesEl = document.getElementById('choices');
+  choicesEl.innerHTML = '';
+  const cols = ['','green','orange','red'];
+  ev.choices.forEach((ch,i)=>{
+    const btn = document.createElement('button');
+    btn.className = 'choice-btn ' + (cols[i]||'');
+    btn.textContent = ch.label;
+    btn.onclick = ()=> doChoice(ch, ev);
+    choicesEl.appendChild(btn);
+  });
+
+  // 吹き出し
+  if(ev.char && ev.speech){
+    setTimeout(()=>showSpeech(ev.char, ev.speech), 600);
+  }
+
+  // カードアニメーション再実行
+  const card = document.getElementById('event-card');
+  card.style.animation='none';
+  void card.offsetWidth;
+  card.style.animation='slideUp 0.4s ease';
+}
+
+function doChoice(choice, ev){
+  const delta = choice.delta || 0;
+  setHappy(delta);
+
+  // メモリー登録
+  if(ev.memory && delta > 0) memories.push(ev.memory);
+
+  // エフェクト
+  if(delta >= 8) showEffect(choice.icon||'✨', delta);
+  else if(delta <= -5) showEffect('😱', delta);
+
+  // 次のイベントテキストを一瞬見せる
+  const titleEl = document.getElementById('event-title');
+  const textEl = document.getElementById('event-text');
+  titleEl.textContent = choice.txt || '';
+  textEl.textContent = '';
+  document.getElementById('choices').innerHTML = `
+    <button class="choice-btn next" onclick="nextEvent()">つぎへ →</button>
+  `;
+}
+
+function nextEvent(){
+  eventIndex++;
+  showEvent();
+}
+
+// ===== 結果 =====
+function showResult(){
+  const resultEl = document.getElementById('week-result');
+  resultEl.style.display='flex';
+
+  document.getElementById('result-score').textContent = happy + '点';
+
+  let rank, rankEmoji;
+  if(happy >= 90){ rank='最高のかぞく！🌟'; rankEmoji='🏆'; }
+  else if(happy >= 75){ rank='たのしい一週間だった！😄'; rankEmoji='🎉'; }
+  else if(happy >= 55){ rank='ふつうにいい一週間👨‍👩‍👦‍👦'; rankEmoji='😊'; }
+  else if(happy >= 35){ rank='ちょっとくたびれた一週間…'; rankEmoji='😐'; }
+  else { rank='たいへんな一週間だったね😢'; rankEmoji='💪'; }
+
+  document.getElementById('result-rank').textContent = rankEmoji + ' ' + rank;
+
+  const mem = document.getElementById('result-memories');
+  if(memories.length > 0){
+    mem.innerHTML = '<strong style="color:#fff">📔 今週の思い出：</strong><br>' +
+      memories.map(m=>'✨ '+m).join('<br>');
+  } else {
+    mem.innerHTML = '<span style="color:rgba(255,255,255,0.7)">来週はいっぱい思い出を作ろう！</span>';
+  }
+
+  makeConfetti();
+  document.getElementById('effect').style.display='flex';
+  setTimeout(()=>{
+    document.getElementById('effect').style.display='none';
+    document.getElementById('effect').innerHTML='<div id="big-effect"></div>';
+  }, 2500);
+}
+
+// ===== START =====
+startGame();
+</script>
+</body>
+</html>
