@@ -72,48 +72,50 @@ function initGame(){
   frameCount = 0;
   combo = 0;
   comboTimer = 0;
-  fruitIndex = 0;
   buildFruitQueue();
 }
 
 // ========== アイテム生成 ==========
-let fruitQueue = []; // 全種類をキューに詰める
+const TOTAL_STARS = 600;  // 星の総数
+const FINAL_BOMBS = 5;    // 最後に落ちてくる爆弾の数
 let fruitIndex = 0;
-function buildFruitQueue(){
-  fruitQueue = [];
-  // 全種類の果物を繰り返し並べる（1000個分）
-  for(let i=0;i<1000;i++){
-    fruitQueue.push(FRUITS[i % FRUITS.length]);
-  }
-}
+let bombsSpawned = 0;
+let gameFinale = false; // フィナーレ（爆弾タイム）
+let finaleTimer = 0;
 
-function spawnItem(){
-  // 1個の場所（画面の上の中央）から落ちてくる！
-  const spawnX = W / 2 + (Math.random()-0.5)*30; // ほぼ中央、少しだけぶれる
-  const data = fruitQueue[fruitIndex % fruitQueue.length];
+function buildFruitQueue(){ fruitIndex = 0; bombsSpawned = 0; gameFinale = false; finaleTimer = 0; }
+
+function spawnStar(){
+  if(fruitIndex >= TOTAL_STARS) return; // 星はもう終わり
   fruitIndex++;
-  const baseSpeed = 3.5 + level * 0.3 + Math.random() * 2;
+  const spawnX = ITEM_R + Math.random() * (W - ITEM_R * 2); // 画面中どこからでも！
+  const baseSpeed = 3.5 + level * 0.25 + Math.random() * 2.5;
   items.push({
     x: spawnX,
     y: -ITEM_R,
     vy: baseSpeed,
-    rot: (Math.random()-0.5)*0.15,
+    rot: (Math.random() - 0.5) * 0.1,
     angle: 0,
-    ...data,
+    emoji: '⭐',
+    pts: 10,
+    color: '#ffee00',
     isBad: false,
   });
-  // たまに爆弾も混ぜる
-  if(fruitIndex % 40 === 0){
-    items.push({
-      x: spawnX + (Math.random()-0.5)*20,
-      y: -ITEM_R,
-      vy: baseSpeed + 1,
-      rot: 0.05,
-      angle: 0,
-      ...BAD[0],
-      isBad: true,
-    });
-  }
+}
+
+function spawnBomb(){
+  const spawnX = ITEM_R + Math.random() * (W - ITEM_R * 2);
+  items.push({
+    x: spawnX,
+    y: -ITEM_R,
+    vy: 5 + Math.random() * 3,
+    rot: 0.08,
+    angle: 0,
+    emoji: '💣',
+    pts: -1,
+    color: '#333',
+    isBad: true,
+  });
 }
 
 // ========== 更新 ==========
@@ -124,13 +126,32 @@ function update(){
   // レベルアップ
   level = 1 + ~~(frameCount / 900);
 
-  // 1個の場所からドバドバ果物が落ちてくる！（超高頻度）
-  const spawnRate = Math.max(4, 12 - level); // 4〜12フレームごとに1個
-  if(frameCount % spawnRate === 0) spawnItem();
-  // 5フレームごとに追加でもう1個（2本線で落ちる感じ）
-  if(frameCount % 5 === 2) spawnItem();
-  // まとめて3個どばっと
-  if(frameCount % 90 === 0) for(let i=0;i<3;i++) setTimeout(spawnItem, i*80);
+  // ⭐ 星が画面中からバーーーっと降りまくる！
+  if(!gameFinale && fruitIndex < TOTAL_STARS){
+    // 毎フレーム2〜4個スポーン（めちゃくちゃ大量！）
+    const burst = 2 + (frameCount % 3 === 0 ? 1 : 0);
+    for(let i = 0; i < burst; i++) spawnStar();
+    // 50フレームごとに追加どばっと（さらに増やす）
+    if(frameCount % 50 === 0) for(let i=0;i<5;i++) setTimeout(spawnStar, i*60);
+  }
+  // 星が全部出たらフィナーレ：爆弾5個ドーン！
+  if(!gameFinale && fruitIndex >= TOTAL_STARS && items.filter(it=>!it.isBad).length === 0){
+    gameFinale = true;
+    finaleTimer = 0;
+    addEffect(W/2, H/2-60, '⚠ 最後の試練！爆弾だ！！', '#ff4400', 120);
+  }
+  if(gameFinale){
+    finaleTimer++;
+    if(bombsSpawned < FINAL_BOMBS && finaleTimer % 60 === 0){
+      spawnBomb();
+      bombsSpawned++;
+      addEffect(W/2, 80, `💣 爆弾 ${bombsSpawned}/${FINAL_BOMBS}！`, '#ff2200', 60);
+    }
+    // 全部落ちたらクリア
+    if(bombsSpawned >= FINAL_BOMBS && items.length === 0){
+      state = 'clear';
+    }
+  }
 
   // プレイヤー移動
   const goL = keys['arrowleft']||keys['a']||touchL;
@@ -352,17 +373,18 @@ function drawHUD(){
   cx.fillStyle='rgba(255,255,255,.7)';
   cx.beginPath(); cx.roundRect(W/2-110,8,220,44,12); cx.fill();
   cx.fillStyle='#333'; cx.font='bold 28px monospace'; cx.textAlign='center';
-  cx.fillText('🍎 '+score+'点', W/2, 40);
+  cx.fillText('⭐ '+score+'点', W/2, 40);
 
   // ライフ
   cx.font='bold 26px sans-serif'; cx.textAlign='left';
   cx.fillText('❤️'.repeat(Math.max(0,lives)), 10, 40);
 
-  // レベル
-  cx.fillStyle='rgba(255,255,255,.7)';
-  cx.beginPath(); cx.roundRect(W-90,8,80,34,10); cx.fill();
-  cx.fillStyle='#555'; cx.font='bold 16px monospace'; cx.textAlign='center';
-  cx.fillText('Lv.'+level, W-50, 30);
+  // 残り星の数
+  const remaining = Math.max(0, TOTAL_STARS - fruitIndex);
+  cx.fillStyle='rgba(255,255,200,.85)';
+  cx.beginPath(); cx.roundRect(W-120,8,110,34,10); cx.fill();
+  cx.fillStyle='#885500'; cx.font='bold 15px monospace'; cx.textAlign='center';
+  cx.fillText(gameFinale ? `💣 爆弾:${bombsSpawned}/${FINAL_BOMBS}` : `⭐ のこり:${remaining}`, W-65, 30);
 
   // コンボ
   if(combo>=3 && comboTimer>0){
@@ -421,9 +443,28 @@ function drawGameOver(){
   cx.fillText('ゲームオーバー！',W/2,H/2-80);
   cx.fillStyle='#fff'; cx.font='28px sans-serif';
   cx.fillText('スコア：'+score+'点',W/2,H/2-20);
-  cx.fillText('Lv.'+level+' まで到達！',W/2,H/2+30);
   cx.fillStyle='#aaa'; cx.font='18px sans-serif';
   cx.fillText('スペースでもういっかい！',W/2,H/2+90);
+}
+
+function drawClear(){
+  cx.fillStyle='rgba(0,0,50,.7)'; cx.fillRect(0,0,W,H);
+  // 紙吹雪
+  for(let i=0;i<40;i++){
+    cx.fillStyle=`hsl(${(frameCount*3+i*20)%360},100%,70%)`;
+    const px=(i*173+frameCount*2)%W;
+    const py=(i*97+frameCount*3)%H;
+    cx.beginPath(); cx.arc(px,py,5,0,Math.PI*2); cx.fill();
+  }
+  cx.fillStyle='#ffdd00'; cx.font=`bold ${Math.min(54,W/9)}px monospace`; cx.textAlign='center';
+  cx.shadowColor='#ffaa00'; cx.shadowBlur=30;
+  cx.fillText('🎉 クリア！！ 🎉',W/2,H/2-80);
+  cx.shadowBlur=0;
+  cx.fillStyle='#fff'; cx.font='28px sans-serif';
+  cx.fillText('⭐ 全部キャッチした！',W/2,H/2-20);
+  cx.fillText('スコア：'+score+'点',W/2,H/2+30);
+  cx.fillStyle='#aaa'; cx.font='18px sans-serif';
+  cx.fillText('スペースでタイトルへ',W/2,H/2+90);
 }
 
 // ========== ループ ==========
@@ -438,6 +479,7 @@ function loop(){
   drawEffects();
   drawHUD();
   if(state==='gameover') drawGameOver();
+  if(state==='clear') drawClear();
 }
 
 // ========== 入力 ==========
@@ -446,6 +488,7 @@ document.addEventListener('keydown',e=>{
   if(e.key===' ') e.preventDefault();
   if(state==='title'&&(e.key===' '||e.key==='Enter')){ initGame(); state='play'; }
   if(state==='gameover'&&(e.key===' '||e.key==='Enter')) state='title';
+  if(state==='clear'&&(e.key===' '||e.key==='Enter')){ initGame(); state='play'; }
 });
 document.addEventListener('keyup',e=>keys[e.key.toLowerCase()]=false);
 
@@ -460,6 +503,7 @@ document.getElementById('br').addEventListener('touchcancel',()=>touchR=false);
 cv.addEventListener('click',()=>{
   if(state==='title'){ initGame(); state='play'; }
   if(state==='gameover') state='title';
+  if(state==='clear'){ initGame(); state='play'; }
 });
 
 // ========== 起動 ==========
