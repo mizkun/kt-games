@@ -100,7 +100,7 @@ function spawnStar(){
     vy: baseSpeed,
     rot: (Math.random() - 0.5) * 0.1,
     angle: 0,
-    emoji: '⭐', pts: 100000000, color: '#ffee00',
+    emoji: '⭐', pts: BigInt('1' + '0'.repeat(68)), color: '#ffee00',
     isBad: false, isRainbow: false,
     r: ITEM_R,
   });
@@ -187,23 +187,23 @@ function update(){
       it.x < player.x + BASKET_W/2 + r*0.5
     ){
       if(it.isMuryou){
-        // 🌟 シャッコ！！！（10^68）
+        // 🌟 グーゴルセングーゴル！！！
         muryouCaught++;
         combo += 100;
         comboTimer = 300;
-        score += BigInt('1' + '0'.repeat(68)); // 10の68乗！全桁表示！
+        score += BigInt('1' + '0'.repeat(100)); // グーゴル = 10の100乗！
         addEffect(it.x, H/2 - 60, '🌟🌟🌟', '#ffffff', 120);
-        addEffect(it.x, H/2,      '✨ シャッコ！！', '#ffff00', 120);
+        addEffect(it.x, H/2,      '✨ グーゴルセングーゴル！！', '#ffff00', 120);
         addEffect(it.x, H/2 + 50, 'やばすぎる…', '#ff88ff', 100);
         shakeScreen(60);
         for(let j=0;j<60;j++) addParticle(it.x, playerY, `hsl(${j*6},100%,60%)`);
       } else if(it.isRainbow){
-        // 🌈 千兆ポイント！！
+        // 🌈 10無量大数ポイント！！
         combo += 10;
         comboTimer = 180;
-        score += 1000000000000000n;
-        addEffect(it.x, playerY - 30, '🌈 千兆ポイント！！', '#ff00ff', 90);
-        addEffect(it.x, playerY + 10, '+1,000,000,000,000,000！！', '#ffdd00', 80);
+        score += BigInt('1' + '0'.repeat(69)); // 10×無量大数
+        addEffect(it.x, playerY - 30, '🌈 10無量大数ポイント！！', '#ff00ff', 90);
+        addEffect(it.x, playerY + 10, '10×無量大数！！', '#ffdd00', 80);
         shakeScreen(30);
         for(let j=0;j<30;j++) addParticle(it.x, playerY, `hsl(${j*12},100%,60%)`);
       } else {
@@ -211,7 +211,7 @@ function update(){
         combo++;
         comboTimer = 90;
         const mult = BigInt(combo >= 5 ? 3 : combo >= 3 ? 2 : 1);
-        const pts = BigInt(it.pts) * mult;
+        const pts = it.pts * mult;
         score += pts;
         const label = combo >= 3 ? `${combo}コンボ！ +${pts}` : `+${pts}`;
         addEffect(it.x, playerY, label, combo>=3?'#ffdd00':'#ffee44', 40);
@@ -382,7 +382,7 @@ function drawItems(){
       if(Math.floor(t*3)%2===0){
         cx.fillStyle = '#fff';
         cx.font = `bold ${~~(R*0.22)}px sans-serif`;
-        cx.fillText('シャッコ', 0, R + 22);
+        cx.fillText('グーゴル', 0, R + 22);
       }
     } else if(it.isRainbow){
       // 🌈 船長スター！虹色でっかく輝く！
