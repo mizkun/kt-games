@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>くだものキャッチ！</title>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box;}
+    body{background:#87ceeb;overflow:hidden;touch-action:none;user-select:none;}
+    canvas{display:block;}
+    #home{position:fixed;top:8px;left:10px;color:#555;text-decoration:none;font-size:.75rem;background:rgba(255,255,255,.6);padding:4px 10px;border-radius:10px;z-index:20;}
+    #tc{position:fixed;bottom:0;left:0;right:0;display:none;justify-content:space-between;padding:16px 24px 28px;z-index:10;pointer-events:none;}
+    #tc.show{display:flex;}
+    .cb{width:88px;height:88px;border-radius:50%;background:rgba(255,255,255,.35);border:3px solid rgba(255,255,255,.6);display:flex;align-items:center;justify-content:center;font-size:2.4rem;pointer-events:auto;-webkit-tap-highlight-color:transparent;}
+  </style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<a href="../../index.html" id="home">🏠 ゲームいちらんにもどる</a>
+<div id="tc">
+  <div class="cb" id="bl">◀</div>
+  <div class="cb" id="br">▶</div>
+</div>
+<script>
+'use strict';
+const cv = document.getElementById('c');
+const cx = cv.getContext('2d');
+let W, H;
+function resize(){ W = cv.width = window.innerWidth; H = cv.height = window.innerHeight; }
+resize();
+window.addEventListener('resize', resize);
+
+// ========== 果物・爆弾の種類 ==========
+const FRUITS = [
+  {emoji:'🍎', pts:10, color:'#ff4444'},
+  {emoji:'🍊', pts:10, color:'#ff9900'},
+  {emoji:'🍋', pts:15, color:'#ffdd00'},
+  {emoji:'🍇', pts:20, color:'#9944cc'},
+  {emoji:'🍓', pts:15, color:'#ff2255'},
+  {emoji:'🍑', pts:10, color:'#ffaa77'},
+  {emoji:'🍍', pts:25, color:'#ffcc00'},
+  {emoji:'🍉', pts:20, color:'#44cc44'},
+  {emoji:'🥝', pts:30, color:'#88bb44'},
+  {emoji:'🍒', pts:25, color:'#cc2244'},
+  {emoji:'⭐', pts:50, color:'#ffee00'},  // ボーナス！
+];
+const BAD = [
+  {emoji:'💣', pts:-1, color:'#333'},   // 爆弾（ライフ-1）
+  {emoji:'🌶️', pts:-30, color:'#ff2200'}, // トウガラシ（点数-30）
+];
+
+// ========== ゲーム状態 ==========
+let state = 'title';
+let player, items, particles, effects;
+let score, lives, level, frameCount;
+let keys = {}, touchL = false, touchR = false;
+let combo = 0, comboTimer = 0;
+let bgScroll = 0;
+
+const BASKET_W = 90, BASKET_H = 55;
+const ITEM_R = 28;
+const PLAYER_SPD = 8;
+
+function initGame(){
+  player = { x: W/2, vx: 0 };
+  items = [];
+  particles = [];
+  effects = [];
+  score = 0;
+  lives = 5;
+  level = 1;
+  frameCount = 0;
+  combo = 0;
+  comboTimer = 0;
+}
+
+// ========== アイテム生成 ==========
+function spawnItem(){
+  const isBad = Math.random() < 0.12 + level * 0.01;
+  const data = isBad
+    ? BAD[~~(Math.random()*BAD.length)]
+    : FRUITS[~~(Math.random()*FRUITS.length)];
+  const baseSpeed = 2.5 + level * 0.4;
+  items.push({
+    x: ITEM_R + Math.random() * (W - ITEM_R*2),
+    y: -ITEM_R,
+    vy: baseSpeed + Math.random() * 1.5,
+    rot: (Math.random()-0.5)*0.1,
+    angle: 0,
+    ...data,
+    isBad: isBad,
+  });
+}
+
+// ========== 更新 ==========
+function update(){
+  frameCount++;
+  bgScroll = (bgScroll + 1) % (H * 2);
+
+  // レベルアップ
+  level = 1 + ~~(frameCount / 900);
+
+  // アイテム生成間隔（レベルが上がると増える）
+  const spawnRate = Math.max(20, 70 - level * 5);
+  if(frameCount % spawnRate === 0) spawnItem();
+  // たまにまとめて降ってくる
+  if(frameCount % 300 === 0) for(let i=0;i<3;i++) setTimeout(spawnItem, i*200);
+
+  // プレイヤー移動
+  const goL = keys['arrowleft']||keys['a']||touchL;
+  const goR = keys['arrowright']||keys['d']||touchR;
+  if(goL) player.vx = -PLAYER_SPD;
+  else if(goR) player.vx = PLAYER_SPD;
+  else player.vx *= 0.75;
+  player.x += player.vx;
+  player.x = Math.max(BASKET_W/2, Math.min(W-BASKET_W/2, player.x));
+
+  // コンボタイマー
+  if(comboTimer > 0) comboTimer--;
+  else combo = 0;
+
+  // アイテム落下・当たり判定
+  for(let i = items.length-1; i >= 0; i--){
+    const it = items[i];
+    it.y += it.vy;
+    it.angle += it.rot;
+
+    // バスケットとの当たり判定
+    const playerY = H - BASKET_H - 20;
+    if(
+      it.y + ITEM_R > playerY &&
+      it.y - ITEM_R < playerY + BASKET_H &&
+      it.x > player.x - BASKET_W/2 - ITEM_R*0.5 &&
+      it.x < player.x + BASKET_W/2 + ITEM_R*0.5
+    ){
+      if(it.isBad){
+        // 爆弾・トウガラシ
+        if(it.pts === -1){
+          lives--;
+          shakeScreen(20);
+          addEffect(it.x, playerY, '💥 -1ライフ！', '#ff4444', 40);
+          for(let j=0;j<15;j++) addParticle(it.x, playerY, '#ff4444');
+          if(lives <= 0){ state='gameover'; return; }
+        } else {
+          score = Math.max(0, score + it.pts);
+          addEffect(it.x, playerY, `${it.pts}`, '#ff6600', 35);
+          combo = 0; comboTimer = 0;
+        }
+      } else {
+        // 果物キャッチ！
+        combo++;
+        comboTimer = 90;
+        const pts = it.pts * (combo >= 5 ? 3 : combo >= 3 ? 2 : 1);
+        score += pts;
+        const label = combo >= 3 ? `${combo}コンボ！ +${pts}` : `+${pts}`;
+        addEffect(it.x, playerY, label, combo>=3?'#ffdd00':'#44dd44', 40);
+        for(let j=0;j<8;j++) addParticle(it.x, playerY, it.color);
+      }
+      items.splice(i, 1);
+      continue;
+    }
+
+    // 画面外に落ちた
+    if(it.y > H + ITEM_R){
+      if(!it.isBad){
+        // 果物を落とした
+        combo = 0; comboTimer = 0;
+        addEffect(it.x, H-60, 'ミス！', '#ff6666', 30);
+      }
+      items.splice(i, 1);
+    }
+  }
+
+  // パーティクル・エフェクト更新
+  for(let i=particles.length-1;i>=0;i--){
+    const p=particles[i];
+    p.x+=p.vx; p.y+=p.vy; p.vy+=0.3; p.life--;
+    if(p.life<=0) particles.splice(i,1);
+  }
+  for(let i=effects.length-1;i>=0;i--){
+    const e=effects[i];
+    e.y-=1.2; e.life--;
+    if(e.life<=0) effects.splice(i,1);
+  }
+
+  // 画面揺れ
+  if(shakeFrames>0) shakeFrames--;
+}
+
+let shakeFrames = 0, shakeAmt = 0;
+function shakeScreen(frames){ shakeFrames=frames; shakeAmt=10; }
+
+function addParticle(x, y, color){
+  particles.push({x,y,vx:(Math.random()-0.5)*10,vy:-3-Math.random()*6,life:35,color,size:6+Math.random()*6});
+}
+function addEffect(x, y, text, color, life){
+  effects.push({x, y, text, color, life, maxLife:life});
+}
+
+// ========== 描画 ==========
+function drawBG(){
+  // 空グラデ
+  const g=cx.createLinearGradient(0,0,0,H);
+  g.addColorStop(0,'#66bbff'); g.addColorStop(1,'#cceeff');
+  cx.fillStyle=g; cx.fillRect(0,0,W,H);
+
+  // 背景の木（視差なし、固定）
+  cx.fillStyle='rgba(80,160,60,.25)';
+  for(let i=0;i<8;i++){
+    const tx = W/(8)*i + W/16;
+    cx.beginPath(); cx.arc(tx, H-80, 55, 0, Math.PI*2); cx.fill();
+    cx.fillRect(tx-10, H-80, 20, 80);
+  }
+
+  // 地面
+  cx.fillStyle='#88cc44';
+  cx.fillRect(0, H-20, W, 20);
+  cx.fillStyle='#66aa33';
+  cx.fillRect(0, H-20, W, 6);
+}
+
+function drawPlayer(){
+  const py = H - BASKET_H - 20;
+  const px = player.x;
+  const sx = shakeFrames>0 ? (Math.random()-0.5)*shakeAmt : 0;
+  const sy = shakeFrames>0 ? (Math.random()-0.5)*shakeAmt : 0;
+
+  cx.save();
+  cx.translate(px+sx, py+sy);
+
+  // バスケット
+  cx.fillStyle='#c47a2a';
+  cx.beginPath();
+  cx.moveTo(-BASKET_W/2, 0);
+  cx.lineTo(-BASKET_W/2+10, BASKET_H);
+  cx.lineTo(BASKET_W/2-10, BASKET_H);
+  cx.lineTo(BASKET_W/2, 0);
+  cx.closePath();
+  cx.fill();
+  // バスケットの編み目
+  cx.strokeStyle='#a05a18';
+  cx.lineWidth=2;
+  for(let lx=-BASKET_W/2+15;lx<BASKET_W/2;lx+=18){
+    cx.beginPath();
+    cx.moveTo(lx, 0); cx.lineTo(lx+8, BASKET_H);
+    cx.stroke();
+  }
+  cx.beginPath();
+  cx.moveTo(-BASKET_W/2, BASKET_H*0.4); cx.lineTo(BASKET_W/2, BASKET_H*0.4);
+  cx.stroke();
+  cx.beginPath();
+  cx.moveTo(-BASKET_W/2+5, BASKET_H*0.75); cx.lineTo(BASKET_W/2-5, BASKET_H*0.75);
+  cx.stroke();
+  // フチ
+  cx.strokeStyle='#804010';
+  cx.lineWidth=3;
+  cx.beginPath();
+  cx.moveTo(-BASKET_W/2, 0); cx.lineTo(BASKET_W/2, 0);
+  cx.stroke();
+
+  // キャラ（バスケットを持つ子）
+  // 胴体
+  cx.fillStyle='#4488ff';
+  cx.fillRect(-16, -60, 32, 40);
+  // 頭
+  cx.fillStyle='#ffe0b0';
+  cx.beginPath(); cx.arc(0, -72, 22, 0, Math.PI*2); cx.fill();
+  // 髪
+  cx.fillStyle='#553300';
+  cx.fillRect(-22, -92, 44, 24);
+  cx.beginPath(); cx.arc(0, -90, 22, Math.PI, 0); cx.fill();
+  // 目
+  cx.fillStyle='#333';
+  cx.beginPath(); cx.arc(-8,-72,4,0,Math.PI*2); cx.fill();
+  cx.beginPath(); cx.arc(8,-72,4,0,Math.PI*2); cx.fill();
+  cx.fillStyle='#fff';
+  cx.beginPath(); cx.arc(-7,-73,1.5,0,Math.PI*2); cx.fill();
+  cx.beginPath(); cx.arc(9,-73,1.5,0,Math.PI*2); cx.fill();
+  // 口（笑顔）
+  cx.strokeStyle='#993322'; cx.lineWidth=2;
+  cx.beginPath(); cx.arc(0,-67,8,0.2,Math.PI-0.2); cx.stroke();
+  // 腕
+  cx.fillStyle='#ffe0b0';
+  cx.fillRect(-36,-28,20,12);
+  cx.fillRect(16,-28,20,12);
+
+  cx.restore();
+}
+
+function drawItems(){
+  for(const it of items){
+    cx.save();
+    cx.translate(it.x, it.y);
+    cx.rotate(it.angle);
+    cx.font=`${ITEM_R*1.6}px sans-serif`;
+    cx.textAlign='center';
+    cx.textBaseline='middle';
+    cx.fillText(it.emoji, 0, 0);
+    cx.restore();
+  }
+}
+
+function drawParticles(){
+  for(const p of particles){
+    cx.globalAlpha=p.life/35;
+    cx.fillStyle=p.color;
+    cx.beginPath(); cx.arc(p.x,p.y,p.size,0,Math.PI*2); cx.fill();
+  }
+  cx.globalAlpha=1;
+}
+
+function drawEffects(){
+  for(const e of effects){
+    const alpha=Math.min(1, e.life/20);
+    cx.globalAlpha=alpha;
+    cx.fillStyle=e.color;
+    cx.font=`bold ${e.text.length>6?18:24}px "Comic Sans MS",monospace`;
+    cx.textAlign='center';
+    cx.fillText(e.text, e.x, e.y);
+  }
+  cx.globalAlpha=1;
+}
+
+function drawHUD(){
+  // スコア
+  cx.fillStyle='rgba(255,255,255,.7)';
+  cx.beginPath(); cx.roundRect(W/2-110,8,220,44,12); cx.fill();
+  cx.fillStyle='#333'; cx.font='bold 28px monospace'; cx.textAlign='center';
+  cx.fillText('🍎 '+score+'点', W/2, 40);
+
+  // ライフ
+  cx.font='bold 26px sans-serif'; cx.textAlign='left';
+  cx.fillText('❤️'.repeat(Math.max(0,lives)), 10, 40);
+
+  // レベル
+  cx.fillStyle='rgba(255,255,255,.7)';
+  cx.beginPath(); cx.roundRect(W-90,8,80,34,10); cx.fill();
+  cx.fillStyle='#555'; cx.font='bold 16px monospace'; cx.textAlign='center';
+  cx.fillText('Lv.'+level, W-50, 30);
+
+  // コンボ
+  if(combo>=3 && comboTimer>0){
+    cx.save();
+    const scale=1+Math.sin(Date.now()*0.015)*0.08;
+    cx.translate(W/2, H/2-40);
+    cx.scale(scale,scale);
+    cx.fillStyle='rgba(255,220,0,.9)';
+    cx.font='bold 36px "Comic Sans MS",monospace';
+    cx.textAlign='center';
+    cx.fillText(`🔥 ${combo}コンボ！`, 0, 0);
+    cx.restore();
+  }
+}
+
+function drawTitle(){
+  const g=cx.createLinearGradient(0,0,0,H);
+  g.addColorStop(0,'#66bbff'); g.addColorStop(1,'#cceeff');
+  cx.fillStyle=g; cx.fillRect(0,0,W,H);
+  // 果物を背景に散らす
+  const fruitBG=['🍎','🍊','🍋','🍇','🍓','🍑','🍍','🍉'];
+  cx.globalAlpha=0.15;
+  cx.font='60px sans-serif'; cx.textAlign='center';
+  for(let i=0;i<20;i++){
+    cx.fillText(fruitBG[i%fruitBG.length], (i*137)%W, (i*97)%H);
+  }
+  cx.globalAlpha=1;
+
+  cx.fillStyle='rgba(255,255,255,.85)';
+  cx.beginPath(); cx.roundRect(W/2-260,H/2-180,520,360,24); cx.fill();
+  cx.strokeStyle='#ffaa00'; cx.lineWidth=4; cx.stroke();
+
+  cx.fillStyle='#ff6600'; cx.font=`bold ${Math.min(48,W/10)}px "Comic Sans MS",monospace`; cx.textAlign='center';
+  cx.fillText('🍎 くだものキャッチ！',W/2,H/2-110);
+
+  cx.fillStyle='#444'; cx.font='17px sans-serif';
+  cx.fillText('← → で左右に動いて果物をキャッチ！',W/2,H/2-55);
+  cx.fillStyle='#cc0000';
+  cx.fillText('💣 爆弾を取るとライフ-1！',W/2,H/2-20);
+  cx.fillStyle='#ff6600';
+  cx.fillText('連続でキャッチするとコンボボーナス！🔥',W/2,H/2+18);
+
+  const bounce=Math.abs(Math.sin(Date.now()*0.004))*12;
+  cx.font='55px sans-serif'; cx.fillText('🍎🍊🍋',W/2,H/2+90-bounce);
+
+  const blink=Math.floor(Date.now()/600)%2;
+  if(blink){
+    cx.fillStyle='#ff6600'; cx.font='bold 22px monospace'; cx.textAlign='center';
+    cx.fillText('▶ スペースキーでスタート！',W/2,H/2+150);
+  }
+}
+
+function drawGameOver(){
+  cx.fillStyle='rgba(0,0,0,.6)'; cx.fillRect(0,0,W,H);
+  cx.fillStyle='#ffdd00'; cx.font='bold 52px monospace'; cx.textAlign='center';
+  cx.fillText('ゲームオーバー！',W/2,H/2-80);
+  cx.fillStyle='#fff'; cx.font='28px sans-serif';
+  cx.fillText('スコア：'+score+'点',W/2,H/2-20);
+  cx.fillText('Lv.'+level+' まで到達！',W/2,H/2+30);
+  cx.fillStyle='#aaa'; cx.font='18px sans-serif';
+  cx.fillText('スペースでもういっかい！',W/2,H/2+90);
+}
+
+// ========== ループ ==========
+function loop(){
+  requestAnimationFrame(loop);
+  if(state==='title'){ drawTitle(); return; }
+  if(state==='play') update();
+  drawBG();
+  drawItems();
+  drawPlayer();
+  drawParticles();
+  drawEffects();
+  drawHUD();
+  if(state==='gameover') drawGameOver();
+}
+
+// ========== 入力 ==========
+document.addEventListener('keydown',e=>{
+  keys[e.key.toLowerCase()]=true;
+  if(e.key===' ') e.preventDefault();
+  if(state==='title'&&(e.key===' '||e.key==='Enter')){ initGame(); state='play'; }
+  if(state==='gameover'&&(e.key===' '||e.key==='Enter')) state='title';
+});
+document.addEventListener('keyup',e=>keys[e.key.toLowerCase()]=false);
+
+window.addEventListener('touchstart',()=>document.getElementById('tc').classList.add('show'),{once:true});
+document.getElementById('bl').addEventListener('touchstart',e=>{e.preventDefault();touchL=true;},{passive:false});
+document.getElementById('bl').addEventListener('touchend',()=>touchL=false);
+document.getElementById('bl').addEventListener('touchcancel',()=>touchL=false);
+document.getElementById('br').addEventListener('touchstart',e=>{e.preventDefault();touchR=true;},{passive:false});
+document.getElementById('br').addEventListener('touchend',()=>touchR=false);
+document.getElementById('br').addEventListener('touchcancel',()=>touchR=false);
+
+cv.addEventListener('click',()=>{
+  if(state==='title'){ initGame(); state='play'; }
+  if(state==='gameover') state='title';
+});
+
+// ========== 起動 ==========
+window.onload=()=>requestAnimationFrame(loop);
+if(document.readyState==='complete') requestAnimationFrame(loop);
+</script>
+</body>
+</html>
