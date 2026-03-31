@@ -16,7 +16,7 @@
   </style>
 </head>
 <body>
-<canvas id="c"></canvas>
+<canvas id="c" tabindex="0"></canvas>
 <a href="../../index.html" id="home">🏠 もどる</a>
 <div id="tc">
   <div class="cside">
@@ -719,6 +719,7 @@ canvas.addEventListener('click',()=>{
 
 // ゲーム開始（setIntervalで確実に60fpsループ）
 lives=3;
+cv.focus(); // キー入力が効くようにフォーカス
 setInterval(loop, 16);
 </script>
 </body>
