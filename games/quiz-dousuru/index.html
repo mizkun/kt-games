@@ -1,0 +1,507 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>🤔 どうする？クイズ！</title>
+  <style>
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body {
+      font-family: "Hiragino Kaku Gothic ProN", "Noto Sans JP", sans-serif;
+      background: #1a1a2e;
+      color: #fff;
+      min-height: 100vh;
+      overflow-x: hidden;
+      touch-action: manipulation;
+    }
+    #home {
+      position: fixed; top:10px; left:12px;
+      color:#aaa; text-decoration:none; font-size:.75rem;
+      background:rgba(0,0,0,.5); padding:5px 12px; border-radius:20px;
+      z-index:100; border:1px solid #444;
+    }
+
+    /* ===== タイトル ===== */
+    #screen-title {
+      display:flex; flex-direction:column; align-items:center; justify-content:center;
+      min-height:100vh; padding:2rem 1.5rem; text-align:center;
+    }
+    .title-mascot { font-size:5rem; margin-bottom:1rem; animation: bounce 1s infinite alternate; }
+    @keyframes bounce { from{transform:translateY(0)} to{transform:translateY(-15px)} }
+    .title-text { font-size:clamp(1.8rem,7vw,3rem); font-weight:900; color:#ffdd57; text-shadow:0 0 20px #ffaa00; margin-bottom:.5rem; }
+    .title-sub { font-size:1rem; color:#aaa; margin-bottom:2rem; line-height:1.8; }
+    .btn-start {
+      background:linear-gradient(135deg,#f7971e,#ffd200);
+      color:#333; font-size:1.3rem; font-weight:900;
+      padding:1rem 3rem; border:none; border-radius:50px;
+      cursor:pointer; box-shadow:0 6px 20px rgba(255,200,0,.4);
+      transition:transform .15s;
+    }
+    .btn-start:active { transform:scale(.95); }
+
+    /* ===== クイズ画面 ===== */
+    #screen-quiz { display:none; padding:3.5rem 1rem 1rem; max-width:560px; margin:0 auto; }
+
+    .progress-bar-wrap { background:#333; border-radius:99px; height:8px; margin-bottom:1rem; }
+    .progress-bar { background:linear-gradient(90deg,#f7971e,#ffd200); height:8px; border-radius:99px; transition:width .4s; }
+
+    .q-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:.8rem; }
+    .q-num { font-size:.85rem; color:#aaa; }
+    .timer-wrap { display:flex; align-items:center; gap:.4rem; }
+    .timer { font-size:1.3rem; font-weight:900; color:#ffdd57; min-width:2ch; text-align:right; }
+    .timer.danger { color:#ff4757; animation: pulse .3s infinite alternate; }
+    @keyframes pulse { from{transform:scale(1)} to{transform:scale(1.2)} }
+
+    .situation-box {
+      background:linear-gradient(135deg,#16213e,#0f3460);
+      border:2px solid #e94560;
+      border-radius:16px; padding:1.2rem; margin-bottom:1rem;
+      font-size:.95rem; line-height:1.8;
+    }
+    .situation-label { font-size:.7rem; color:#e94560; font-weight:700; letter-spacing:.1em; margin-bottom:.4rem; }
+    .situation-title { font-size:1.1rem; font-weight:700; color:#fff; margin-bottom:.6rem; }
+    .items-row { display:flex; flex-wrap:wrap; gap:.4rem; margin-top:.6rem; }
+    .item-chip {
+      background:rgba(255,255,255,.12); border:1px solid rgba(255,255,255,.25);
+      border-radius:20px; padding:.25rem .7rem; font-size:.85rem;
+    }
+
+    .choices { display:flex; flex-direction:column; gap:.7rem; margin-bottom:1rem; }
+    .choice-btn {
+      background:rgba(255,255,255,.07);
+      border:2px solid rgba(255,255,255,.15);
+      border-radius:14px; padding:1rem 1.1rem;
+      color:#fff; font-size:1rem; font-weight:600;
+      cursor:pointer; text-align:left;
+      transition:background .15s, border-color .15s, transform .1s;
+      line-height:1.5;
+    }
+    .choice-btn:active { transform:scale(.98); }
+    .choice-btn:hover { background:rgba(255,255,255,.13); border-color:rgba(255,255,255,.35); }
+    .choice-btn.correct { background:rgba(50,200,100,.25); border-color:#2ed573; pointer-events:none; }
+    .choice-btn.wrong   { background:rgba(255,70,70,.2);  border-color:#ff4757; pointer-events:none; }
+    .choice-btn.disabled { pointer-events:none; opacity:.5; }
+
+    .result-box {
+      display:none;
+      border-radius:14px; padding:1rem 1.1rem;
+      margin-bottom:1rem; font-size:.95rem; line-height:1.7;
+    }
+    .result-box.show { display:block; }
+    .result-box.ok { background:rgba(50,200,100,.18); border:2px solid #2ed573; }
+    .result-box.ng { background:rgba(255,70,70,.15);  border:2px solid #ff4757; }
+    .result-label { font-size:1.4rem; font-weight:900; margin-bottom:.3rem; }
+
+    .btn-next {
+      display:none; width:100%;
+      background:linear-gradient(135deg,#6c5ce7,#a29bfe);
+      color:#fff; font-size:1.1rem; font-weight:700;
+      padding:.9rem; border:none; border-radius:14px;
+      cursor:pointer; transition:transform .1s;
+    }
+    .btn-next.show { display:block; }
+    .btn-next:active { transform:scale(.97); }
+
+    /* ===== 結果画面 ===== */
+    #screen-result {
+      display:none; flex-direction:column; align-items:center; justify-content:center;
+      min-height:100vh; padding:2rem 1.5rem; text-align:center;
+    }
+    .result-mascot { font-size:4rem; margin-bottom:1rem; }
+    .result-title { font-size:2rem; font-weight:900; margin-bottom:.5rem; }
+    .result-score { font-size:3.5rem; font-weight:900; color:#ffdd57; margin-bottom:.3rem; }
+    .result-rank { font-size:1.2rem; color:#aaa; margin-bottom:1.5rem; }
+    .btn-retry {
+      background:linear-gradient(135deg,#f7971e,#ffd200);
+      color:#333; font-size:1.2rem; font-weight:900;
+      padding:.9rem 2.5rem; border:none; border-radius:50px;
+      cursor:pointer; transition:transform .1s;
+    }
+    .btn-retry:active { transform:scale(.95); }
+
+    /* 吹き出し */
+    .mascot-comment {
+      position:fixed; bottom:100px; right:16px;
+      background:#fff; color:#333; border-radius:16px 16px 4px 16px;
+      padding:.5rem .8rem; font-size:.8rem; font-weight:600;
+      max-width:160px; box-shadow:0 4px 12px rgba(0,0,0,.3);
+      opacity:0; transition:opacity .3s;
+      pointer-events:none; z-index:50;
+    }
+    .mascot-comment.show { opacity:1; }
+    .mascot-float {
+      position:fixed; bottom:50px; right:20px;
+      font-size:2.2rem; z-index:50;
+      animation: float 2s ease-in-out infinite;
+    }
+    @keyframes float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-8px)} }
+  </style>
+</head>
+<body>
+<a href="../../index.html" id="home">🏠 ゲームいちらんにもどる</a>
+
+<!-- マスコット -->
+<div class="mascot-float" id="mascot">🤔</div>
+<div class="mascot-comment" id="comment"></div>
+
+<!-- タイトル -->
+<div id="screen-title">
+  <div class="title-mascot">🤔</div>
+  <div class="title-text">どうする？クイズ！</div>
+  <div class="title-sub">
+    ヤバい場面に遭遇！<br>
+    どうやって切り抜ける？<br>
+    キミの知恵を見せろ！
+  </div>
+  <button class="btn-start" onclick="startGame()">▶ スタート！</button>
+</div>
+
+<!-- クイズ -->
+<div id="screen-quiz">
+  <div class="progress-bar-wrap"><div class="progress-bar" id="progress"></div></div>
+  <div class="q-header">
+    <span class="q-num" id="q-num">Q1 / 10</span>
+    <div class="timer-wrap">⏱ <span class="timer" id="timer">15</span></div>
+  </div>
+  <div class="situation-box">
+    <div class="situation-label">📍 状況</div>
+    <div class="situation-title" id="s-title"></div>
+    <div id="s-desc"></div>
+    <div class="items-row" id="s-items"></div>
+  </div>
+  <div class="choices" id="choices"></div>
+  <div class="result-box" id="result-box">
+    <div class="result-label" id="result-label"></div>
+    <div id="result-desc"></div>
+  </div>
+  <button class="btn-next" id="btn-next" onclick="nextQuestion()">つぎへ →</button>
+</div>
+
+<!-- 結果 -->
+<div id="screen-result">
+  <div class="result-mascot" id="r-mascot"></div>
+  <div class="result-title" id="r-title"></div>
+  <div class="result-score" id="r-score"></div>
+  <div class="result-rank"  id="r-rank"></div>
+  <button class="btn-retry" onclick="startGame()">もういっかい！</button>
+</div>
+
+<script>
+// ========== クイズデータ ==========
+const ALL_QUESTIONS = [
+  {
+    title: '会議5分前に鼻水がとまらない！',
+    desc: 'オフィスでいきなり鼻水がダラダラ…。会議まであと5分。どうする？',
+    items: ['名刺', 'スマホ', 'ボールペン'],
+    choices: [
+      { text: '名刺で鼻をかむ', ok: true },
+      { text: 'スマホの画面で鼻を確認して放置', ok: false },
+      { text: 'ボールペンで鼻をつまむ', ok: false },
+      { text: 'そのまま会議に出て気合いで乗り切る', ok: false },
+    ],
+    explain: '名刺は紙だから鼻をかむのに使える！自分の名刺なら迷わず使おう。スマホは画面が汚れるしNG！',
+  },
+  {
+    title: '無人島に流れ着いた！火をおこしたい',
+    desc: '嵐で船が沈んで無人島に！夜は寒い。何かを燃やして暖を取りたい。',
+    items: ['メガネ（凸レンズ）', '木の棒', '乾いた葉っぱ'],
+    choices: [
+      { text: 'メガネで太陽の光を集めて葉っぱに当てる', ok: true },
+      { text: '木の棒を全力で振り回す', ok: false },
+      { text: '葉っぱを食べてエネルギーを補充する', ok: false },
+      { text: '「助けて！」と叫び続ける', ok: false },
+    ],
+    explain: 'メガネの凸レンズは虫眼鏡と同じ！太陽光を一点に集めると乾いた葉っぱが燃えるよ。サバイバルの基本！',
+  },
+  {
+    title: 'スーパーでレジに並んだら財布がない！',
+    desc: 'カゴいっぱい買い物して、いざ支払い。財布がない！どうする？',
+    items: ['スマホ', '交通系ICカード', 'ポイントカード'],
+    choices: [
+      { text: 'スマホのPayアプリで払う', ok: true },
+      { text: '泣いてお願いする', ok: false },
+      { text: 'ポイントカードで全額払おうとする', ok: false },
+      { text: '商品をカゴの下に隠す', ok: false },
+    ],
+    explain: 'スマホのPayアプリ（PayPay・Suica・d払いなど）があれば現金なしで払える！交通系ICカードも使える店が多いよ。',
+  },
+  {
+    title: '砂漠で迷子！のどがカラカラ',
+    desc: '砂漠ツアーで迷子に。水がない！近くに植物がある。どうする？',
+    items: ['サボテン', '砂', '石'],
+    choices: [
+      { text: 'サボテンを切って中の水分を飲む', ok: true },
+      { text: '砂を食べる', ok: false },
+      { text: '石をなめる', ok: false },
+      { text: '太陽に向かって全力ダッシュ', ok: false },
+    ],
+    explain: 'サボテンの中には水分がたっぷり！切って絞ると飲める。砂や石はNG。ダッシュは体力を消耗するだけで逆効果！',
+  },
+  {
+    title: 'ホワイトボードの字が消えない！',
+    desc: '会議で黒板に書いたら、なんとマジックペンだった！消えない！どうする？',
+    items: ['消毒用アルコール', '水', '付箋'],
+    choices: [
+      { text: '消毒用アルコールをかけて拭く', ok: true },
+      { text: '水でゴシゴシこする', ok: false },
+      { text: '付箋で全部隠す', ok: false },
+      { text: 'ホワイトボードをひっくり返す', ok: false },
+    ],
+    explain: 'アルコールはマジックの油性インクを溶かす！消毒液やアルコールスプレーで拭けばきれいに消えるよ。付箋で隠すのもある意味天才w',
+  },
+  {
+    title: '電車でスマホの充電がなくなりそう！',
+    desc: '大事な待ち合わせ。電車に乗ったら充電1%！あと1時間かかる。どうする？',
+    items: ['機内モード', 'モバイルバッテリー（持ってない）', '省電力モード'],
+    choices: [
+      { text: '機内モードにして省電力モードもON', ok: true },
+      { text: '動画を見て気を紛らわす', ok: false },
+      { text: '全アプリを一気に開く', ok: false },
+      { text: '諦めてスマホを川に投げる', ok: false },
+    ],
+    explain: '機内モード+省電力モードで電力消費を最小限に！通信を切るだけでかなり長持ちする。連絡は到着してから！',
+  },
+  {
+    title: 'レストランでパスタが飛んでシャツに！',
+    desc: 'デートでパスタを食べてたらトマトソースがシャツに！どうする？',
+    items: ['ナプキン', '水', '塩'],
+    choices: [
+      { text: 'すぐナプキンで軽くたたいて、塩をかけておく', ok: true },
+      { text: 'こすってのばす', ok: false },
+      { text: '「これが最新のファッションです」と言い張る', ok: false },
+      { text: 'シャツを脱ぐ', ok: false },
+    ],
+    explain: '汚れはこすると広がる！まずたたいて拭き取り、塩で水分を吸収。家に帰ってすぐ洗えばほぼ落ちるよ。こすったら終わり！',
+  },
+  {
+    title: 'テスト中に鉛筆の芯が全部折れた！',
+    desc: '大事なテストの途中で鉛筆が全部使えなくなった。どうする？',
+    items: ['コンパス', '消しゴム', '定規'],
+    choices: [
+      { text: 'すぐに手を挙げて先生に言う', ok: true },
+      { text: 'コンパスの針で解答用紙に書く', ok: false },
+      { text: '消しゴムで書けるか試す', ok: false },
+      { text: '全部暗記して後で書く', ok: false },
+    ],
+    explain: '困ったら先生に言うのが一番！テスト中でも状況を説明すれば貸してもらえる。コンパスで書いたら用紙が破れるしダメ！',
+  },
+  {
+    title: '友達の誕生日パーティーにプレゼント忘れた！',
+    desc: '誕生日パーティーに着いたらプレゼントを家に忘れてきた！どうする？',
+    items: ['スマホ', '財布（少しだけお金あり）', '手'],
+    choices: [
+      { text: '正直に話して、後日必ず渡すと約束する', ok: true },
+      { text: '「プレゼントは持ってきてない」と黙って帰る', ok: false },
+      { text: '近くのコンビニに走ってお菓子を買ってくる', ok: true },
+      { text: 'ないことをバレないようにごまかす', ok: false },
+    ],
+    explain: '正直に謝って後日プレゼントするのがベスト！お金があるならコンビニに走るのも◎。嘘をついたりごまかすのが一番NG！',
+  },
+  {
+    title: 'キャンプで虫に刺されまくってる！虫よけがない',
+    desc: 'キャンプに来たら蚊がすごい！虫よけスプレーを忘れた。どうする？',
+    items: ['ハッカ油（ミントのオイル）', '火（焚き火）', '長袖の服'],
+    choices: [
+      { text: '長袖を着て、焚き火の煙を利用する', ok: true },
+      { text: '蚊を一匹ずつ手でつかまえる', ok: false },
+      { text: '「蚊よこれが自然だ」と受け入れる', ok: false },
+      { text: 'ハッカ油を薄めて肌に塗る', ok: true },
+    ],
+    explain: '煙は蚊が嫌い！焚き火の近くにいると蚊が来にくくなる。ハッカ油（ミント）も虫よけ効果あり！長袖で肌を隠すのも基本。',
+  },
+  {
+    title: 'ルーブル美術館で急に鼻水が出た！',
+    desc: 'フランスで超高級な美術館に来てる。モナリザの前で突然鼻水が！どうする？',
+    items: ['チケット（紙）', 'マップ（紙）', '手'],
+    choices: [
+      { text: 'マップを使って鼻をかむ', ok: true },
+      { text: 'モナリザに顔をふく', ok: false },
+      { text: '鼻水を手でぬぐって絵画に手をつく', ok: false },
+      { text: 'そっとその場を離れてトイレに行く', ok: true },
+    ],
+    explain: 'マップは使い終わったら捨てていい紙だからOK！でも一番いいのは静かにトイレへ行くこと。絵画には絶対触れちゃダメ！億超えの作品だよ！',
+  },
+  {
+    title: '学校の発表で緊張して頭が真っ白に！',
+    desc: 'クラス全員の前で発表。いきなり緊張して何も言えなくなった！どうする？',
+    items: ['メモ', '深呼吸', '友達の顔'],
+    choices: [
+      { text: 'ゆっくり深呼吸してメモを見ながら話す', ok: true },
+      { text: '「やっぱやめます」と帰る', ok: false },
+      { text: '泣く', ok: false },
+      { text: '「えー、えー、えー」と言い続ける', ok: false },
+    ],
+    explain: '緊張したら深呼吸！3秒吸って5秒吐くと気持ちが落ち着く。メモを見ながらゆっくり話せばOK。完璧じゃなくても全然いい！',
+  },
+];
+
+// ========== ゲーム変数 ==========
+let questions = [];
+let current = 0;
+let score = 0;
+let timerInterval = null;
+let timeLeft = 0;
+let answered = false;
+
+const MASCOT_COMMENTS = {
+  ok:   ['すごい！！', '天才かも！', 'その通り！', 'パーフェクト！', 'やるね〜！'],
+  ng:   ['ざんねん…', 'むずかしいね', 'そうきたか…', 'うーん惜しい！', 'ドンマイ！'],
+  time: ['時間切れ〜！', '考えすぎたね', 'はやくはやく！'],
+};
+
+function shuffle(arr){ return arr.slice().sort(()=>Math.random()-.5); }
+
+function showComment(type){
+  const list = MASCOT_COMMENTS[type];
+  const text = list[~~(Math.random()*list.length)];
+  const el = document.getElementById('comment');
+  el.textContent = text;
+  el.classList.add('show');
+  document.getElementById('mascot').textContent = type==='ok' ? '😄' : type==='ng' ? '😅' : '⏰';
+  setTimeout(()=>{ el.classList.remove('show'); document.getElementById('mascot').textContent='🤔'; }, 2000);
+}
+
+function startGame(){
+  questions = shuffle(ALL_QUESTIONS).slice(0, 10);
+  current = 0; score = 0;
+  document.getElementById('screen-title').style.display  = 'none';
+  document.getElementById('screen-result').style.display = 'none';
+  document.getElementById('screen-quiz').style.display   = 'block';
+  showQuestion();
+}
+
+function showQuestion(){
+  answered = false;
+  const q = questions[current];
+  const total = questions.length;
+
+  // 進捗
+  document.getElementById('progress').style.width = `${(current/total)*100}%`;
+  document.getElementById('q-num').textContent = `Q${current+1} / ${total}`;
+
+  // 状況
+  document.getElementById('s-title').textContent = q.title;
+  document.getElementById('s-desc').textContent  = q.desc;
+  const itemsEl = document.getElementById('s-items');
+  itemsEl.innerHTML = '';
+  if(q.items && q.items.length){
+    const label = document.createElement('span');
+    label.style.cssText = 'font-size:.75rem;color:#aaa;align-self:center;';
+    label.textContent = '手元に：';
+    itemsEl.appendChild(label);
+    q.items.forEach(item=>{
+      const chip = document.createElement('span');
+      chip.className = 'item-chip';
+      chip.textContent = item;
+      itemsEl.appendChild(chip);
+    });
+  }
+
+  // 選択肢
+  const choicesEl = document.getElementById('choices');
+  choicesEl.innerHTML = '';
+  const labels = ['A', 'B', 'C', 'D'];
+  shuffle(q.choices).forEach((c, i)=>{
+    const btn = document.createElement('button');
+    btn.className = 'choice-btn';
+    btn.innerHTML = `<span style="color:#ffdd57;font-weight:900;margin-right:.5rem">${labels[i]}</span>${c.text}`;
+    btn.onclick = ()=> answer(btn, c.ok);
+    choicesEl.appendChild(btn);
+  });
+
+  // 結果非表示
+  const rb = document.getElementById('result-box');
+  rb.className = 'result-box';
+  rb.style.display = 'none';
+  document.getElementById('btn-next').className = 'btn-next';
+
+  // タイマー
+  clearInterval(timerInterval);
+  timeLeft = 15;
+  const timerEl = document.getElementById('timer');
+  timerEl.textContent = timeLeft;
+  timerEl.className = 'timer';
+  timerInterval = setInterval(()=>{
+    timeLeft--;
+    timerEl.textContent = timeLeft;
+    if(timeLeft <= 5) timerEl.className = 'timer danger';
+    if(timeLeft <= 0){
+      clearInterval(timerInterval);
+      if(!answered) timeOut();
+    }
+  }, 1000);
+}
+
+function answer(btn, isOk){
+  if(answered) return;
+  answered = true;
+  clearInterval(timerInterval);
+  const q = questions[current];
+
+  // 全ボタン処理
+  document.querySelectorAll('.choice-btn').forEach(b=>{
+    const text = b.textContent.slice(1).trim(); // ラベル除去
+    const match = q.choices.find(c=> b.innerHTML.includes(c.text));
+    if(match && match.ok)  b.classList.add('correct');
+    else if(b===btn && !isOk) b.classList.add('wrong');
+    else b.classList.add('disabled');
+  });
+
+  if(isOk) score++;
+
+  // 結果表示
+  const rb = document.getElementById('result-box');
+  rb.style.display = 'block';
+  rb.className = 'result-box show ' + (isOk ? 'ok' : 'ng');
+  document.getElementById('result-label').textContent = isOk ? '✅ 正解！' : '❌ ざんねん！';
+  document.getElementById('result-desc').textContent  = q.explain;
+
+  document.getElementById('btn-next').className = 'btn-next show';
+  showComment(isOk ? 'ok' : 'ng');
+}
+
+function timeOut(){
+  answered = true;
+  const q = questions[current];
+  document.querySelectorAll('.choice-btn').forEach(b=>{
+    const match = q.choices.find(c=> b.innerHTML.includes(c.text));
+    if(match && match.ok) b.classList.add('correct');
+    else b.classList.add('disabled');
+  });
+  const rb = document.getElementById('result-box');
+  rb.style.display = 'block';
+  rb.className = 'result-box show ng';
+  document.getElementById('result-label').textContent = '⏰ 時間切れ！';
+  document.getElementById('result-desc').textContent  = q.explain;
+  document.getElementById('btn-next').className = 'btn-next show';
+  showComment('time');
+}
+
+function nextQuestion(){
+  current++;
+  if(current >= questions.length){ showResult(); return; }
+  document.getElementById('result-box').style.display = 'none';
+  showQuestion();
+}
+
+function showResult(){
+  clearInterval(timerInterval);
+  document.getElementById('screen-quiz').style.display   = 'none';
+  document.getElementById('screen-result').style.display = 'flex';
+  const total = questions.length;
+  const pct = score / total;
+  let mascot, title, rank;
+  if(pct === 1){        mascot='🏆'; title='満点！天才すぎる！'; rank='ランク：サバイバルマスター'; }
+  else if(pct >= .8){   mascot='😎'; title='すごい！ほぼ完璧！'; rank='ランク：機転が利くね！'; }
+  else if(pct >= .6){   mascot='😊'; title='よくできました！'; rank='ランク：なかなかやるじゃん'; }
+  else if(pct >= .4){   mascot='😅'; title='まあまあかな…'; rank='ランク：もうちょっと考えよう'; }
+  else {                mascot='😭'; title='もっと頑張れ〜！'; rank='ランク：サバイバル要練習w'; }
+  document.getElementById('r-mascot').textContent = mascot;
+  document.getElementById('r-title').textContent  = title;
+  document.getElementById('r-score').textContent  = `${score} / ${total}`;
+  document.getElementById('r-rank').textContent   = rank;
+  document.getElementById('mascot').textContent   = mascot;
+}
+</script>
+</body>
+</html>
