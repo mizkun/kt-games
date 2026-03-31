@@ -162,9 +162,9 @@ function update(){
         // 🌈 船長ポイント！！
         combo += 10;
         comboTimer = 180;
-        score += 100000000;
-        addEffect(it.x, playerY - 30, '🌈 船長ポイント！！', '#ff00ff', 90);
-        addEffect(it.x, playerY + 10, '+1億コンボ！！', '#ffdd00', 80);
+        score += 1000000000000000;
+        addEffect(it.x, playerY - 30, '🌈 千兆ポイント！！', '#ff00ff', 90);
+        addEffect(it.x, playerY + 10, '+1000000000000000！！', '#ffdd00', 80);
         shakeScreen(30);
         for(let j=0;j<30;j++) addParticle(it.x, playerY, `hsl(${j*12},100%,60%)`);
       } else {
@@ -342,7 +342,7 @@ function drawItems(){
       // 「船長」ラベル
       cx.fillStyle = `hsl(${(it.hue+t*80)%360},100%,90%)`;
       cx.font = `bold ${~~(R*0.5)}px sans-serif`;
-      cx.fillText('船長', 0, R + 14);
+      cx.fillText('千兆', 0, R + 14);
     } else {
       // 通常星
       cx.font=`${ITEM_R*1.6}px sans-serif`;
