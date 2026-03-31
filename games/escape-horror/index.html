@@ -582,7 +582,7 @@ function update(dt) {
   for (const k of keys3) {
     if (k.got) continue;
     const d = Math.hypot(player.x - k.cx, player.y - k.cy);
-    if (d < TILE * 0.7) {
+    if (d < TILE * 1.2) {
       k.got = true;
       collectedKeys++;
       document.getElementById('k' + (collectedKeys - 1)).classList.add('got');
