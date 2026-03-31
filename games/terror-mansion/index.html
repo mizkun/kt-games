@@ -334,6 +334,7 @@ let deathTimer=0;
 let winTimer=0;
 let attackTimer=0;
 let attackFlash=0;
+let axeSwing=0;    // 斧のスイング角度タイマー
 let tAtk=false;
 let killCount=0;
 let shakeX=0, shakeY=0;   // 画面シェイク
@@ -369,7 +370,7 @@ function initGame(){
   jsTimer=0;
   staticEffect=0; bloodAlpha=0;
   deathTimer=0; winTimer=0;
-  attackTimer=0; attackFlash=0; killCount=0;
+  attackTimer=0; attackFlash=0; axeSwing=0; killCount=0;
   shakeX=0; shakeY=0; glitchTimer=0;
   creepyMsgTimer=0; creepyMsg='';
   ghostApparition=0;
@@ -544,25 +545,43 @@ function updateGhostApparition(){
 
 function doAttack(){
   if(attackTimer>0) return;
-  attackTimer=30; attackFlash=15;
-  playHit();
+  attackTimer=28; attackFlash=18; axeSwing=20;
+  // 斧の振り音（ドスッ！）
+  if(ac){
+    const o=ac.createOscillator(), g=ac.createGain();
+    o.type='sawtooth'; o.frequency.setValueAtTime(180,ac.currentTime);
+    o.frequency.exponentialRampToValueAtTime(40,ac.currentTime+0.25);
+    g.gain.setValueAtTime(0.6,ac.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001,ac.currentTime+0.3);
+    o.connect(g); g.connect(ac.destination);
+    o.start(); o.stop(ac.currentTime+0.3);
+    // 風切り音
+    const buf=ac.createBuffer(1,ac.sampleRate*0.15,ac.sampleRate);
+    const d=buf.getChannelData(0);
+    for(let i=0;i<d.length;i++) d[i]=(Math.random()*2-1)*Math.exp(-i/d.length*5)*0.3;
+    const s=ac.createBufferSource(), g2=ac.createGain();
+    g2.gain.value=0.4; s.buffer=buf; s.connect(g2); g2.connect(ac.destination); s.start();
+  }
+  let hit=false;
   for(const m of monsters){
     if(m.dying||m.respawnTimer>0) continue;
     const dist=Math.hypot(player.x-m.x,player.y-m.y);
-    if(dist<TILE*1.8){
-      m.hp--;
-      m.hitFlash=20;
+    if(dist<TILE*2.0){
+      m.hp-=2; // 斧は2ダメージ！強い！
+      m.hitFlash=25;
+      hit=true;
       if(m.hp<=0){
         m.dying=true; m.dyingTimer=60;
         killCount++;
         playMonsterDie();
-        bloodAlpha=0.6;
+        bloodAlpha=0.8; // 血がどばっと
+        shakeX=(Math.random()-0.5)*20; shakeY=(Math.random()-0.5)*20;
       } else {
-        playHit();
-        shakeX=(Math.random()-0.5)*15; shakeY=(Math.random()-0.5)*15;
+        shakeX=(Math.random()-0.5)*12; shakeY=(Math.random()-0.5)*12;
       }
     }
   }
+  if(!hit) bloodAlpha=Math.max(bloodAlpha,0.1);
 }
 
 // ======== 描画 ========
@@ -773,29 +792,90 @@ function drawMap(){
 
 function drawPlayer(){
   const sx=player.x-camX+shakeX, sy=player.y-camY+shakeY;
-  // ライトなし！懐中電灯の描画を削除
   cx.save();
   cx.translate(sx,sy);
   if(player.dir<0) cx.scale(-1,1);
-  // ほぼ見えない暗いシルエット
-  cx.globalAlpha=0.18;
-  cx.fillStyle='#221100';
-  cx.fillRect(-10,-26,20,26);
-  cx.beginPath(); cx.arc(0,-30,13,0,Math.PI*2); cx.fill();
-  cx.globalAlpha=1;
-  cx.restore();
-  if(attackFlash>0){
-    attackFlash--;
+
+  // ぼんやり見えるシルエット（暗い青みがかった影）
+  cx.globalAlpha=0.55;
+  // 体
+  cx.fillStyle='#1a1a2e';
+  cx.fillRect(-11,-28,22,30);
+  // 頭
+  cx.beginPath(); cx.arc(0,-33,14,0,Math.PI*2); cx.fill();
+  // 少し明るいハイライト（輪郭だけうっすら）
+  cx.globalAlpha=0.25;
+  cx.strokeStyle='#4455aa';
+  cx.lineWidth=2;
+  cx.beginPath(); cx.arc(0,-33,14,0,Math.PI*2); cx.stroke();
+  cx.strokeRect(-11,-28,22,30);
+
+  // ===== 斧 =====
+  if(axeSwing>0){
+    // 振り下ろし中！
+    axeSwing--;
+    const progress=1-(axeSwing/20); // 0→1
+    const swingAngle=-Math.PI*0.6 + progress*Math.PI*1.1; // 上から下へ
+    cx.globalAlpha=0.85;
     cx.save();
-    cx.translate(sx,sy);
-    cx.globalAlpha=attackFlash/15;
-    cx.strokeStyle='#ffffff'; cx.lineWidth=4;
+    cx.translate(14,-20);
+    cx.rotate(swingAngle);
+    // 柄（持ち手）
+    cx.fillStyle='#5c3a1e';
+    cx.fillRect(-3,0,6,38);
+    // 刃
+    cx.fillStyle='#aaaacc';
     cx.beginPath();
-    cx.arc(player.dir*30,0,TILE*1.5,-Math.PI*0.5,Math.PI*0.5);
+    cx.moveTo(3,2);
+    cx.lineTo(26,6);
+    cx.lineTo(24,24);
+    cx.lineTo(3,20);
+    cx.closePath();
+    cx.fill();
+    // 刃の光沢
+    cx.fillStyle='rgba(255,255,255,0.5)';
+    cx.beginPath();
+    cx.moveTo(4,4); cx.lineTo(22,8); cx.lineTo(20,11); cx.lineTo(4,8);
+    cx.fill();
+    // 血（倒した後しばらく）
+    if(killCount>0){
+      cx.fillStyle='rgba(180,0,0,0.7)';
+      cx.beginPath();
+      cx.moveTo(3,10); cx.lineTo(26,14); cx.lineTo(24,20); cx.lineTo(3,18);
+      cx.fill();
+    }
+    cx.restore();
+    // 斧の軌跡（赤い弧）
+    cx.globalAlpha=axeSwing/20*0.6;
+    cx.strokeStyle='rgba(200,0,0,0.8)';
+    cx.lineWidth=5;
+    cx.beginPath();
+    cx.arc(14,-20,36,-Math.PI*0.6,swingAngle);
     cx.stroke();
-    cx.globalAlpha=1;
+  } else {
+    // 待機中：斧を肩に担いでいる
+    cx.globalAlpha=0.6;
+    cx.save();
+    cx.translate(14,-20);
+    cx.rotate(-Math.PI*0.3);
+    cx.fillStyle='#5c3a1e';
+    cx.fillRect(-3,0,6,38);
+    cx.fillStyle='#9999bb';
+    cx.beginPath();
+    cx.moveTo(3,2); cx.lineTo(24,6); cx.lineTo(22,22); cx.lineTo(3,18);
+    cx.closePath();
+    cx.fill();
+    if(killCount>0){
+      cx.fillStyle='rgba(180,0,0,0.6)';
+      cx.beginPath();
+      cx.moveTo(3,8); cx.lineTo(22,12); cx.lineTo(20,18); cx.lineTo(3,16);
+      cx.fill();
+    }
     cx.restore();
   }
+
+  cx.globalAlpha=1;
+  cx.restore();
 }
 
 function drawMonster(m){
