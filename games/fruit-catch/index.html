@@ -61,6 +61,12 @@ const BASKET_W = 90, BASKET_H = 55;
 const ITEM_R = 28;
 const PLAYER_SPD = 8;
 
+// スコアを000000000形式で表示
+function fmtScore(n){
+  if(!isFinite(n) || n >= 1e15) return '999999999999999';
+  return String(Math.floor(n)).padStart(15, '0');
+}
+
 function initGame(){
   player = { x: W/2, vx: 0 };
   items = [];
@@ -182,13 +188,13 @@ function update(){
       it.x < player.x + BASKET_W/2 + r*0.5
     ){
       if(it.isMuryou){
-        // 🌟 1000無量大数ポイント！！！
+        // 🌟 🤐 チャック！！！
         muryouCaught++;
         combo += 100;
         comboTimer = 300;
         score += 1e68; // 無量大数は10^68！
         addEffect(it.x, H/2 - 60, '🌟🌟🌟', '#ffffff', 120);
-        addEffect(it.x, H/2,      '1000無量大数ポイント！！', '#ffff00', 120);
+        addEffect(it.x, H/2,      '🤐 チャック！！', '#ffff00', 120);
         addEffect(it.x, H/2 + 50, 'やばすぎる…', '#ff88ff', 100);
         shakeScreen(60);
         for(let j=0;j<60;j++) addParticle(it.x, playerY, `hsl(${j*6},100%,60%)`);
@@ -376,7 +382,7 @@ function drawItems(){
       if(Math.floor(t*3)%2===0){
         cx.fillStyle = '#fff';
         cx.font = `bold ${~~(R*0.22)}px sans-serif`;
-        cx.fillText('1000無量大数', 0, R + 22);
+        cx.fillText('チャック', 0, R + 22);
       }
     } else if(it.isRainbow){
       // 🌈 船長スター！虹色でっかく輝く！
@@ -446,8 +452,8 @@ function drawHUD(){
   // スコア
   cx.fillStyle='rgba(255,255,255,.7)';
   cx.beginPath(); cx.roundRect(W/2-110,8,220,44,12); cx.fill();
-  cx.fillStyle='#333'; cx.font='bold 28px monospace'; cx.textAlign='center';
-  cx.fillText('⭐ '+score+'点', W/2, 40);
+  cx.fillStyle='#333'; cx.font='bold 22px monospace'; cx.textAlign='center';
+  cx.fillText(fmtScore(score), W/2, 40);
 
   // ライフ
   cx.font='bold 26px sans-serif'; cx.textAlign='left';
@@ -515,7 +521,7 @@ function drawGameOver(){
   cx.fillStyle='#ffdd00'; cx.font='bold 52px monospace'; cx.textAlign='center';
   cx.fillText('ゲームオーバー！',W/2,H/2-80);
   cx.fillStyle='#fff'; cx.font='28px sans-serif';
-  cx.fillText('スコア：'+score+'点',W/2,H/2-20);
+  cx.fillText(fmtScore(score),W/2,H/2-20);
   cx.fillStyle='#aaa'; cx.font='18px sans-serif';
   cx.fillText('スペースでもういっかい！',W/2,H/2+90);
 }
@@ -535,7 +541,7 @@ function drawClear(){
   cx.shadowBlur=0;
   cx.fillStyle='#fff'; cx.font='28px sans-serif';
   cx.fillText('⭐ 全部キャッチした！',W/2,H/2-20);
-  cx.fillText('スコア：'+score+'点',W/2,H/2+30);
+  cx.fillText(fmtScore(score),W/2,H/2+30);
   cx.fillStyle='#aaa'; cx.font='18px sans-serif';
   cx.fillText('スペースでタイトルへ',W/2,H/2+90);
 }
