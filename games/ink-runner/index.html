@@ -159,7 +159,7 @@ let keys = {};
 let touchL=false, touchR=false, touchJp=false, touchSh=false;
 let jumpQueued=false;
 let shootQueued=false;
-let lives = 3;
+let lives = 5;
 let inkLeft = 100; // インク残量
 
 function initGame(){
@@ -671,7 +671,7 @@ document.addEventListener('keydown', e=>{
   keys[e.key.toLowerCase()] = true;
   if(e.key===' ') e.preventDefault();
   if(state==='title' && (e.key===' '||e.key==='Enter')){
-    lives=3; initGame(); state='play';
+    lives=5; initGame(); state='play';
   }
   if((state==='win'||state==='gameover') && (e.key===' '||e.key==='Enter')) state='title';
 });
@@ -687,7 +687,7 @@ br.addEventListener('touchstart', e=>{e.preventDefault();touchR=true;});
 br.addEventListener('touchend', ()=>touchR=false); br.addEventListener('touchcancel',()=>touchR=false);
 bjp.addEventListener('touchstart', e=>{
   e.preventDefault(); jumpQueued=true; touchJp=true;
-  if(state==='title'){lives=3;initGame();state='play';}
+  if(state==='title'){lives=5;initGame();state='play';}
   if(state==='win'||state==='gameover') state='title';
 });
 bjp.addEventListener('touchend', ()=>touchJp=false);
@@ -697,12 +697,12 @@ bsh.addEventListener('touchend', ()=>touchSh=false);
 bsh.addEventListener('touchcancel', ()=>touchSh=false);
 
 cv.addEventListener('click', ()=>{
-  if(state==='title'){lives=3;initGame();state='play';}
+  if(state==='title'){lives=5;initGame();state='play';}
   if(state==='win'||state==='gameover') state='title';
 });
 
 // ゲーム起動
-lives = 3;
+lives = 5;
 setInterval(loop, 16);
 </script>
 </body>
