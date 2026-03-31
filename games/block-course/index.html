@@ -25,14 +25,16 @@ const TOOL_H = Math.max(90, window.innerHeight - GH - 10);
 const W = GW, H = GH + TOOL_H;
 canvas.width = W; canvas.height = H;
 
-const NONE=0, FLOOR=1, WALL=2, RAMP_R=3, RAMP_L=4, SPRING=5, GOAL=6;
+const NONE=0, FLOOR=1, WALL=2, RAMP_R=3, RAMP_L=4, SPRING=5, GOAL=6, GEAR=7, FERRIS=8;
 const BLOCK_INFO = [
-  {type:NONE,  label:'消す', col:'#444', draw: drawNone},
-  {type:FLOOR, label:'ゆか', col:'#3355bb', draw: drawFloor},
-  {type:WALL,  label:'かべ', col:'#556677', draw: drawWall},
-  {type:RAMP_R,label:'坂↘', col:'#cc5511', draw: drawRampR},
-  {type:RAMP_L,label:'坂↙', col:'#cc8811', draw: drawRampL},
-  {type:SPRING,label:'バネ', col:'#22aa33', draw: drawSpring},
+  {type:NONE,  label:'消す',  col:'#444',    draw: drawNone},
+  {type:FLOOR, label:'ゆか',  col:'#3355bb', draw: drawFloor},
+  {type:WALL,  label:'かべ',  col:'#556677', draw: drawWall},
+  {type:RAMP_R,label:'坂↘',  col:'#cc5511', draw: drawRampR},
+  {type:RAMP_L,label:'坂↙',  col:'#cc8811', draw: drawRampL},
+  {type:SPRING,label:'バネ',  col:'#22aa33', draw: drawSpring},
+  {type:GEAR,  label:'歯車',  col:'#667788', draw: drawGear},
+  {type:FERRIS,label:'観覧車', col:'#2266aa', draw: drawFerrisBlock},
 ];
 
 const grid = Array.from({length:ROWS},()=>new Array(COLS).fill(NONE));
@@ -44,12 +46,13 @@ const BALL_R = CELL * 0.27;
 let ball=null, trail=[];
 let state='edit'; // edit | play | win | fail
 let sel=FLOOR, frame=0;
+let ballTrapped=false, trapAngle=0, trapTx=0, trapTy=0;
 let confetti=[];
 let ac=null;
 function initAudio(){if(!ac)ac=new(window.AudioContext||window.webkitAudioContext)();}
 function beep(f,d,v,t){if(!ac)return;const o=ac.createOscillator(),g=ac.createGain();o.type=t||'sine';o.frequency.value=f;g.gain.setValueAtTime(v||0.2,ac.currentTime);g.gain.exponentialRampToValueAtTime(0.001,ac.currentTime+d);o.connect(g);g.connect(ac.destination);o.start();o.stop(ac.currentTime+d);}
 
-function spawnBall(){ball={x:1*CELL+CELL/2,y:0*CELL+CELL/2,vx:0.8,vy:0};trail=[];}
+function spawnBall(){ball={x:1*CELL+CELL/2,y:0*CELL+CELL/2,vx:0.8,vy:0};trail=[];ballTrapped=false;}
 
 function resolveWall(tx,ty){
   const nx2=Math.max(tx,Math.min(ball.x,tx+CELL)),ny2=Math.max(ty,Math.min(ball.y,ty+CELL));
@@ -120,15 +123,69 @@ function resolveSpring(tx,ty){
   }
 }
 
+function resolveGear(tx,ty){
+  const gcx=tx+CELL/2,gcy=ty+CELL/2,gr=CELL*0.42;
+  const dx=ball.x-gcx,dy=ball.y-gcy,dist=Math.hypot(dx,dy);
+  const minD=BALL_R+gr;
+  if(dist>=minD||dist<0.001)return;
+  const nx=dx/dist,ny=dy/dist;
+  ball.x=gcx+nx*minD;ball.y=gcy+ny*minD;
+  const dot=ball.vx*nx+ball.vy*ny;
+  if(dot<0){ball.vx-=dot*nx*1.3;ball.vy-=dot*ny*1.3;}
+  ball.vx+=(-ny)*0.05*gr*1.5;
+  ball.vy+=(nx)*0.05*gr*1.5;
+  if(frame%3===0)beep(260+Math.random()*120,0.04,0.1,'square');
+}
+
+function resolveFerris(tx,ty){
+  const fcx=tx+CELL/2,fcy=ty+CELL/2,fr2=CELL*0.43;
+  const wSpd=0.022,wAngle=frame*wSpd;
+  if(ballTrapped&&trapTx===tx&&trapTy===ty){
+    const ca=wAngle+trapAngle;
+    ball.x=fcx+Math.cos(ca)*fr2;ball.y=fcy+Math.sin(ca)*fr2;
+    ball.vx=0;ball.vy=0;
+    if(Math.sin(ca)>0.8){
+      ballTrapped=false;
+      ball.vy=4;ball.vx=Math.cos(ca)*wSpd*fr2*0.5;
+      beep(350,0.1,0.15,'sine');
+    }
+    return;
+  }
+  if(ballTrapped)return;
+  for(let i=0;i<4;i++){
+    const ca=wAngle+i*Math.PI/2;
+    const cpx=fcx+Math.cos(ca)*fr2,cpy=fcy+Math.sin(ca)*fr2;
+    if(Math.hypot(ball.x-cpx,ball.y-cpy)<BALL_R*2.2&&Math.sin(ca)<0.25&&ball.vy>0){
+      ballTrapped=true;trapTx=tx;trapTy=ty;
+      trapAngle=Math.atan2(ball.y-fcy,ball.x-fcx)-wAngle;
+      beep(550,0.1,0.22,'triangle');return;
+    }
+  }
+  const dx=ball.x-fcx,dy=ball.y-fcy,dist=Math.hypot(dx,dy);
+  if(dist<fr2+BALL_R&&dist>0.001){
+    const nx=dx/dist,ny=dy/dist;
+    if(dist<fr2){ball.x=fcx+nx*fr2;ball.y=fcy+ny*fr2;}
+    const dot=ball.vx*nx+ball.vy*ny;
+    if(dot<0){ball.vx-=2*dot*nx*0.5;ball.vy-=2*dot*ny*0.5;}
+    ball.vx+=(-ny)*wSpd*fr2*0.4;ball.vy+=(nx)*wSpd*fr2*0.4;
+  }
+}
+
 function updateBall(){
   if(!ball)return;
+  if(ballTrapped){
+    resolveFerris(trapTx,trapTy);
+    trail.push({x:ball.x,y:ball.y});if(trail.length>10)trail.shift();
+    return;
+  }
   ball.vy+=0.34;
   ball.x+=ball.vx;
   ball.y+=ball.vy;
-  const c0=Math.max(0,Math.floor((ball.x-BALL_R)/CELL));
-  const c1=Math.min(COLS-1,Math.floor((ball.x+BALL_R)/CELL));
-  const r0=Math.max(0,Math.floor((ball.y-BALL_R)/CELL));
-  const r1=Math.min(ROWS-1,Math.floor((ball.y+BALL_R)/CELL));
+  // Widen search area for gear/ferris (they're circular and may overlap adjacent cells)
+  const c0=Math.max(0,Math.floor((ball.x-BALL_R-CELL)/CELL));
+  const c1=Math.min(COLS-1,Math.floor((ball.x+BALL_R+CELL)/CELL));
+  const r0=Math.max(0,Math.floor((ball.y-BALL_R-CELL)/CELL));
+  const r1=Math.min(ROWS-1,Math.floor((ball.y+BALL_R+CELL)/CELL));
   for(let row=r0;row<=r1;row++){
     for(let col=c0;col<=c1;col++){
       const t=grid[row][col];
@@ -140,6 +197,8 @@ function updateBall(){
       else if(t===RAMP_R)resolveRampR(tx,ty);
       else if(t===RAMP_L)resolveRampL(tx,ty);
       else if(t===SPRING)resolveSpring(tx,ty);
+      else if(t===GEAR)resolveGear(tx,ty);
+      else if(t===FERRIS)resolveFerris(tx,ty);
     }
   }
   if(ball.x-BALL_R<0){ball.x=BALL_R;ball.vx=Math.abs(ball.vx)*0.55;}
@@ -188,6 +247,46 @@ function drawSpring(x,y,s){
   ctx.fillStyle='#22aa33';
   ctx.beginPath();ctx.moveTo(x+s*0.2,y+s*0.9);ctx.lineTo(x+s*0.5,y+s*0.1);ctx.lineTo(x+s*0.8,y+s*0.9);ctx.closePath();ctx.fill();
   ctx.strokeStyle='rgba(255,255,255,0.4)';ctx.lineWidth=1.5;ctx.stroke();
+}
+function drawGear(x,y,s){
+  const cx2=x+s/2,cy2=y+s/2,r=s*0.38,teeth=6,teethR=r*1.28;
+  ctx.fillStyle='#1a2233';ctx.fillRect(x,y,s,s);
+  ctx.save();ctx.translate(cx2,cy2);ctx.rotate(frame*0.05);
+  ctx.beginPath();
+  for(let t=0;t<teeth;t++){
+    const a0=t/teeth*Math.PI*2,a1=a0+0.18,a2=a0+0.35,a3=a0+0.52;
+    ctx.lineTo(Math.cos(a0)*r,Math.sin(a0)*r);
+    ctx.lineTo(Math.cos(a1)*teethR,Math.sin(a1)*teethR);
+    ctx.lineTo(Math.cos(a2)*teethR,Math.sin(a2)*teethR);
+    ctx.lineTo(Math.cos(a3)*r,Math.sin(a3)*r);
+  }
+  ctx.closePath();
+  const g=ctx.createRadialGradient(0,0,0,0,0,r);
+  g.addColorStop(0,'#99aabb');g.addColorStop(1,'#445566');
+  ctx.fillStyle=g;ctx.fill();
+  ctx.strokeStyle='#aabbcc';ctx.lineWidth=1;ctx.stroke();
+  ctx.beginPath();ctx.arc(0,0,r*0.22,0,Math.PI*2);
+  ctx.fillStyle='#0d1a28';ctx.fill();ctx.strokeStyle='#66aacc';ctx.lineWidth=1.5;ctx.stroke();
+  ctx.restore();
+}
+function drawFerrisBlock(x,y,s){
+  const cx2=x+s/2,cy2=y+s/2,r=s*0.42;
+  ctx.fillStyle='#0a1a2e';ctx.fillRect(x,y,s,s);
+  ctx.save();ctx.translate(cx2,cy2);
+  const a=frame*0.022;
+  ctx.beginPath();ctx.arc(0,0,r,0,Math.PI*2);
+  ctx.strokeStyle='rgba(100,180,255,0.55)';ctx.lineWidth=2;ctx.stroke();
+  for(let i=0;i<4;i++){
+    const ca=a+i*Math.PI/2;
+    ctx.beginPath();ctx.moveTo(0,0);ctx.lineTo(Math.cos(ca)*r,Math.sin(ca)*r);
+    ctx.strokeStyle='rgba(130,200,255,0.5)';ctx.lineWidth=1.5;ctx.stroke();
+    ctx.beginPath();ctx.arc(Math.cos(ca)*r,Math.sin(ca)*r,r*0.18,0,Math.PI*2);
+    ctx.fillStyle='rgba(80,180,255,0.35)';ctx.fill();
+    ctx.strokeStyle='#88ccff';ctx.lineWidth=1;ctx.stroke();
+  }
+  ctx.beginPath();ctx.arc(0,0,r*0.14,0,Math.PI*2);
+  ctx.fillStyle='#aaddff';ctx.fill();
+  ctx.restore();
 }
 function drawGoal(x,y,s){
   const cx2=x+s/2,cy2=y+s/2;
