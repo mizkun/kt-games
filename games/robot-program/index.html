@@ -1,0 +1,1406 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>ロボットプログラム！</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: #1a1030;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Kaku Gothic ProN", "Noto Sans JP", sans-serif;
+      touch-action: manipulation;
+      overflow: hidden;
+    }
+    #gameCanvas {
+      display: block;
+      image-rendering: pixelated;
+      touch-action: none;
+    }
+    #homeLink {
+      position: fixed;
+      top: 10px;
+      left: 10px;
+      color: rgba(255,255,255,0.6);
+      text-decoration: none;
+      font-size: 13px;
+      background: rgba(0,0,0,0.4);
+      padding: 5px 10px;
+      border-radius: 20px;
+      z-index: 100;
+      transition: color 0.2s;
+    }
+    #homeLink:hover { color: #fff; }
+  </style>
+</head>
+<body>
+  <a href="../../index.html" id="homeLink">🏠 ゲームいちらんにもどる</a>
+  <canvas id="gameCanvas"></canvas>
+<script>
+// =====================================================
+// ROBOT PROGRAM GAME
+// =====================================================
+
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+
+// Audio
+let AC = null;
+function initAudio() {
+  if (!AC) AC = new (window.AudioContext || window.webkitAudioContext)();
+}
+function beep(freq, dur, type='sine', vol=0.2, delay=0) {
+  if (!AC) return;
+  try {
+    const o = AC.createOscillator();
+    const g = AC.createGain();
+    o.connect(g); g.connect(AC.destination);
+    o.type = type; o.frequency.value = freq;
+    g.gain.setValueAtTime(vol, AC.currentTime + delay);
+    g.gain.exponentialRampToValueAtTime(0.001, AC.currentTime + delay + dur);
+    o.start(AC.currentTime + delay);
+    o.stop(AC.currentTime + delay + dur + 0.05);
+  } catch(e){}
+}
+function soundAdd() { beep(440, 0.08, 'square', 0.15); }
+function soundRemove() { beep(300, 0.08, 'square', 0.15); }
+function soundStep(i) { beep(550 + i*30, 0.1, 'sine', 0.15); }
+function soundStar() { beep(880, 0.15, 'sine', 0.2); beep(1100, 0.1, 'sine', 0.15, 0.15); }
+function soundFail() {
+  beep(300, 0.1, 'sawtooth', 0.2);
+  beep(240, 0.1, 'sawtooth', 0.2, 0.1);
+  beep(180, 0.15, 'sawtooth', 0.2, 0.2);
+}
+function soundClear() {
+  [523,659,784,1047].forEach((f,i) => beep(f, 0.2, 'sine', 0.2, i*0.1));
+}
+
+// =====================================================
+// CANVAS SIZING
+// =====================================================
+const BASE_W = 480, BASE_H = 640;
+let scale = 1;
+function resizeCanvas() {
+  const pw = window.innerWidth, ph = window.innerHeight;
+  scale = Math.min(pw / BASE_W, ph / BASE_H, 2);
+  canvas.width = Math.round(BASE_W * scale);
+  canvas.height = Math.round(BASE_H * scale);
+  canvas.style.width = canvas.width + 'px';
+  canvas.style.height = canvas.height + 'px';
+}
+resizeCanvas();
+window.addEventListener('resize', () => { resizeCanvas(); draw(); });
+
+// =====================================================
+// LEVELS DATA
+// =====================================================
+const LEVELS = [
+  {
+    name: 'レベル1: まっすぐ進め！',
+    hint: '「前に進む」を4回つかおう！',
+    start: {row:3, col:1, dir:1},
+    grid: [
+      [1,1,1,1,1,1,1],
+      [1,0,0,0,0,0,1],
+      [1,0,1,1,1,0,1],
+      [1,0,0,0,0,3,1],
+      [1,0,1,1,1,0,1],
+      [1,0,0,0,0,0,1],
+      [1,1,1,1,1,1,1],
+    ],
+    availableCmds: ['forward','turnR','turnL'],
+    stars: [],
+  },
+  {
+    name: 'レベル2: まがり道',
+    hint: '右に曲がるには「右を向く」→「前に進む」！',
+    start: {row:5, col:1, dir:1},
+    grid: [
+      [1,1,1,1,1,1,1],
+      [1,0,0,0,0,3,1],
+      [1,1,1,1,0,1,1],
+      [1,1,1,1,0,1,1],
+      [1,1,1,1,0,1,1],
+      [1,0,0,0,0,1,1],
+      [1,1,1,1,1,1,1],
+    ],
+    availableCmds: ['forward','turnR','turnL'],
+    stars: [],
+  },
+  {
+    name: 'レベル3: ★を集めろ！',
+    hint: '⭐を全部とってからゴールへ！',
+    start: {row:1, col:1, dir:1},
+    grid: [
+      [1,1,1,1,1,1,1],
+      [1,0,0,0,0,0,1],
+      [1,1,1,0,1,1,1],
+      [1,0,0,0,0,0,1],
+      [1,0,1,1,1,0,1],
+      [1,0,0,3,0,0,1],
+      [1,1,1,1,1,1,1],
+    ],
+    availableCmds: ['forward','turnR','turnL','turnB'],
+    stars: [{row:1,col:4},{row:3,col:1}],
+  },
+  {
+    name: 'レベル4: あなに注意！',
+    hint: '🕳に落ちたらやりなおし！まわり道を探そう',
+    start: {row:1, col:1, dir:2},
+    grid: [
+      [1,1,1,1,1,1,1],
+      [1,0,1,1,1,1,1],
+      [1,0,1,1,1,1,1],
+      [1,0,0,4,0,0,1],
+      [1,1,1,4,1,0,1],
+      [1,1,1,0,0,3,1],
+      [1,1,1,1,1,1,1],
+    ],
+    availableCmds: ['forward','turnR','turnL','turnB'],
+    stars: [{row:5,col:3}],
+  },
+  {
+    name: 'レベル5: はこを越えろ！',
+    hint: '📦の上は「ジャンプ！」でとびこえよう',
+    start: {row:3, col:1, dir:1},
+    grid: [
+      [1,1,1,1,1,1,1],
+      [1,1,1,0,1,1,1],
+      [1,1,1,0,1,1,1],
+      [1,0,5,0,5,3,1],
+      [1,1,1,0,1,1,1],
+      [1,1,1,0,1,1,1],
+      [1,1,1,1,1,1,1],
+    ],
+    availableCmds: ['forward','turnR','turnL','jump'],
+    stars: [{row:1,col:3},{row:5,col:3}],
+  },
+  {
+    name: 'レベル6: くりかえし！',
+    hint: '「くりかえし×2」を使うと短いプログラムで遠くへ行けるよ！',
+    start: {row:3, col:1, dir:1},
+    grid: [
+      [1,1,1,1,1,1,1],
+      [1,1,1,1,1,1,1],
+      [1,1,1,1,1,1,1],
+      [1,0,0,0,0,3,1],
+      [1,1,1,1,1,1,1],
+      [1,1,1,1,1,1,1],
+      [1,1,1,1,1,1,1],
+    ],
+    availableCmds: ['forward','turnR','turnL','repeat2'],
+    stars: [],
+  },
+  {
+    name: 'レベル7: めいろ',
+    hint: '複雑な迷路！頭を使って解こう',
+    start: {row:1, col:1, dir:2},
+    grid: [
+      [1,1,1,1,1,1,1],
+      [1,0,1,0,0,0,1],
+      [1,0,1,0,1,0,1],
+      [1,0,0,0,1,0,1],
+      [1,1,1,0,1,0,1],
+      [1,1,1,0,0,3,1],
+      [1,1,1,1,1,1,1],
+    ],
+    availableCmds: ['forward','turnR','turnL','turnB','repeat2'],
+    stars: [{row:1,col:5}],
+  },
+  {
+    name: 'レベル8: 大迷路',
+    hint: 'すべての⭐を集めてゴールだ！',
+    start: {row:1, col:1, dir:1},
+    grid: [
+      [1,1,1,1,1,1,1],
+      [1,0,0,0,1,0,1],
+      [1,0,1,0,1,0,1],
+      [1,0,1,0,0,0,1],
+      [1,0,1,1,1,0,1],
+      [1,0,0,0,0,3,1],
+      [1,1,1,1,1,1,1],
+    ],
+    availableCmds: ['forward','turnR','turnL','turnB','jump','repeat2'],
+    stars: [{row:1,col:5},{row:3,col:5},{row:5,col:1}],
+  },
+  {
+    name: 'レベル9: あなとはこ',
+    hint: 'あなを避けて、はこを飛び越えて！',
+    start: {row:1, col:1, dir:2},
+    grid: [
+      [1,1,1,1,1,1,1],
+      [1,0,1,1,1,1,1],
+      [1,0,1,1,1,1,1],
+      [1,0,4,5,4,0,1],
+      [1,1,1,1,1,0,1],
+      [1,1,1,1,1,3,1],
+      [1,1,1,1,1,1,1],
+    ],
+    availableCmds: ['forward','turnR','turnL','turnB','jump'],
+    stars: [{row:3,col:5}],
+  },
+  {
+    name: 'レベル10: 最終問題！',
+    hint: 'これが最後のステージ！全部の知識を使え！',
+    start: {row:1, col:1, dir:1},
+    grid: [
+      [1,1,1,1,1,1,1],
+      [1,0,5,0,4,0,1],
+      [1,4,1,0,1,0,1],
+      [1,0,0,0,1,0,1],
+      [1,0,1,4,1,0,1],
+      [1,0,0,0,0,3,1],
+      [1,1,1,1,1,1,1],
+    ],
+    availableCmds: ['forward','turnR','turnL','turnB','jump','repeat2'],
+    stars: [{row:1,col:3},{row:1,col:5},{row:3,col:1}],
+  },
+];
+
+// Command definitions
+const CMD_DEFS = {
+  forward: { label:'前に進む', emoji:'🟩', color:'#2ecc71', dark:'#27ae60' },
+  turnR:   { label:'右を向く', emoji:'🔵', color:'#3498db', dark:'#2980b9' },
+  turnL:   { label:'左を向く', emoji:'🟣', color:'#9b59b6', dark:'#8e44ad' },
+  turnB:   { label:'後ろを向く', emoji:'🟡', color:'#f1c40f', dark:'#f39c12' },
+  jump:    { label:'ジャンプ！', emoji:'🟠', color:'#e67e22', dark:'#d35400' },
+  repeat2: { label:'くりかえし×2', emoji:'🔴', color:'#e74c3c', dark:'#c0392b' },
+};
+const ALL_CMDS = ['forward','turnR','turnL','turnB','jump','repeat2'];
+
+// Directions: UP=0, RIGHT=1, DOWN=2, LEFT=3
+const DIR_DR = [-1, 0, 1, 0];
+const DIR_DC = [ 0, 1, 0,-1];
+
+// =====================================================
+// GAME STATE
+// =====================================================
+let gameState = 'title'; // 'title','levelSelect','playing','success'
+let currentLevel = 0;
+let unlockedLevel = 1;
+let starsPerLevel = {};
+
+// Load from localStorage
+function loadProgress() {
+  const ul = localStorage.getItem('robot_prog_level');
+  if (ul) unlockedLevel = Math.max(1, parseInt(ul));
+  for (let i = 0; i < LEVELS.length; i++) {
+    const s = localStorage.getItem('robot_prog_stars_' + i);
+    starsPerLevel[i] = s ? parseInt(s) : 0;
+  }
+}
+function saveProgress(levelIdx, stars) {
+  if (levelIdx + 1 > unlockedLevel && levelIdx + 1 <= LEVELS.length) {
+    unlockedLevel = levelIdx + 1;
+    localStorage.setItem('robot_prog_level', unlockedLevel);
+  }
+  if ((starsPerLevel[levelIdx] || 0) < stars) {
+    starsPerLevel[levelIdx] = stars;
+    localStorage.setItem('robot_prog_stars_' + levelIdx, stars);
+  }
+}
+loadProgress();
+
+// Playing state
+let program = []; // array of cmd strings
+const MAX_SLOTS = 9;
+let gridState = []; // copy of grid for current play
+let starCollected = [];
+let robotPos = {row:0, col:0, dir:1};
+let robotAnim = { // animation state
+  x: 0, y: 0,
+  targetX: 0, targetY: 0,
+  progress: 1,
+  flashColor: null, flashTimer: 0,
+  spinning: false, spinAngle: 0,
+  bounceY: 0,
+};
+let execState = {
+  running: false,
+  step: 0,
+  expandedProgram: [],
+  timer: 0,
+  phase: 'wait', // 'wait','move','result'
+  failMsg: '',
+  succeeded: false,
+  currentSlot: -1,
+};
+let resultMsg = '';
+let resultColor = '#fff';
+
+// Confetti
+let confetti = [];
+function spawnConfetti() {
+  for (let i = 0; i < 60; i++) {
+    confetti.push({
+      x: BASE_W/2 + (Math.random()-0.5)*200,
+      y: 200 + Math.random()*100,
+      vx: (Math.random()-0.5)*5,
+      vy: -Math.random()*6 - 2,
+      color: ['#ff6b9d','#ffd93d','#6bceff','#a8ff78','#ff9f43'][Math.floor(Math.random()*5)],
+      size: 5 + Math.random()*6,
+      rot: Math.random()*360,
+      rSpeed: (Math.random()-0.5)*10,
+    });
+  }
+}
+function updateConfetti() {
+  confetti = confetti.filter(c => c.y < BASE_H + 20);
+  confetti.forEach(c => {
+    c.x += c.vx; c.y += c.vy;
+    c.vy += 0.2; c.rot += c.rSpeed;
+  });
+}
+
+// Title animation
+let titleAnim = { robotY: 0, robotDir: 1, robotFrame: 0, t: 0 };
+// Level select button states
+let levelBtnPress = {};
+// Command palette click animation
+let cmdBtnPress = {};
+let slotPress = {};
+
+// =====================================================
+// GRID HELPERS
+// =====================================================
+const GRID_COLS = 7, GRID_ROWS = 7;
+const CELL = 39;
+const GRID_X = Math.round((BASE_W - GRID_COLS * CELL) / 2);
+const GRID_Y = 58;
+
+function gridToPixel(row, col) {
+  return {
+    x: GRID_X + col * CELL + CELL/2,
+    y: GRID_Y + row * CELL + CELL/2,
+  };
+}
+
+function initLevel(idx) {
+  const lv = LEVELS[idx];
+  gridState = lv.grid.map(row => [...row]);
+  // Place stars
+  lv.stars.forEach(s => { gridState[s.row][s.col] = 2; });
+  starCollected = new Array(lv.stars.length).fill(false);
+  const sp = lv.start;
+  robotPos = {row: sp.row, col: sp.col, dir: sp.dir};
+  const p = gridToPixel(sp.row, sp.col);
+  robotAnim = {x: p.x, y: p.y, targetX: p.x, targetY: p.y,
+    progress: 1, flashColor: null, flashTimer: 0,
+    spinning: false, spinAngle: 0, bounceY: 0};
+  program = [];
+  execState = {running:false, step:0, expandedProgram:[], timer:0,
+    phase:'idle', failMsg:'', succeeded:false, currentSlot:-1};
+  resultMsg = '';
+  confetti = [];
+}
+
+function countStars() {
+  const lv = LEVELS[currentLevel];
+  return lv.stars.length;
+}
+function collectedStarCount() {
+  return starCollected.filter(Boolean).length;
+}
+
+// =====================================================
+// EXECUTION LOGIC
+// =====================================================
+function buildExpandedProgram() {
+  let result = [];
+  let hasRepeat = false;
+  let baseProgram = [...program];
+  // Check if repeat2 is in program, expand
+  for (let c of baseProgram) {
+    if (c === 'repeat2') { hasRepeat = true; break; }
+  }
+  if (hasRepeat) {
+    // repeat2: run entire program (without the repeat2 command itself) twice
+    let base = baseProgram.filter(c => c !== 'repeat2');
+    result = [...base, ...base];
+  } else {
+    result = baseProgram;
+  }
+  return result;
+}
+
+function startExecution() {
+  if (execState.running) return;
+  initAudio();
+  // Reset state to beginning of level
+  const lv = LEVELS[currentLevel];
+  gridState = lv.grid.map(row => [...row]);
+  lv.stars.forEach(s => { gridState[s.row][s.col] = 2; });
+  starCollected = new Array(lv.stars.length).fill(false);
+  const sp = lv.start;
+  robotPos = {row: sp.row, col: sp.col, dir: sp.dir};
+  const p = gridToPixel(sp.row, sp.col);
+  robotAnim.x = p.x; robotAnim.y = p.y;
+  robotAnim.targetX = p.x; robotAnim.targetY = p.y;
+  robotAnim.progress = 1;
+  robotAnim.flashColor = null; robotAnim.flashTimer = 0;
+  robotAnim.spinning = false; robotAnim.spinAngle = 0;
+
+  const expanded = buildExpandedProgram();
+  if (expanded.length === 0) {
+    resultMsg = 'プログラムが空だよ！';
+    resultColor = '#f39c12';
+    return;
+  }
+  execState = {
+    running: true,
+    step: 0,
+    expandedProgram: expanded,
+    timer: 0,
+    phase: 'executing',
+    failMsg: '',
+    succeeded: false,
+    currentSlot: 0,
+  };
+  resultMsg = '';
+}
+
+const STEP_DUR = 400; // ms per step
+let lastTime = 0;
+
+function updateExecution(dt) {
+  if (!execState.running) return;
+  execState.timer += dt;
+
+  if (execState.phase === 'executing') {
+    const cmd = execState.expandedProgram[execState.step];
+    // Determine current slot index (for highlighting, before repeat expansion)
+    // Find which original slot this corresponds to
+    execState.currentSlot = findOriginalSlot(execState.step, execState.expandedProgram);
+
+    if (execState.timer < STEP_DUR) {
+      // Animating movement
+      const t = Math.min(execState.timer / STEP_DUR, 1);
+      robotAnim.progress = easeInOut(t);
+      robotAnim.x = lerp(robotAnim.targetX - (robotAnim.targetX - robotAnim.x) * 0,
+        robotAnim.targetX, t);
+      // Actually just lerp from start pos
+    } else {
+      // Step complete
+      execState.timer = 0;
+      soundStep(execState.step);
+      const result = applyCommand(cmd);
+      if (result === 'fail') {
+        execState.running = false;
+        execState.phase = 'idle';
+        robotAnim.flashColor = '#e74c3c';
+        robotAnim.flashTimer = 600;
+        resultMsg = execState.failMsg || 'ざんねん！💥';
+        resultColor = '#e74c3c';
+        soundFail();
+      } else if (result === 'goal') {
+        execState.running = false;
+        execState.phase = 'idle';
+        const totalStars = countStars();
+        const collected = collectedStarCount();
+        let stars = 3;
+        if (collected < totalStars) stars = 1;
+        else if (totalStars === 0) stars = 3;
+        saveProgress(currentLevel, stars);
+        execState.succeeded = true;
+        resultMsg = 'クリア！！🎉';
+        resultColor = '#2ecc71';
+        soundClear();
+        robotAnim.spinning = true; robotAnim.spinAngle = 0;
+        spawnConfetti();
+      } else {
+        execState.step++;
+        if (execState.step >= execState.expandedProgram.length) {
+          // Ran out of commands
+          execState.running = false;
+          execState.phase = 'idle';
+          execState.currentSlot = -1;
+          if (collectedStarCount() < countStars()) {
+            execState.failMsg = '⭐をぜんぶとって！';
+          } else {
+            execState.failMsg = 'ゴールまでたどり着けなかった…';
+          }
+          resultMsg = execState.failMsg;
+          resultColor = '#e74c3c';
+          robotAnim.flashColor = '#e74c3c';
+          robotAnim.flashTimer = 600;
+          soundFail();
+        }
+      }
+    }
+  }
+}
+
+// Lerp robot animation
+let prevRobotX, prevRobotY;
+function startRobotMove(newRow, newCol) {
+  const p = gridToPixel(newRow, newCol);
+  prevRobotX = robotAnim.x;
+  prevRobotY = robotAnim.y;
+  robotAnim.targetX = p.x;
+  robotAnim.targetY = p.y;
+  // Store old position as starting point
+  robotAnim._fromX = robotAnim.x;
+  robotAnim._fromY = robotAnim.y;
+  execState.timer = 0;
+}
+
+function applyCommand(cmd) {
+  const lv = LEVELS[currentLevel];
+  if (cmd === 'turnR') {
+    robotPos.dir = (robotPos.dir + 1) % 4;
+    return 'ok';
+  }
+  if (cmd === 'turnL') {
+    robotPos.dir = (robotPos.dir + 3) % 4;
+    return 'ok';
+  }
+  if (cmd === 'turnB') {
+    robotPos.dir = (robotPos.dir + 2) % 4;
+    return 'ok';
+  }
+  if (cmd === 'forward') {
+    const nr = robotPos.row + DIR_DR[robotPos.dir];
+    const nc = robotPos.col + DIR_DC[robotPos.dir];
+    return moveRobot(nr, nc);
+  }
+  if (cmd === 'jump') {
+    // Jump over one box (5)
+    const mr = robotPos.row + DIR_DR[robotPos.dir];
+    const mc = robotPos.col + DIR_DC[robotPos.dir];
+    // middle must be box or empty (not wall/hole)
+    if (mr < 0 || mr >= GRID_ROWS || mc < 0 || mc >= GRID_COLS) {
+      execState.failMsg = 'とびこえるものがないよ！💥';
+      return 'fail';
+    }
+    const middleCell = gridState[mr][mc];
+    // Can jump over box (5) — land 2 squares ahead
+    const nr = robotPos.row + DIR_DR[robotPos.dir]*2;
+    const nc = robotPos.col + DIR_DC[robotPos.dir]*2;
+    if (middleCell === 5) {
+      return moveRobot(nr, nc, true);
+    } else if (middleCell === 0 || middleCell === 2 || middleCell === 3) {
+      // Jump over empty? Just move forward 1
+      return moveRobot(mr, mc);
+    } else {
+      execState.failMsg = 'かべにぶつかった！💥';
+      return 'fail';
+    }
+  }
+  return 'ok';
+}
+
+function moveRobot(nr, nc, jumped) {
+  if (nr < 0 || nr >= GRID_ROWS || nc < 0 || nc >= GRID_COLS) {
+    execState.failMsg = 'かべにぶつかった！💥';
+    return 'fail';
+  }
+  const cell = gridState[nr][nc];
+  if (cell === 1) {
+    execState.failMsg = 'かべにぶつかった！💥';
+    return 'fail';
+  }
+  if (cell === 4) {
+    robotPos.row = nr; robotPos.col = nc;
+    const p = gridToPixel(nr, nc);
+    robotAnim._fromX = robotAnim.x; robotAnim._fromY = robotAnim.y;
+    robotAnim.targetX = p.x; robotAnim.targetY = p.y;
+    execState.failMsg = 'あなに落ちた！💀';
+    return 'fail';
+  }
+  // Move
+  robotPos.row = nr; robotPos.col = nc;
+  const p = gridToPixel(nr, nc);
+  robotAnim._fromX = robotAnim.x; robotAnim._fromY = robotAnim.y;
+  robotAnim.targetX = p.x; robotAnim.targetY = p.y;
+
+  if (cell === 2) {
+    // Collect star
+    const lv = LEVELS[currentLevel];
+    const si = lv.stars.findIndex(s => s.row === nr && s.col === nc);
+    if (si >= 0 && !starCollected[si]) {
+      starCollected[si] = true;
+      gridState[nr][nc] = 0;
+      robotAnim.flashColor = '#f1c40f';
+      robotAnim.flashTimer = 300;
+      soundStar();
+    }
+    return 'ok';
+  }
+  if (cell === 3) {
+    // Goal
+    if (collectedStarCount() < countStars()) {
+      execState.failMsg = '⭐をぜんぶとって！';
+      return 'fail';
+    }
+    return 'goal';
+  }
+  return 'ok';
+}
+
+function findOriginalSlot(expandedStep, expanded) {
+  // Map back to original program slot
+  const hasRepeat = program.includes('repeat2');
+  if (!hasRepeat) {
+    return Math.min(expandedStep, program.length - 1);
+  }
+  // With repeat, expanded = base+base where base = program without repeat2
+  const base = program.filter(c => c !== 'repeat2');
+  const baseLen = base.length;
+  const posInBase = expandedStep % baseLen;
+  // Find the actual index in original program
+  let count = 0;
+  for (let i = 0; i < program.length; i++) {
+    if (program[i] !== 'repeat2') {
+      if (count === posInBase) return i;
+      count++;
+    }
+  }
+  return 0;
+}
+
+function easeInOut(t) {
+  return t < 0.5 ? 2*t*t : -1+(4-2*t)*t;
+}
+function lerp(a, b, t) { return a + (b-a)*t; }
+
+// =====================================================
+// DRAW FUNCTIONS
+// =====================================================
+
+function draw() {
+  ctx.save();
+  ctx.scale(scale, scale);
+
+  // Background
+  const bg = ctx.createLinearGradient(0,0,BASE_W,BASE_H);
+  bg.addColorStop(0,'#1a0a3a');
+  bg.addColorStop(1,'#0d1a4a');
+  ctx.fillStyle = bg;
+  ctx.fillRect(0,0,BASE_W,BASE_H);
+
+  if (gameState === 'title') drawTitle();
+  else if (gameState === 'levelSelect') drawLevelSelect();
+  else if (gameState === 'playing') drawPlaying();
+
+  ctx.restore();
+}
+
+// ---- TITLE ----
+function drawTitle() {
+  titleAnim.t += 0.016;
+  const t = titleAnim.t;
+
+  // Stars background
+  ctx.fillStyle = 'rgba(255,255,255,0.05)';
+  for (let i = 0; i < 20; i++) {
+    const sx = (Math.sin(i * 2.3 + t * 0.3) * 0.5 + 0.5) * BASE_W;
+    const sy = (Math.sin(i * 1.7 + t * 0.2) * 0.5 + 0.5) * BASE_H;
+    ctx.beginPath();
+    ctx.arc(sx, sy, 1.5, 0, Math.PI*2);
+    ctx.fill();
+  }
+
+  // Title
+  ctx.textAlign = 'center';
+  ctx.fillStyle = '#fff';
+  ctx.font = 'bold 36px sans-serif';
+  ctx.fillText('🤖 ロボットプログラム！', BASE_W/2, 100);
+
+  ctx.fillStyle = '#a0c4ff';
+  ctx.font = '16px sans-serif';
+  ctx.fillText('コマンドをならべて', BASE_W/2, 145);
+  ctx.fillText('ロボットを動かそう！', BASE_W/2, 168);
+
+  // Animated robot
+  const ry = BASE_H/2 - 20 + Math.sin(t * 2) * 15;
+  const rdir = 1;
+  drawRobot(BASE_W/2, ry, rdir, Math.sin(t*3)*0.3, null, 0);
+
+  // Tap to start pulsing
+  const alpha = 0.5 + 0.5 * Math.sin(t * 3);
+  ctx.fillStyle = `rgba(255,255,200,${alpha})`;
+  ctx.font = '20px sans-serif';
+  ctx.fillText('タップしてはじめる！', BASE_W/2, BASE_H - 120);
+
+  // Home link note
+  ctx.fillStyle = 'rgba(255,255,255,0.3)';
+  ctx.font = '13px sans-serif';
+  ctx.fillText('🏠 ゲームいちらんにもどる → 左上のリンク', BASE_W/2, BASE_H - 80);
+}
+
+// ---- LEVEL SELECT ----
+function drawLevelSelect() {
+  ctx.textAlign = 'center';
+  ctx.fillStyle = '#fff';
+  ctx.font = 'bold 28px sans-serif';
+  ctx.fillText('レベルをえらんでね！', BASE_W/2, 50);
+
+  const cols = 2, rows = 5;
+  const btnW = 200, btnH = 70, gap = 10;
+  const totalW = cols * btnW + (cols-1) * gap;
+  const startX = (BASE_W - totalW) / 2;
+  const startY = 80;
+
+  for (let i = 0; i < LEVELS.length; i++) {
+    const col = i % cols;
+    const row = Math.floor(i / cols);
+    const x = startX + col * (btnW + gap);
+    const y = startY + row * (btnH + gap);
+    const locked = i + 1 > unlockedLevel;
+    const cleared = (starsPerLevel[i] || 0) > 0;
+    const pressing = levelBtnPress[i];
+
+    drawRoundRect(ctx, x + (pressing?2:0), y + (pressing?2:0), btnW, btnH, 12,
+      cleared ? '#1a3a2a' : (locked ? '#1a1a2e' : '#1e1e3e'));
+    // Border
+    ctx.strokeStyle = cleared ? '#2ecc71' : (locked ? '#333' : '#4a4a8e');
+    ctx.lineWidth = 2;
+    strokeRoundRect(ctx, x + (pressing?2:0), y + (pressing?2:0), btnW, btnH, 12);
+
+    if (locked) {
+      ctx.fillStyle = '#555';
+      ctx.font = '28px sans-serif';
+      ctx.fillText('🔒', x + btnW/2 + (pressing?2:0), y + 32 + (pressing?2:0));
+      ctx.font = '13px sans-serif';
+      ctx.fillText(`レベル ${i+1}`, x + btnW/2 + (pressing?2:0), y + 55 + (pressing?2:0));
+    } else {
+      ctx.font = 'bold 13px sans-serif';
+      ctx.fillStyle = cleared ? '#2ecc71' : '#ccc';
+      const lvName = LEVELS[i].name.replace(/レベル\d+: /, '');
+      ctx.fillText(`Lv.${i+1} ${lvName}`, x + btnW/2 + (pressing?2:0), y + 28 + (pressing?2:0));
+      // Stars
+      const s = starsPerLevel[i] || 0;
+      ctx.font = '18px sans-serif';
+      let starStr = '';
+      for (let j = 0; j < 3; j++) starStr += (j < s ? '★' : '☆');
+      ctx.fillStyle = '#f1c40f';
+      ctx.fillText(starStr, x + btnW/2 + (pressing?2:0), y + 52 + (pressing?2:0));
+    }
+  }
+
+  // Back button
+  drawButton(ctx, 20, BASE_H - 55, 120, 40, '← もどる', '#333', '#aaa', false);
+}
+
+// ---- PLAYING SCREEN ----
+function drawPlaying() {
+  const lv = LEVELS[currentLevel];
+
+  // Header
+  ctx.fillStyle = '#fff';
+  ctx.font = 'bold 16px sans-serif';
+  ctx.textAlign = 'left';
+  ctx.fillText(lv.name, 12, 38);
+  ctx.textAlign = 'right';
+  ctx.fillStyle = '#a0c4ff';
+  ctx.font = '14px sans-serif';
+  const totalStars = countStars();
+  if (totalStars > 0) {
+    const col = collectedStarCount();
+    ctx.fillText(`⭐ ${col}/${totalStars}`, BASE_W - 12, 38);
+  }
+
+  // Grid
+  drawGrid();
+
+  // Robot
+  const t = Math.min(execState.timer / STEP_DUR, 1);
+  const et = easeInOut(t);
+  let rx = robotAnim.x, ry = robotAnim.y;
+  if (execState.running && robotAnim._fromX !== undefined) {
+    rx = lerp(robotAnim._fromX, robotAnim.targetX, et);
+    ry = lerp(robotAnim._fromY, robotAnim.targetY, et);
+    // Bounce mid-step
+    if (execState.expandedProgram[execState.step] === 'forward' ||
+        execState.expandedProgram[execState.step] === 'jump') {
+      ry -= Math.sin(et * Math.PI) * 6;
+    }
+  } else {
+    rx = robotAnim.targetX;
+    ry = robotAnim.targetY;
+  }
+  let flashC = null;
+  if (robotAnim.flashTimer > 0) {
+    robotAnim.flashTimer -= 16;
+    flashC = robotAnim.flashColor;
+  }
+  let spin = 0;
+  if (robotAnim.spinning) {
+    robotAnim.spinAngle += 0.08;
+    spin = robotAnim.spinAngle;
+    if (robotAnim.spinAngle > Math.PI * 4) robotAnim.spinning = false;
+  }
+  drawRobot(rx, ry, robotPos.dir, spin, flashC, 0);
+
+  // Divider
+  ctx.fillStyle = '#8888cc';
+  ctx.font = '13px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText('↓ プログラムをつくろう！', BASE_W/2, 348);
+
+  // Program slots
+  drawProgramSlots();
+
+  // Command palette
+  drawCommandPalette();
+
+  // Action row
+  drawActionRow();
+
+  // Hint text
+  ctx.fillStyle = 'rgba(160,180,255,0.7)';
+  ctx.font = '12px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText(lv.hint, BASE_W/2, 425);
+
+  // Confetti
+  updateConfetti();
+  confetti.forEach(c => {
+    ctx.save();
+    ctx.translate(c.x, c.y);
+    ctx.rotate(c.rot * Math.PI/180);
+    ctx.fillStyle = c.color;
+    ctx.fillRect(-c.size/2, -c.size/2, c.size, c.size);
+    ctx.restore();
+  });
+
+  // Success overlay
+  if (execState.succeeded) {
+    drawSuccessOverlay();
+  }
+}
+
+function drawGrid() {
+  const lv = LEVELS[currentLevel];
+  for (let r = 0; r < GRID_ROWS; r++) {
+    for (let c = 0; c < GRID_COLS; c++) {
+      const x = GRID_X + c * CELL;
+      const y = GRID_Y + r * CELL;
+      const cell = gridState[r][c];
+
+      if (cell === 1) {
+        // Wall
+        const grad = ctx.createLinearGradient(x,y,x+CELL,y+CELL);
+        grad.addColorStop(0,'#222');
+        grad.addColorStop(1,'#111');
+        ctx.fillStyle = grad;
+        ctx.fillRect(x, y, CELL, CELL);
+        // Bevel
+        ctx.fillStyle = 'rgba(255,255,255,0.07)';
+        ctx.fillRect(x, y, CELL, 3);
+        ctx.fillRect(x, y, 3, CELL);
+        ctx.fillStyle = 'rgba(0,0,0,0.3)';
+        ctx.fillRect(x+CELL-3, y, 3, CELL);
+        ctx.fillRect(x, y+CELL-3, CELL, 3);
+      } else {
+        // Floor
+        ctx.fillStyle = '#1e1e38';
+        ctx.fillRect(x, y, CELL, CELL);
+        // Grid line
+        ctx.strokeStyle = 'rgba(255,255,255,0.05)';
+        ctx.lineWidth = 0.5;
+        ctx.strokeRect(x+0.25, y+0.25, CELL-0.5, CELL-0.5);
+
+        const cx = x + CELL/2, cy = y + CELL/2;
+
+        if (cell === 2) {
+          // Star - gold glow
+          ctx.save();
+          ctx.shadowColor = '#f1c40f';
+          ctx.shadowBlur = 12;
+          ctx.font = '22px sans-serif';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText('⭐', cx, cy);
+          ctx.restore();
+        } else if (cell === 3) {
+          // Goal
+          ctx.fillStyle = '#1a3a2a';
+          ctx.fillRect(x+1, y+1, CELL-2, CELL-2);
+          ctx.save();
+          ctx.shadowColor = '#2ecc71';
+          ctx.shadowBlur = 10;
+          ctx.font = '22px sans-serif';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText('🚩', cx, cy);
+          ctx.restore();
+        } else if (cell === 4) {
+          // Hole
+          const hg = ctx.createRadialGradient(cx, cy, 2, cx, cy, CELL/2);
+          hg.addColorStop(0,'#050510');
+          hg.addColorStop(1,'#1a1a2e');
+          ctx.fillStyle = hg;
+          ctx.beginPath();
+          ctx.ellipse(cx, cy, CELL/2-4, CELL/2-6, 0, 0, Math.PI*2);
+          ctx.fill();
+          ctx.strokeStyle = '#333';
+          ctx.lineWidth = 1;
+          ctx.stroke();
+          ctx.font = '18px sans-serif';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText('🕳', cx, cy);
+        } else if (cell === 5) {
+          // Box
+          ctx.fillStyle = '#5c3d11';
+          ctx.fillRect(x+3, y+3, CELL-6, CELL-6);
+          ctx.strokeStyle = '#8B5E3C';
+          ctx.lineWidth = 1.5;
+          ctx.strokeRect(x+3, y+3, CELL-6, CELL-6);
+          // Wood grain
+          ctx.strokeStyle = 'rgba(139,94,60,0.3)';
+          ctx.lineWidth = 1;
+          for (let g = 0; g < 3; g++) {
+            ctx.beginPath();
+            ctx.moveTo(x+5+g*8, y+5);
+            ctx.lineTo(x+5+g*8, y+CELL-5);
+            ctx.stroke();
+          }
+          ctx.font = '16px sans-serif';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText('📦', cx, cy);
+        }
+      }
+    }
+  }
+}
+
+function drawRobot(x, y, dir, spin, flashColor, bounceY) {
+  ctx.save();
+  ctx.translate(x, y - bounceY);
+  if (spin) ctx.rotate(spin);
+
+  const s = 30; // robot size
+  // Body
+  const bodyColor = flashColor || '#4a9eff';
+  ctx.fillStyle = bodyColor;
+  drawRoundRectFill(ctx, -s/2, -s/2, s, s, 7);
+
+  // Shine
+  ctx.fillStyle = 'rgba(255,255,255,0.2)';
+  drawRoundRectFill(ctx, -s/2+2, -s/2+2, s/2, s/3, 4);
+
+  // Cheeks
+  ctx.fillStyle = 'rgba(255,100,100,0.5)';
+  ctx.beginPath(); ctx.arc(-8, 5, 4, 0, Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.arc(8, 5, 4, 0, Math.PI*2); ctx.fill();
+
+  // Eyes - position depends on dir
+  let eyeOffX = 0, eyeOffY = 0;
+  let pupilDX = 0, pupilDY = 0;
+  if (dir === 0) { eyeOffY = -1; pupilDY = -2; } // UP
+  if (dir === 1) { eyeOffX = 1; pupilDX = 2; }   // RIGHT
+  if (dir === 2) { eyeOffY = 1; pupilDY = 2; }    // DOWN
+  if (dir === 3) { eyeOffX = -1; pupilDX = -2; }  // LEFT
+
+  // Eye whites
+  ctx.fillStyle = '#fff';
+  ctx.beginPath(); ctx.arc(-7 + eyeOffX, -4 + eyeOffY, 5, 0, Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.arc(7 + eyeOffX, -4 + eyeOffY, 5, 0, Math.PI*2); ctx.fill();
+  // Pupils
+  ctx.fillStyle = '#1a1a3e';
+  ctx.beginPath(); ctx.arc(-7+eyeOffX+pupilDX, -4+eyeOffY+pupilDY, 3, 0, Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.arc(7+eyeOffX+pupilDX, -4+eyeOffY+pupilDY, 3, 0, Math.PI*2); ctx.fill();
+  // Eye shine
+  ctx.fillStyle = '#fff';
+  ctx.beginPath(); ctx.arc(-6+eyeOffX+pupilDX, -5+eyeOffY+pupilDY, 1.2, 0, Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.arc(8+eyeOffX+pupilDX, -5+eyeOffY+pupilDY, 1.2, 0, Math.PI*2); ctx.fill();
+
+  // Antenna
+  ctx.strokeStyle = '#a0c4ff';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(0, -s/2);
+  ctx.lineTo(0, -s/2 - 8);
+  ctx.stroke();
+  ctx.fillStyle = '#ffd700';
+  ctx.beginPath(); ctx.arc(0, -s/2 - 10, 3.5, 0, Math.PI*2); ctx.fill();
+
+  // Mouth - smile or flat
+  ctx.strokeStyle = 'rgba(255,255,255,0.7)';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  if (flashColor === '#e74c3c') {
+    // Sad mouth
+    ctx.arc(0, 12, 5, Math.PI * 0.1, Math.PI * 0.9, true);
+  } else {
+    // Happy mouth
+    ctx.arc(0, 8, 5, Math.PI * 0.1, Math.PI * 0.9, false);
+  }
+  ctx.stroke();
+
+  ctx.restore();
+}
+
+function drawProgramSlots() {
+  const slotW = 44, slotH = 42, gap = 4;
+  const totalW = MAX_SLOTS * (slotW + gap) - gap;
+  const sx = (BASE_W - totalW) / 2;
+  const sy = 357;
+
+  for (let i = 0; i < MAX_SLOTS; i++) {
+    const x = sx + i * (slotW + gap);
+    const isExecuting = execState.running && execState.currentSlot === i;
+    const isCurrent = !execState.running && execState.succeeded === false && i === program.length;
+    const pressing = slotPress[i];
+
+    // Slot background
+    let bgColor = '#1a1a38';
+    if (isExecuting) bgColor = '#4a3a00';
+    else if (program[i]) bgColor = '#1e2a4e';
+
+    drawRoundRect(ctx, x + (pressing?1:0), sy + (pressing?1:0), slotW, slotH, 7, bgColor);
+
+    // Border
+    ctx.strokeStyle = isExecuting ? '#f1c40f' : (program[i] ? '#4a6aaa' : '#333');
+    ctx.lineWidth = isExecuting ? 2.5 : 1.5;
+    strokeRoundRect(ctx, x + (pressing?1:0), sy + (pressing?1:0), slotW, slotH, 7);
+
+    if (program[i]) {
+      const def = CMD_DEFS[program[i]];
+      ctx.fillStyle = def.color;
+      ctx.font = '11px sans-serif';
+      ctx.textAlign = 'center';
+      const lines = def.label.split('');
+      // Show short label
+      const short = def.label.length > 5 ? def.label.slice(0,5) : def.label;
+      ctx.fillStyle = '#fff';
+      ctx.font = 'bold 9px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(short, x + slotW/2 + (pressing?1:0), sy + slotH*0.45 + (pressing?1:0));
+      // Color dot
+      ctx.fillStyle = def.color;
+      ctx.beginPath();
+      ctx.arc(x + slotW/2 + (pressing?1:0), sy + slotH*0.75 + (pressing?1:0), 5, 0, Math.PI*2);
+      ctx.fill();
+    } else if (i < MAX_SLOTS) {
+      ctx.fillStyle = '#333';
+      ctx.font = '10px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(i+1, x + slotW/2, sy + slotH/2 + 4);
+    }
+
+    // Executing highlight
+    if (isExecuting) {
+      ctx.fillStyle = 'rgba(255,220,0,0.15)';
+      drawRoundRectFill(ctx, x, sy, slotW, slotH, 7);
+    }
+  }
+}
+
+function drawCommandPalette() {
+  const lv = LEVELS[currentLevel];
+  const cmds = lv.availableCmds;
+  const btnW = 88, btnH = 38, gap = 6;
+  const cols = Math.min(cmds.length, 3);
+  const rows = Math.ceil(cmds.length / cols);
+  const totalW = cols * btnW + (cols-1)*gap;
+  const sx = (BASE_W - totalW) / 2;
+  const sy = 433;
+  const dimmed = execState.running;
+
+  for (let i = 0; i < cmds.length; i++) {
+    const col = i % cols;
+    const row = Math.floor(i / cols);
+    const x = sx + col * (btnW + gap);
+    const y = sy + row * (btnH + gap);
+    const cmd = cmds[i];
+    const def = CMD_DEFS[cmd];
+    const pressing = cmdBtnPress[cmd];
+
+    ctx.globalAlpha = dimmed ? 0.4 : 1.0;
+    drawRoundRect(ctx, x + (pressing?2:0), y + (pressing?2:0), btnW, btnH, 8, def.dark);
+    ctx.strokeStyle = def.color;
+    ctx.lineWidth = 1.5;
+    strokeRoundRect(ctx, x + (pressing?2:0), y + (pressing?2:0), btnW, btnH, 8);
+
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 11px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(def.label, x + btnW/2 + (pressing?2:0), y + btnH*0.62 + (pressing?2:0));
+    ctx.globalAlpha = 1.0;
+  }
+}
+
+function drawActionRow() {
+  const sy = 537;
+  const dimmed = execState.running;
+
+  // Clear button
+  ctx.globalAlpha = dimmed ? 0.4 : 1.0;
+  drawButton(ctx, 20, sy, 110, 44, '🗑 クリア', '#3a1a1a', '#e74c3c', false);
+  ctx.globalAlpha = 1.0;
+
+  // Run button
+  const running = execState.running;
+  ctx.globalAlpha = running ? 0.6 : 1.0;
+  const runLabel = running ? '実行中…' : '▶ 実行！';
+  drawButton(ctx, BASE_W/2 - 70, sy, 140, 44, runLabel, '#1a3a1a', '#2ecc71', false);
+  ctx.globalAlpha = 1.0;
+
+  // Result message
+  if (resultMsg) {
+    ctx.fillStyle = execState.succeeded ? '#2ecc71' : (resultColor || '#e74c3c');
+    ctx.font = 'bold 15px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(resultMsg, BASE_W/2, sy + 65);
+  }
+
+  // Next level button after success
+  if (execState.succeeded && currentLevel < LEVELS.length - 1) {
+    drawButton(ctx, BASE_W/2 + 20, sy, 140, 44, 'つぎのレベル →', '#1a2a3a', '#3498db', false);
+  }
+  if (execState.succeeded) {
+    drawButton(ctx, BASE_W - 160, BASE_H - 45, 140, 36, 'レベルせんたく', '#2a1a3a', '#9b59b6', false);
+  }
+}
+
+function drawSuccessOverlay() {
+  // Semi-transparent overlay
+  ctx.fillStyle = 'rgba(0,0,0,0.3)';
+  ctx.fillRect(0, 200, BASE_W, 120);
+
+  ctx.textAlign = 'center';
+  ctx.fillStyle = '#2ecc71';
+  ctx.font = 'bold 36px sans-serif';
+  ctx.fillText('クリア！！🎉', BASE_W/2, 250);
+
+  // Stars
+  const earned = starsPerLevel[currentLevel] || 0;
+  ctx.font = '30px sans-serif';
+  let starStr = '';
+  for (let j = 0; j < 3; j++) starStr += (j < earned ? '★' : '☆');
+  ctx.fillStyle = '#f1c40f';
+  ctx.fillText(starStr, BASE_W/2, 290);
+}
+
+// =====================================================
+// UTILITY DRAW HELPERS
+// =====================================================
+function drawRoundRect(ctx, x, y, w, h, r, fillColor) {
+  ctx.fillStyle = fillColor;
+  ctx.beginPath();
+  ctx.moveTo(x+r, y);
+  ctx.lineTo(x+w-r, y);
+  ctx.quadraticCurveTo(x+w, y, x+w, y+r);
+  ctx.lineTo(x+w, y+h-r);
+  ctx.quadraticCurveTo(x+w, y+h, x+w-r, y+h);
+  ctx.lineTo(x+r, y+h);
+  ctx.quadraticCurveTo(x, y+h, x, y+h-r);
+  ctx.lineTo(x, y+r);
+  ctx.quadraticCurveTo(x, y, x+r, y);
+  ctx.closePath();
+  ctx.fill();
+}
+function drawRoundRectFill(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x+r, y);
+  ctx.lineTo(x+w-r, y);
+  ctx.quadraticCurveTo(x+w, y, x+w, y+r);
+  ctx.lineTo(x+w, y+h-r);
+  ctx.quadraticCurveTo(x+w, y+h, x+w-r, y+h);
+  ctx.lineTo(x+r, y+h);
+  ctx.quadraticCurveTo(x, y+h, x, y+h-r);
+  ctx.lineTo(x, y+r);
+  ctx.quadraticCurveTo(x, y, x+r, y);
+  ctx.closePath();
+  ctx.fill();
+}
+function strokeRoundRect(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x+r, y);
+  ctx.lineTo(x+w-r, y);
+  ctx.quadraticCurveTo(x+w, y, x+w, y+r);
+  ctx.lineTo(x+w, y+h-r);
+  ctx.quadraticCurveTo(x+w, y+h, x+w-r, y+h);
+  ctx.lineTo(x+r, y+h);
+  ctx.quadraticCurveTo(x, y+h, x, y+h-r);
+  ctx.lineTo(x, y+r);
+  ctx.quadraticCurveTo(x, y, x+r, y);
+  ctx.closePath();
+  ctx.stroke();
+}
+function drawButton(ctx, x, y, w, h, label, bg, border, pressed) {
+  drawRoundRect(ctx, x+(pressed?2:0), y+(pressed?2:0), w, h, 10, bg);
+  ctx.strokeStyle = border;
+  ctx.lineWidth = 2;
+  strokeRoundRect(ctx, x+(pressed?2:0), y+(pressed?2:0), w, h, 10);
+  ctx.fillStyle = '#fff';
+  ctx.font = 'bold 14px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText(label, x+w/2+(pressed?2:0), y+h*0.63+(pressed?2:0));
+}
+
+// =====================================================
+// INPUT HANDLING
+// =====================================================
+function getCanvasPos(e) {
+  const rect = canvas.getBoundingClientRect();
+  let cx, cy;
+  if (e.touches) {
+    cx = e.touches[0].clientX - rect.left;
+    cy = e.touches[0].clientY - rect.top;
+  } else {
+    cx = e.clientX - rect.left;
+    cy = e.clientY - rect.top;
+  }
+  return { x: cx / scale, y: cy / scale };
+}
+
+function handlePointerDown(e) {
+  e.preventDefault();
+  initAudio();
+  const {x, y} = getCanvasPos(e);
+
+  if (gameState === 'title') {
+    gameState = 'levelSelect';
+    return;
+  }
+
+  if (gameState === 'levelSelect') {
+    const cols = 2, btnW = 200, btnH = 70, gap = 10;
+    const totalW = cols * btnW + (cols-1) * gap;
+    const startX = (BASE_W - totalW) / 2;
+    const startY = 80;
+    for (let i = 0; i < LEVELS.length; i++) {
+      const col = i % cols, row = Math.floor(i / cols);
+      const bx = startX + col * (btnW + gap);
+      const by = startY + row * (btnH + gap);
+      if (x >= bx && x <= bx+btnW && y >= by && y <= by+btnH) {
+        if (i + 1 <= unlockedLevel) {
+          levelBtnPress[i] = true;
+          setTimeout(() => { levelBtnPress[i] = false; }, 150);
+          currentLevel = i;
+          initLevel(i);
+          gameState = 'playing';
+          soundAdd();
+        }
+        return;
+      }
+    }
+    // Back button
+    if (x >= 20 && x <= 140 && y >= BASE_H-55 && y <= BASE_H-15) {
+      gameState = 'title';
+    }
+    return;
+  }
+
+  if (gameState === 'playing') {
+    handlePlayingClick(x, y);
+  }
+}
+
+function handlePlayingClick(x, y) {
+  if (execState.running) return;
+
+  const lv = LEVELS[currentLevel];
+  const cmds = lv.availableCmds;
+  const btnW = 88, btnH = 38, gap = 6;
+  const cols = Math.min(cmds.length, 3);
+  const totalW = cols * btnW + (cols-1)*gap;
+  const sx = (BASE_W - totalW) / 2;
+  const sy = 433;
+
+  // Command palette
+  for (let i = 0; i < cmds.length; i++) {
+    const col = i % cols, row = Math.floor(i / cols);
+    const bx = sx + col * (btnW + gap);
+    const by = sy + row * (btnH + gap);
+    if (x >= bx && x <= bx+btnW && y >= by && y <= by+btnH) {
+      if (program.length < MAX_SLOTS) {
+        cmdBtnPress[cmds[i]] = true;
+        setTimeout(() => { cmdBtnPress[cmds[i]] = false; }, 150);
+        program.push(cmds[i]);
+        soundAdd();
+        execState.succeeded = false;
+        resultMsg = '';
+      }
+      return;
+    }
+  }
+
+  // Program slots (click to remove)
+  const slotW = 44, slotH = 42, gapS = 4;
+  const totalWS = MAX_SLOTS * (slotW + gapS) - gapS;
+  const sxS = (BASE_W - totalWS) / 2;
+  const syS = 357;
+  for (let i = 0; i < MAX_SLOTS; i++) {
+    const bx = sxS + i * (slotW + gapS);
+    if (x >= bx && x <= bx+slotW && y >= syS && y <= syS+slotH) {
+      if (i < program.length) {
+        slotPress[i] = true;
+        setTimeout(() => { slotPress[i] = false; }, 150);
+        program.splice(i, 1);
+        soundRemove();
+        execState.succeeded = false;
+        resultMsg = '';
+      }
+      return;
+    }
+  }
+
+  // Action row
+  const asy = 537;
+  // Clear button
+  if (x >= 20 && x <= 130 && y >= asy && y <= asy+44) {
+    program = [];
+    execState.succeeded = false;
+    resultMsg = '';
+    soundRemove();
+    return;
+  }
+  // Run button
+  if (x >= BASE_W/2-70 && x <= BASE_W/2+70 && y >= asy && y <= asy+44) {
+    if (!execState.running && !execState.succeeded) {
+      startExecution();
+    }
+    return;
+  }
+  // Next level button (after success)
+  if (execState.succeeded && currentLevel < LEVELS.length - 1) {
+    if (x >= BASE_W/2+20 && x <= BASE_W/2+160 && y >= asy && y <= asy+44) {
+      currentLevel++;
+      initLevel(currentLevel);
+      return;
+    }
+  }
+  // Level select button (after success)
+  if (execState.succeeded) {
+    if (x >= BASE_W-160 && x <= BASE_W-20 && y >= BASE_H-45 && y <= BASE_H-9) {
+      gameState = 'levelSelect';
+      return;
+    }
+  }
+}
+
+canvas.addEventListener('mousedown', handlePointerDown);
+canvas.addEventListener('touchstart', handlePointerDown, {passive: false});
+
+// =====================================================
+// GAME LOOP
+// =====================================================
+let lastTimestamp = 0;
+function gameLoop(timestamp) {
+  const dt = Math.min(timestamp - lastTimestamp, 50);
+  lastTimestamp = timestamp;
+
+  if (gameState === 'playing' && execState.running) {
+    updateExecution(dt);
+  }
+
+  draw();
+  requestAnimationFrame(gameLoop);
+}
+
+// Start
+initLevel(0);
+requestAnimationFrame(gameLoop);
+</script>
+</body>
+</html>
