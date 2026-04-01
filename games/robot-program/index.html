@@ -149,19 +149,19 @@ const LEVELS = [
   },
   {
     name: 'レベル4: あなに注意！',
-    hint: '🕳に落ちたらやりなおし！まわり道を探そう',
-    start: {row:1, col:1, dir:2},
+    hint: '🕳の手前で曲がろう！まっすぐ行くと落ちるよ',
+    start: {row:1, col:1, dir:1},
     grid: [
       [1,1,1,1,1,1,1],
-      [1,0,1,1,1,1,1],
-      [1,0,1,1,1,1,1],
-      [1,0,0,4,0,0,1],
-      [1,1,1,4,1,0,1],
+      [1,0,0,0,4,0,1],
+      [1,1,1,0,1,1,1],
       [1,1,1,0,0,3,1],
+      [1,1,1,1,1,1,1],
+      [1,1,1,1,1,1,1],
       [1,1,1,1,1,1,1],
     ],
     availableCmds: ['forward','turnR','turnL','turnB'],
-    stars: [{row:5,col:3}],
+    stars: [],
   },
   {
     name: 'レベル5: はこを越えろ！',
@@ -455,7 +455,7 @@ function startExecution() {
     step: 0,
     expandedProgram: expanded,
     timer: 0,
-    phase: 'executing',
+    phase: 'start_step',
     failMsg: '',
     succeeded: false,
     currentSlot: 0,
@@ -468,67 +468,64 @@ let lastTime = 0;
 
 function updateExecution(dt) {
   if (!execState.running) return;
-  execState.timer += dt;
 
-  if (execState.phase === 'executing') {
+  // Phase: start_step → apply command immediately, then animate
+  if (execState.phase === 'start_step') {
     const cmd = execState.expandedProgram[execState.step];
-    // Determine current slot index (for highlighting, before repeat expansion)
-    // Find which original slot this corresponds to
     execState.currentSlot = findOriginalSlot(execState.step, execState.expandedProgram);
+    soundStep(execState.step);
 
-    if (execState.timer < STEP_DUR) {
-      // Animating movement
-      const t = Math.min(execState.timer / STEP_DUR, 1);
-      robotAnim.progress = easeInOut(t);
-      robotAnim.x = lerp(robotAnim.targetX - (robotAnim.targetX - robotAnim.x) * 0,
-        robotAnim.targetX, t);
-      // Actually just lerp from start pos
+    // Record animation start position BEFORE applying command
+    robotAnim._fromX = robotAnim.targetX;
+    robotAnim._fromY = robotAnim.targetY;
+
+    const result = applyCommand(cmd);
+
+    if (result === 'fail') {
+      execState.running = false;
+      execState.phase = 'idle';
+      robotAnim.flashColor = '#e74c3c';
+      robotAnim.flashTimer = 600;
+      resultMsg = execState.failMsg || 'ざんねん！💥';
+      resultColor = '#e74c3c';
+      soundFail();
+    } else if (result === 'goal') {
+      execState.running = false;
+      execState.phase = 'idle';
+      const totalStars = countStars();
+      const collected = collectedStarCount();
+      const stars = (totalStars === 0 || collected >= totalStars) ? 3 : 1;
+      saveProgress(currentLevel, stars);
+      execState.succeeded = true;
+      resultMsg = 'クリア！！🎉';
+      resultColor = '#2ecc71';
+      soundClear();
+      robotAnim.spinning = true; robotAnim.spinAngle = 0;
+      spawnConfetti();
     } else {
-      // Step complete
+      // Start animation timer
       execState.timer = 0;
-      soundStep(execState.step);
-      const result = applyCommand(cmd);
-      if (result === 'fail') {
+      execState.phase = 'animating';
+    }
+    return;
+  }
+
+  // Phase: animating → wait STEP_DUR, then advance to next step
+  if (execState.phase === 'animating') {
+    execState.timer += dt;
+    if (execState.timer >= STEP_DUR) {
+      execState.step++;
+      if (execState.step >= execState.expandedProgram.length) {
         execState.running = false;
         execState.phase = 'idle';
+        execState.currentSlot = -1;
+        resultMsg = collectedStarCount() < countStars() ? '⭐をぜんぶとって！' : 'ゴールまでたどり着けなかった…';
+        resultColor = '#e74c3c';
         robotAnim.flashColor = '#e74c3c';
         robotAnim.flashTimer = 600;
-        resultMsg = execState.failMsg || 'ざんねん！💥';
-        resultColor = '#e74c3c';
         soundFail();
-      } else if (result === 'goal') {
-        execState.running = false;
-        execState.phase = 'idle';
-        const totalStars = countStars();
-        const collected = collectedStarCount();
-        let stars = 3;
-        if (collected < totalStars) stars = 1;
-        else if (totalStars === 0) stars = 3;
-        saveProgress(currentLevel, stars);
-        execState.succeeded = true;
-        resultMsg = 'クリア！！🎉';
-        resultColor = '#2ecc71';
-        soundClear();
-        robotAnim.spinning = true; robotAnim.spinAngle = 0;
-        spawnConfetti();
       } else {
-        execState.step++;
-        if (execState.step >= execState.expandedProgram.length) {
-          // Ran out of commands
-          execState.running = false;
-          execState.phase = 'idle';
-          execState.currentSlot = -1;
-          if (collectedStarCount() < countStars()) {
-            execState.failMsg = '⭐をぜんぶとって！';
-          } else {
-            execState.failMsg = 'ゴールまでたどり着けなかった…';
-          }
-          resultMsg = execState.failMsg;
-          resultColor = '#e74c3c';
-          robotAnim.flashColor = '#e74c3c';
-          robotAnim.flashTimer = 600;
-          soundFail();
-        }
+        execState.phase = 'start_step';
       }
     }
   }
@@ -606,7 +603,6 @@ function moveRobot(nr, nc, jumped) {
   if (cell === 4) {
     robotPos.row = nr; robotPos.col = nc;
     const p = gridToPixel(nr, nc);
-    robotAnim._fromX = robotAnim.x; robotAnim._fromY = robotAnim.y;
     robotAnim.targetX = p.x; robotAnim.targetY = p.y;
     execState.failMsg = 'あなに落ちた！💀';
     return 'fail';
@@ -614,7 +610,7 @@ function moveRobot(nr, nc, jumped) {
   // Move
   robotPos.row = nr; robotPos.col = nc;
   const p = gridToPixel(nr, nc);
-  robotAnim._fromX = robotAnim.x; robotAnim._fromY = robotAnim.y;
+  // _fromX is already set in updateExecution before applyCommand
   robotAnim.targetX = p.x; robotAnim.targetY = p.y;
 
   if (cell === 2) {
@@ -807,21 +803,17 @@ function drawPlaying() {
   // Grid
   drawGrid();
 
-  // Robot
-  const t = Math.min(execState.timer / STEP_DUR, 1);
-  const et = easeInOut(t);
-  let rx = robotAnim.x, ry = robotAnim.y;
-  if (execState.running && robotAnim._fromX !== undefined) {
-    rx = lerp(robotAnim._fromX, robotAnim.targetX, et);
-    ry = lerp(robotAnim._fromY, robotAnim.targetY, et);
-    // Bounce mid-step
-    if (execState.expandedProgram[execState.step] === 'forward' ||
-        execState.expandedProgram[execState.step] === 'jump') {
-      ry -= Math.sin(et * Math.PI) * 6;
+  // Robot - smooth lerp animation
+  let rx = robotAnim.targetX, ry = robotAnim.targetY;
+  if (execState.phase === 'animating' && robotAnim._fromX !== undefined) {
+    const t = easeInOut(Math.min(execState.timer / STEP_DUR, 1));
+    rx = lerp(robotAnim._fromX, robotAnim.targetX, t);
+    ry = lerp(robotAnim._fromY, robotAnim.targetY, t);
+    // Bounce arc during forward/jump
+    const curCmd = execState.expandedProgram[execState.step];
+    if (curCmd === 'forward' || curCmd === 'jump') {
+      ry -= Math.sin(t * Math.PI) * 8;
     }
-  } else {
-    rx = robotAnim.targetX;
-    ry = robotAnim.targetY;
   }
   let flashC = null;
   if (robotAnim.flashTimer > 0) {
@@ -851,11 +843,11 @@ function drawPlaying() {
   // Action row
   drawActionRow();
 
-  // Hint text
-  ctx.fillStyle = 'rgba(160,180,255,0.7)';
+  // Hint text (above command palette)
+  ctx.fillStyle = 'rgba(160,180,255,0.75)';
   ctx.font = '12px sans-serif';
   ctx.textAlign = 'center';
-  ctx.fillText(lv.hint, BASE_W/2, 425);
+  ctx.fillText('💡 ' + lv.hint, BASE_W/2, 430);
 
   // Confetti
   updateConfetti();
@@ -1039,7 +1031,7 @@ function drawRobot(x, y, dir, spin, flashColor, bounceY) {
 }
 
 function drawProgramSlots() {
-  const slotW = 44, slotH = 42, gap = 4;
+  const slotW = 36, slotH = 42, gap = 2;
   const totalW = MAX_SLOTS * (slotW + gap) - gap;
   const sx = (BASE_W - totalW) / 2;
   const sy = 357;
@@ -1102,7 +1094,7 @@ function drawCommandPalette() {
   const rows = Math.ceil(cmds.length / cols);
   const totalW = cols * btnW + (cols-1)*gap;
   const sx = (BASE_W - totalW) / 2;
-  const sy = 433;
+  const sy = 440;
   const dimmed = execState.running;
 
   for (let i = 0; i < cmds.length; i++) {
@@ -1130,34 +1122,32 @@ function drawCommandPalette() {
 
 function drawActionRow() {
   const sy = 537;
-  const dimmed = execState.running;
 
-  // Clear button
-  ctx.globalAlpha = dimmed ? 0.4 : 1.0;
-  drawButton(ctx, 20, sy, 110, 44, '🗑 クリア', '#3a1a1a', '#e74c3c', false);
-  ctx.globalAlpha = 1.0;
+  if (execState.succeeded) {
+    // ---- クリア後のボタン配置 ----
+    if (currentLevel < LEVELS.length - 1) {
+      drawButton(ctx, 20, sy, 200, 44, 'つぎのレベル →', '#1a2a3a', '#3498db', false);
+    }
+    drawButton(ctx, BASE_W - 230, sy, 210, 44, '🔄 もう一回', '#3a1a1a', '#e67e22', false);
+    drawButton(ctx, BASE_W/2 - 75, sy + 52, 150, 36, 'レベルせんたく', '#2a1a3a', '#9b59b6', false);
+  } else {
+    // ---- 通常の実行ボタン ----
+    ctx.globalAlpha = execState.running ? 0.4 : 1.0;
+    drawButton(ctx, 20, sy, 110, 44, '🗑 クリア', '#3a1a1a', '#e74c3c', false);
+    ctx.globalAlpha = 1.0;
 
-  // Run button
-  const running = execState.running;
-  ctx.globalAlpha = running ? 0.6 : 1.0;
-  const runLabel = running ? '実行中…' : '▶ 実行！';
-  drawButton(ctx, BASE_W/2 - 70, sy, 140, 44, runLabel, '#1a3a1a', '#2ecc71', false);
-  ctx.globalAlpha = 1.0;
+    ctx.globalAlpha = execState.running ? 0.6 : 1.0;
+    const runLabel = execState.running ? '実行中…' : '▶ 実行！';
+    drawButton(ctx, BASE_W/2 - 65, sy, 130, 44, runLabel, '#1a3a1a', '#2ecc71', false);
+    ctx.globalAlpha = 1.0;
+  }
 
   // Result message
   if (resultMsg) {
     ctx.fillStyle = execState.succeeded ? '#2ecc71' : (resultColor || '#e74c3c');
     ctx.font = 'bold 15px sans-serif';
     ctx.textAlign = 'center';
-    ctx.fillText(resultMsg, BASE_W/2, sy + 65);
-  }
-
-  // Next level button after success
-  if (execState.succeeded && currentLevel < LEVELS.length - 1) {
-    drawButton(ctx, BASE_W/2 + 20, sy, 140, 44, 'つぎのレベル →', '#1a2a3a', '#3498db', false);
-  }
-  if (execState.succeeded) {
-    drawButton(ctx, BASE_W - 160, BASE_H - 45, 140, 36, 'レベルせんたく', '#2a1a3a', '#9b59b6', false);
+    ctx.fillText(resultMsg, BASE_W/2, execState.succeeded ? sy - 16 : sy + 65);
   }
 }
 
@@ -1305,7 +1295,7 @@ function handlePlayingClick(x, y) {
   const cols = Math.min(cmds.length, 3);
   const totalW = cols * btnW + (cols-1)*gap;
   const sx = (BASE_W - totalW) / 2;
-  const sy = 433;
+  const sy = 440;
 
   // Command palette
   for (let i = 0; i < cmds.length; i++) {
@@ -1326,7 +1316,7 @@ function handlePlayingClick(x, y) {
   }
 
   // Program slots (click to remove)
-  const slotW = 44, slotH = 42, gapS = 4;
+  const slotW = 36, slotH = 42, gapS = 2;
   const totalWS = MAX_SLOTS * (slotW + gapS) - gapS;
   const sxS = (BASE_W - totalWS) / 2;
   const syS = 357;
@@ -1347,33 +1337,34 @@ function handlePlayingClick(x, y) {
 
   // Action row
   const asy = 537;
-  // Clear button
-  if (x >= 20 && x <= 130 && y >= asy && y <= asy+44) {
-    program = [];
-    execState.succeeded = false;
-    resultMsg = '';
-    soundRemove();
-    return;
-  }
-  // Run button
-  if (x >= BASE_W/2-70 && x <= BASE_W/2+70 && y >= asy && y <= asy+44) {
-    if (!execState.running && !execState.succeeded) {
-      startExecution();
-    }
-    return;
-  }
-  // Next level button (after success)
-  if (execState.succeeded && currentLevel < LEVELS.length - 1) {
-    if (x >= BASE_W/2+20 && x <= BASE_W/2+160 && y >= asy && y <= asy+44) {
+  if (execState.succeeded) {
+    // つぎのレベル
+    if (currentLevel < LEVELS.length - 1 && x >= 20 && x <= 220 && y >= asy && y <= asy+44) {
       currentLevel++;
       initLevel(currentLevel);
       return;
     }
-  }
-  // Level select button (after success)
-  if (execState.succeeded) {
-    if (x >= BASE_W-160 && x <= BASE_W-20 && y >= BASE_H-45 && y <= BASE_H-9) {
+    // もう一回
+    if (x >= BASE_W-230 && x <= BASE_W-20 && y >= asy && y <= asy+44) {
+      initLevel(currentLevel);
+      return;
+    }
+    // レベルせんたく
+    if (x >= BASE_W/2-75 && x <= BASE_W/2+75 && y >= asy+52 && y <= asy+88) {
       gameState = 'levelSelect';
+      return;
+    }
+  } else {
+    // クリアボタン
+    if (x >= 20 && x <= 130 && y >= asy && y <= asy+44) {
+      program = [];
+      resultMsg = '';
+      soundRemove();
+      return;
+    }
+    // 実行ボタン
+    if (x >= BASE_W/2-65 && x <= BASE_W/2+65 && y >= asy && y <= asy+44) {
+      if (!execState.running) startExecution();
       return;
     }
   }
