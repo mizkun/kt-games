@@ -1,0 +1,1661 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>たんけんRPG！</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+body{background:#111;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;font-family:'Hiragino Kaku Gothic ProN','Noto Sans JP',sans-serif;overflow:hidden;touch-action:none;}
+canvas{image-rendering:pixelated;image-rendering:crisp-edges;display:block;}
+#home-link{position:fixed;top:8px;left:8px;color:#fff;font-size:14px;text-decoration:none;z-index:999;background:rgba(0,0,0,0.5);padding:4px 10px;border-radius:6px;}
+#home-link:hover{background:rgba(0,0,0,0.8);}
+</style>
+</head>
+<body>
+<a id="home-link" href="../../index.html" style="display:none;">&#x1F3E0; もどる</a>
+<canvas id="c"></canvas>
+<script>
+'use strict';
+const cvs=document.getElementById('c');
+const ctx=cvs.getContext('2d');
+const W=480,H=640,TW=15,TH=15,TS=32;
+const MAP_H=480,UI_H=160;
+
+// Scaling
+function resize(){
+  const s=Math.min(window.innerWidth/W,window.innerHeight/H);
+  cvs.width=W;cvs.height=H;
+  cvs.style.width=W*s+'px';
+  cvs.style.height=H*s+'px';
+}
+window.addEventListener('resize',resize);
+resize();
+
+// Audio
+let AC=null;
+function ensureAudio(){if(!AC)AC=new(window.AudioContext||window.webkitAudioContext)();}
+function beep(f,d,t='sine',v=0.2,delay=0){
+  if(!AC)return;
+  const o=AC.createOscillator(),g=AC.createGain();
+  o.type=t;o.frequency.value=f;
+  g.gain.setValueAtTime(v,AC.currentTime+delay);
+  g.gain.exponentialRampToValueAtTime(0.001,AC.currentTime+delay+d);
+  o.connect(g);g.connect(AC.destination);
+  o.start(AC.currentTime+delay);o.stop(AC.currentTime+delay+d+0.01);
+}
+function sfxWalk(){beep(200,0.03,'square',0.05);}
+function sfxAttack(){beep(330,0.1,'square',0.3);}
+function sfxMagic(){beep(880,0.15,'sine',0.2);beep(1100,0.1,'sine',0.1,0.1);}
+function sfxHit(){beep(150,0.2,'sawtooth',0.25);}
+function sfxLevelUp(){[262,330,392,523].forEach((f,i)=>beep(f,0.2,'square',0.2,i*0.15));}
+function sfxVictory(){[523,659,784,1047].forEach((f,i)=>beep(f,0.25,'sine',0.2,i*0.15));}
+function sfxGameOver(){[400,300,200,150].forEach((f,i)=>beep(f,0.3,'sawtooth',0.2,i*0.2));}
+function sfxCrystal(){[880,1100,1320,1760].forEach((f,i)=>beep(f,0.2,'sine',0.25,i*0.12));}
+function sfxBoss(){beep(220,0.4,'square',0.3);beep(277,0.4,'square',0.2,0.05);beep(330,0.4,'square',0.2,0.1);beep(165,0.6,'sawtooth',0.15,0.2);}
+function sfxShop(){beep(660,0.1,'sine',0.2);beep(880,0.1,'sine',0.15,0.1);}
+function sfxChest(){beep(440,0.15,'square',0.2);beep(660,0.15,'square',0.2,0.15);beep(880,0.2,'square',0.2,0.3);}
+
+// Tile types
+const GRASS=0,TREE=1,WATER=2,FLOOR=3,WALL=4,DOOR=5,CHEST=6,NPC=7,SIGN=8,
+      STAIRS_DOWN=9,STAIRS_UP=10,CRYSTAL=11,BOSS_TRIGGER=12;
+
+// Maps
+const MAPS=[
+  // 0: Town
+  [
+    [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+    [1,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+    [1,0,4,4,4,0,0,8,0,0,4,4,4,0,1],
+    [1,0,4,3,4,0,0,0,0,0,4,3,4,0,1],
+    [1,0,4,5,4,0,7,0,7,0,4,5,4,0,1],
+    [1,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+    [1,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+    [1,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+    [1,0,4,4,4,0,0,7,0,0,0,0,0,0,1],
+    [1,0,4,3,4,0,0,0,0,0,2,2,0,0,1],
+    [1,0,4,5,4,0,0,0,0,2,2,2,2,0,1],
+    [1,0,0,0,0,0,0,0,0,0,2,2,0,0,1],
+    [1,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+    [1,0,0,0,0,0,0,5,0,0,0,0,0,0,1],
+    [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+  ],
+  // 1: Forest
+  [
+    [1,1,1,1,1,1,1,5,1,1,1,1,1,1,1],
+    [1,0,0,1,0,0,0,0,0,0,0,1,0,0,1],
+    [1,0,0,0,0,1,1,0,1,1,0,0,0,0,1],
+    [1,1,0,0,0,0,1,0,1,0,0,0,0,1,1],
+    [1,0,0,1,0,0,0,0,0,0,0,1,0,0,1],
+    [1,0,1,1,0,0,0,0,0,0,0,1,1,0,1],
+    [1,0,0,0,0,0,6,0,0,0,0,0,0,0,1],
+    [1,0,0,0,0,0,0,11,0,0,0,0,0,0,1],
+    [1,0,1,1,0,0,0,0,0,0,0,1,1,0,1],
+    [1,0,0,1,0,0,0,0,0,0,0,1,0,0,1],
+    [1,1,0,0,0,0,1,0,1,0,0,0,0,1,1],
+    [1,0,0,0,0,1,1,0,1,1,0,0,0,0,1],
+    [1,0,0,1,0,0,0,0,0,0,0,1,0,0,1],
+    [1,0,0,0,0,0,0,5,0,0,0,0,0,0,1],
+    [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+  ],
+  // 2: Cave
+  [
+    [4,4,4,4,4,4,4,5,4,4,4,4,4,4,4],
+    [4,3,3,3,4,3,3,3,3,3,4,3,3,3,4],
+    [4,3,6,3,4,3,4,4,4,3,4,3,3,3,4],
+    [4,3,3,3,4,3,3,3,4,3,4,3,4,3,4],
+    [4,4,4,3,4,4,4,3,4,3,3,3,4,3,4],
+    [4,3,3,3,3,3,3,3,4,4,4,4,4,3,4],
+    [4,3,4,4,4,4,4,3,3,3,3,3,3,3,4],
+    [4,3,3,3,3,3,4,3,4,4,4,4,4,3,4],
+    [4,4,4,4,4,3,4,3,4,3,3,3,3,3,4],
+    [4,3,3,3,4,3,4,3,4,3,4,4,4,4,4],
+    [4,3,6,3,3,3,4,3,4,3,3,3,3,3,4],
+    [4,3,3,3,4,3,4,3,3,3,4,4,4,3,4],
+    [4,4,4,4,4,3,4,4,4,4,4,3,3,3,4],
+    [4,3,3,3,3,3,3,3,3,3,3,3,11,3,4],
+    [4,4,4,4,4,4,4,4,4,4,4,4,4,4,4],
+  ],
+  // 3: Castle
+  [
+    [4,4,4,4,4,4,4,4,4,4,4,4,4,4,4],
+    [4,3,3,3,3,3,3,12,3,3,3,3,3,3,4],
+    [4,3,3,3,3,3,3,3,3,3,3,3,3,3,4],
+    [4,3,4,3,3,3,3,3,3,3,3,3,4,3,4],
+    [4,3,4,3,3,6,3,3,3,6,3,3,4,3,4],
+    [4,3,4,3,3,3,3,3,3,3,3,3,4,3,4],
+    [4,3,3,3,3,3,4,3,4,3,3,3,3,3,4],
+    [4,3,3,3,3,3,3,3,3,3,3,3,3,3,4],
+    [4,3,4,4,3,3,3,3,3,3,3,4,4,3,4],
+    [4,3,3,3,3,3,3,3,3,3,3,3,3,3,4],
+    [4,3,3,3,3,3,3,3,3,3,3,3,3,3,4],
+    [4,4,4,3,4,4,4,3,4,4,4,3,4,4,4],
+    [4,3,3,3,3,3,3,3,3,3,3,3,3,3,4],
+    [4,3,3,3,3,3,3,5,3,3,3,3,3,3,4],
+    [4,4,4,4,4,4,4,4,4,4,4,4,4,4,4],
+  ],
+];
+
+// Door connections: area -> [{tx,ty, destArea, destX, destY}]
+const DOORS=[
+  // Town doors
+  [{tx:3,ty:4,dest:0,dx:3,dy:3},{tx:11,ty:4,dest:0,dx:11,dy:3},{tx:3,ty:10,dest:0,dx:3,dy:9},
+   {tx:7,ty:13,dest:1,dx:7,dy:13}], // south door -> forest
+  // Forest doors
+  [{tx:7,ty:0,dest:0,dx:7,dy:12},{tx:7,ty:13,dest:2,dx:7,dy:1}], // north->town, south->cave
+  // Cave doors
+  [{tx:7,ty:0,dest:1,dx:7,dy:12}], // north->forest
+  // Castle doors
+  [{tx:7,ty:13,dest:2,dx:7,dy:1}], // south->cave
+];
+
+const AREA_NAMES=['タウン','あやしいもり','くらいどうくつ','まおうのしろ'];
+
+// Enemy definitions
+const ENEMY_DEFS={
+  slime:{name:'スライム',hp:12,atk:4,def:1,exp:5,gold:3,color:'#27ae60'},
+  bat:{name:'コウモリ',hp:8,atk:6,def:0,exp:4,gold:2,color:'#6c3483'},
+  goblin:{name:'ゴブリン',hp:20,atk:8,def:2,exp:12,gold:8,color:'#7d6608'},
+  skeleton:{name:'スケルトン',hp:25,atk:10,def:3,exp:15,gold:10,color:'#aab7b8'},
+  darkknight:{name:'ダークナイト',hp:40,atk:14,def:6,exp:30,gold:25,color:'#1a1a2e'},
+  witch:{name:'まじょ',hp:35,atk:16,def:4,exp:28,gold:20,color:'#6a0dad'},
+  maou:{name:'まおう',hp:80,atk:20,def:8,exp:200,gold:100,color:'#c0392b',isBoss:true},
+};
+
+// Area enemies (spawn points)
+function makeAreaEnemies(){
+  return [
+    [],
+    [
+      {type:'slime',tx:5,ty:3,alive:true,timer:0},
+      {type:'slime',tx:10,ty:8,alive:true,timer:0},
+      {type:'bat',tx:3,ty:11,alive:true,timer:0},
+      {type:'bat',tx:12,ty:5,alive:true,timer:0},
+    ],
+    [
+      {type:'goblin',tx:4,ty:4,alive:true,timer:0},
+      {type:'goblin',tx:11,ty:10,alive:true,timer:0},
+      {type:'skeleton',tx:7,ty:7,alive:true,timer:0},
+      {type:'skeleton',tx:13,ty:3,alive:true,timer:0},
+    ],
+    [
+      {type:'darkknight',tx:5,ty:8,alive:true,timer:0},
+      {type:'witch',tx:9,ty:6,alive:true,timer:0},
+    ],
+  ];
+}
+
+// NPC data for town
+const NPCS=[
+  {area:0,tx:6,ty:4,name:'おじいさん',color:'#8d6e63',msg:'まおうが3つのクリスタルをうばった！\nもりとどうくつのおくにかくされている。\nさいごはまおうのしろだ！とりもどすんじゃ！'},
+  {area:0,tx:8,ty:4,name:'おんなのこ',color:'#e91e63',msg:'ポーションはHPをかいふくするよ！\nお店でかえるよ。まちの左上の家にいってね！'},
+  {area:0,tx:7,ty:8,name:'おかみさん',color:'#ff9800',msg:'SHOP',isShop:true},
+];
+
+// Signs
+const SIGNS=[
+  {area:0,tx:7,ty:2,msg:'ようこそ！ぼうけんのまち へ！\n南のドアからもりへ行けるよ。'},
+  {area:1,tx:7,ty:12,msg:'このさきは くらいどうくつ だ。\nきをつけてね！'},
+];
+
+// Items
+const ITEM_DEFS={
+  potion:{name:'ポーション',desc:'HPを20かいふく',cost:30},
+  mppotion:{name:'マジックポーション',desc:'MPを10かいふく',cost:25},
+  holywater:{name:'せいすい',desc:'バトルから にげられる',cost:20},
+};
+
+// Weapon/armor upgrades
+const WEAPON_UPGRADES=[
+  {from:'きのぼうき',to:'てつのけん',atkBonus:4,cost:80},
+  {from:'てつのけん',to:'ほのおのけん',atkBonus:6,cost:200},
+];
+const ARMOR_UPGRADES=[
+  {from:'ぬののふく',to:'かわのよろい',defBonus:3,cost:70},
+  {from:'かわのよろい',to:'てつのよろい',defBonus:5,cost:150},
+];
+
+// Player state
+let player={
+  x:7,y:7,area:0,
+  hp:30,maxHp:30,mp:10,maxMp:10,
+  atk:8,def:3,level:1,exp:0,nextExp:20,
+  gold:50,crystals:0,
+  items:[{id:'potion',count:3}],
+  equip:{weapon:'きのぼうき',armor:'ぬののふく'},
+  dir:0,moving:false,animFrame:0,
+  moveTimer:0,fromX:0,fromY:0,
+  baseAtk:8,baseDef:3,
+};
+
+let areaEnemies=makeAreaEnemies();
+let openedChests={}; // 'area_tx_ty'
+let defeatedBoss=false;
+let crystalsCollected=[false,false,false]; // forest, cave, castle(boss reward conceptually)
+
+// Game state
+let scene='title';
+let battleState=null;
+let dialogueText='';
+let dialogueName='';
+let shopOpen=false;
+let shopCursor=0;
+let levelUpInfo=null;
+let levelUpTimer=0;
+let gameOverTimer=0;
+let endingTimer=0;
+let titleAnim=0;
+let waterAnim=0;
+let inputCooldown=0;
+let crystalAnim=0;
+
+// Battle
+let battleLog=[];
+let battlePhase=''; // 'menu','playerAnim','enemyTurn','enemyAnim','result','item'
+let battleCursor=0;
+let battleItemCursor=0;
+let battleEnemy=null;
+let battleEnemyMaxHp=0;
+let battleAnimTimer=0;
+let battleFlash=0;
+let battlePlayerFlash=0;
+
+// Touch
+let touchDirs={left:false,right:false,up:false,down:false,a:false};
+
+// Persistent frame counter
+let frame=0;
+
+// Save / Load
+function saveGame(){
+  const d={
+    px:player.x,py:player.y,area:player.area,
+    hp:player.hp,maxHp:player.maxHp,mp:player.mp,maxMp:player.maxMp,
+    atk:player.baseAtk,def:player.baseDef,level:player.level,exp:player.exp,nextExp:player.nextExp,
+    gold:player.gold,crystals:player.crystals,
+    items:player.items,equip:player.equip,
+    openedChests,defeatedBoss,crystalsCollected,
+    dir:player.dir,
+  };
+  localStorage.setItem('rpg_save',JSON.stringify(d));
+}
+function loadGame(){
+  const s=localStorage.getItem('rpg_save');
+  if(!s)return false;
+  try{
+    const d=JSON.parse(s);
+    player.x=d.px;player.y=d.py;player.area=d.area;
+    player.hp=d.hp;player.maxHp=d.maxHp;player.mp=d.mp;player.maxMp=d.maxMp;
+    player.baseAtk=d.atk;player.baseDef=d.def;
+    player.level=d.level;player.exp=d.exp;player.nextExp=d.nextExp;
+    player.gold=d.gold;player.crystals=d.crystals;
+    player.items=d.items||[{id:'potion',count:3}];
+    player.equip=d.equip||{weapon:'きのぼうき',armor:'ぬののふく'};
+    player.dir=d.dir||0;
+    openedChests=d.openedChests||{};
+    defeatedBoss=d.defeatedBoss||false;
+    crystalsCollected=d.crystalsCollected||[false,false,false];
+    recalcStats();
+    areaEnemies=makeAreaEnemies();
+    return true;
+  }catch(e){return false;}
+}
+function recalcStats(){
+  let wa=0,aa=0;
+  WEAPON_UPGRADES.forEach(u=>{if(player.equip.weapon===u.to)wa+=u.atkBonus;});
+  ARMOR_UPGRADES.forEach(u=>{if(player.equip.armor===u.to)aa+=u.defBonus;});
+  // Chain bonuses
+  if(player.equip.weapon==='ほのおのけん')wa=WEAPON_UPGRADES[0].atkBonus+WEAPON_UPGRADES[1].atkBonus;
+  if(player.equip.armor==='てつのよろい')aa=ARMOR_UPGRADES[0].defBonus+ARMOR_UPGRADES[1].defBonus;
+  player.atk=player.baseAtk+wa;
+  player.def=player.baseDef+aa;
+}
+function resetGame(){
+  player={x:7,y:7,area:0,hp:30,maxHp:30,mp:10,maxMp:10,atk:8,def:3,level:1,exp:0,nextExp:20,gold:50,crystals:0,items:[{id:'potion',count:3}],equip:{weapon:'きのぼうき',armor:'ぬののふく'},dir:0,moving:false,animFrame:0,moveTimer:0,fromX:0,fromY:0,baseAtk:8,baseDef:3};
+  areaEnemies=makeAreaEnemies();
+  openedChests={};defeatedBoss=false;crystalsCollected=[false,false,false];
+  localStorage.removeItem('rpg_save');
+}
+
+// Drawing helpers
+function drawRect(x,y,w,h,c){ctx.fillStyle=c;ctx.fillRect(x,y,w,h);}
+function drawCircle(x,y,r,c){ctx.fillStyle=c;ctx.beginPath();ctx.arc(x,y,r,0,Math.PI*2);ctx.fill();}
+function drawText(txt,x,y,size,c,align){
+  ctx.fillStyle=c||'#fff';ctx.font=`bold ${size||14}px 'Hiragino Kaku Gothic ProN',sans-serif`;
+  ctx.textAlign=align||'left';ctx.textBaseline='top';ctx.fillText(txt,x,y);
+}
+function drawTextCenter(txt,x,y,size,c){drawText(txt,x,y,size,c,'center');}
+
+// Tile drawing
+function drawTile(t,px,py){
+  const x=px,y=py;
+  switch(t){
+    case GRASS:
+      drawRect(x,y,TS,TS,'#27ae60');
+      // dots
+      ctx.fillStyle='#2ecc71';
+      for(let i=0;i<3;i++){
+        ctx.fillRect(x+5+i*10,y+8+((i*7)%12),2,2);
+      }
+      break;
+    case TREE:
+      drawRect(x,y,TS,TS,'#27ae60');
+      drawRect(x+12,y+20,8,12,'#6d4c41');
+      drawCircle(x+16,y+14,12,'#1b5e20');
+      drawCircle(x+10,y+10,8,'#2e7d32');
+      drawCircle(x+20,y+12,7,'#2e7d32');
+      break;
+    case WATER:
+      const wc=Math.sin(waterAnim+px*0.1+py*0.1)*10;
+      drawRect(x,y,TS,TS,`rgb(${30+wc},${100+wc},${200+wc})`);
+      ctx.fillStyle=`rgba(255,255,255,${0.2+Math.sin(waterAnim*2+px*0.2)*0.1})`;
+      ctx.fillRect(x+4,y+8+Math.sin(waterAnim+px)*2,10,2);
+      ctx.fillRect(x+18,y+18+Math.sin(waterAnim+py)*2,8,2);
+      break;
+    case FLOOR:
+      drawRect(x,y,TS,TS,'#d4b896');
+      ctx.strokeStyle='#c4a882';ctx.lineWidth=0.5;
+      ctx.strokeRect(x+1,y+1,15,15);
+      ctx.strokeRect(x+16,y+16,15,15);
+      break;
+    case WALL:
+      drawRect(x,y,TS,TS,'#7f8c8d');
+      ctx.strokeStyle='#6c7a7d';ctx.lineWidth=1;
+      ctx.strokeRect(x+1,y+1,14,10);
+      ctx.strokeRect(x+8,y+12,14,10);
+      ctx.strokeRect(x+1,y+22,10,10);
+      break;
+    case DOOR:
+      drawRect(x,y,TS,TS,'#27ae60');
+      drawRect(x+6,y+2,20,28,'#8B4513');
+      drawRect(x+8,y+4,16,24,'#A0522D');
+      drawCircle(x+20,y+18,2,'#f1c40f');
+      break;
+    case CHEST:
+      const ck=`${player.area}_${Math.floor(px/TS)}_${Math.floor(py/TS)}`;
+      const opened=openedChests[ck];
+      drawRect(x,y,TS,TS,player.area<=1?'#27ae60':'#d4b896');
+      if(!opened){
+        drawRect(x+6,y+10,20,16,'#d4a017');
+        drawRect(x+6,y+10,20,6,'#b8860b');
+        drawRect(x+8,y+12,16,12,'#f1c40f');
+        drawRect(x+14,y+14,4,4,'#fff');
+      }else{
+        drawRect(x+6,y+12,20,14,'#8B7355');
+        drawRect(x+6,y+6,20,8,'#8B7355');
+      }
+      break;
+    case NPC:
+      drawRect(x,y,TS,TS,'#27ae60');
+      break;
+    case SIGN:
+      drawRect(x,y,TS,TS,'#27ae60');
+      drawRect(x+10,y+14,12,16,'#8B4513');
+      drawRect(x+6,y+6,20,12,'#A0522D');
+      break;
+    case CRYSTAL:
+      drawRect(x,y,TS,TS,player.area===2?'#d4b896':'#27ae60');
+      const ca=crystalAnim+px+py;
+      const cc=`hsl(${(frame*3+px+py)%360},80%,60%)`;
+      ctx.fillStyle=cc;
+      ctx.beginPath();
+      ctx.moveTo(x+16,y+4);ctx.lineTo(x+24,y+14);ctx.lineTo(x+20,y+28);
+      ctx.lineTo(x+12,y+28);ctx.lineTo(x+8,y+14);ctx.closePath();ctx.fill();
+      ctx.fillStyle='rgba(255,255,255,'+(.4+Math.sin(frame*.1)*.3)+')';
+      ctx.fillRect(x+14,y+10,4,4);
+      break;
+    case BOSS_TRIGGER:
+      drawRect(x,y,TS,TS,'#d4b896');
+      // ominous red glow
+      if(!defeatedBoss){
+        const gb=Math.sin(frame*0.05)*0.15+0.15;
+        ctx.fillStyle=`rgba(200,0,0,${gb})`;
+        ctx.fillRect(x,y,TS,TS);
+      }
+      break;
+    case STAIRS_DOWN:case STAIRS_UP:
+      drawRect(x,y,TS,TS,'#d4b896');
+      for(let i=0;i<4;i++){drawRect(x+4+i*2,y+6+i*5,24-i*4,4,'#8B7355');}
+      break;
+  }
+}
+
+// Draw NPC sprite
+function drawNPCSprite(nx,ny,npc){
+  const x=nx*TS+4,y=ny*TS+2;
+  // body
+  drawRect(x+4,y+12,20,16,npc.color);
+  // head
+  drawCircle(x+14,y+10,9,'#ffe0bd');
+  // eyes
+  drawCircle(x+10,y+9,2,'#333');
+  drawCircle(x+18,y+9,2,'#333');
+  // hair
+  drawCircle(x+14,y+5,8,npc.color==='#e91e63'?'#5d4037':'#9e9e9e');
+}
+
+// Draw enemy on map
+function drawMapEnemy(e){
+  if(!e.alive)return;
+  const def=ENEMY_DEFS[e.type];
+  const x=e.tx*TS,y=e.ty*TS;
+  const bob=Math.sin(frame*0.08+e.tx+e.ty)*2;
+  switch(e.type){
+    case 'slime':
+      drawCircle(x+16,y+20+bob,10,def.color);
+      drawCircle(x+12,y+17+bob,3,'#fff');drawCircle(x+12,y+17+bob,1.5,'#000');
+      drawCircle(x+20,y+17+bob,3,'#fff');drawCircle(x+20,y+17+bob,1.5,'#000');
+      break;
+    case 'bat':
+      drawCircle(x+16,y+16+bob,7,def.color);
+      // wings
+      ctx.fillStyle=def.color;
+      ctx.beginPath();ctx.moveTo(x+9,y+16+bob);ctx.lineTo(x+2,y+10+bob);ctx.lineTo(x+9,y+14+bob);ctx.fill();
+      ctx.beginPath();ctx.moveTo(x+23,y+16+bob);ctx.lineTo(x+30,y+10+bob);ctx.lineTo(x+23,y+14+bob);ctx.fill();
+      drawCircle(x+13,y+14+bob,2,'#f00');drawCircle(x+19,y+14+bob,2,'#f00');
+      break;
+    case 'goblin':
+      drawRect(x+8,y+14+bob,16,14,def.color);
+      drawCircle(x+16,y+12+bob,8,def.color);
+      drawCircle(x+12,y+11+bob,2,'#fff');drawCircle(x+20,y+11+bob,2,'#fff');
+      drawCircle(x+12,y+11+bob,1,'#000');drawCircle(x+20,y+11+bob,1,'#000');
+      break;
+    case 'skeleton':
+      drawRect(x+10,y+14+bob,12,14,def.color);
+      drawCircle(x+16,y+12+bob,8,def.color);
+      drawCircle(x+12,y+10+bob,3,'#000');drawCircle(x+20,y+10+bob,3,'#000');
+      drawRect(x+12,y+18+bob,8,2,'#000');
+      break;
+    case 'darkknight':
+      drawRect(x+8,y+12+bob,16,18,'#2c3e50');
+      drawCircle(x+16,y+10+bob,9,'#1a1a2e');
+      drawCircle(x+12,y+9+bob,2,'#e74c3c');drawCircle(x+20,y+9+bob,2,'#e74c3c');
+      break;
+    case 'witch':
+      drawRect(x+8,y+16+bob,16,14,def.color);
+      drawCircle(x+16,y+14+bob,8,'#9b59b6');
+      // hat
+      ctx.fillStyle='#4a0080';
+      ctx.beginPath();ctx.moveTo(x+16,y-2+bob);ctx.lineTo(x+6,y+10+bob);ctx.lineTo(x+26,y+10+bob);ctx.closePath();ctx.fill();
+      drawCircle(x+12,y+13+bob,2,'#0f0');drawCircle(x+20,y+13+bob,2,'#0f0');
+      break;
+    case 'maou':
+      if(defeatedBoss)return;
+      drawRect(x+6,y+10+bob,20,20,def.color);
+      drawCircle(x+16,y+8+bob,10,'#c0392b');
+      // crown
+      ctx.fillStyle='#f1c40f';
+      ctx.fillRect(x+8,y-2+bob,16,6);
+      ctx.fillRect(x+8,y-4+bob,3,4);ctx.fillRect(x+15,y-5+bob,3,5);ctx.fillRect(x+21,y-4+bob,3,4);
+      // wings
+      ctx.fillStyle='#922b21';
+      ctx.beginPath();ctx.moveTo(x+6,y+14+bob);ctx.lineTo(x-4,y+4+bob);ctx.lineTo(x+6,y+20+bob);ctx.fill();
+      ctx.beginPath();ctx.moveTo(x+26,y+14+bob);ctx.lineTo(x+36,y+4+bob);ctx.lineTo(x+26,y+20+bob);ctx.fill();
+      drawCircle(x+12,y+7+bob,2,'#ff0');drawCircle(x+20,y+7+bob,2,'#ff0');
+      break;
+  }
+}
+
+// Draw battle enemy (large)
+function drawBattleEnemy(type,x,y,scale){
+  const s=scale||1;
+  const def=ENEMY_DEFS[type];
+  const cx=x,cy=y;
+  ctx.save();
+  ctx.translate(cx,cy);ctx.scale(s,s);
+  const bob=Math.sin(frame*0.06)*3;
+  switch(type){
+    case 'slime':
+      drawCircle(0,10+bob,40,def.color);
+      drawCircle(0,5+bob,35,'#2ecc71');
+      drawCircle(-12,-2+bob,7,'#fff');drawCircle(12,-2+bob,7,'#fff');
+      drawCircle(-12,-2+bob,4,'#000');drawCircle(12,-2+bob,4,'#000');
+      ctx.fillStyle='#1a7a3a';
+      ctx.beginPath();ctx.arc(0,12+bob,12,0,Math.PI);ctx.fill();
+      break;
+    case 'bat':
+      drawCircle(0,0+bob,25,def.color);
+      ctx.fillStyle=def.color;
+      // wings
+      ctx.beginPath();ctx.moveTo(-25,0+bob);ctx.lineTo(-55,-25+bob);ctx.lineTo(-40,-5+bob);ctx.lineTo(-55,5+bob);ctx.lineTo(-25,10+bob);ctx.fill();
+      ctx.beginPath();ctx.moveTo(25,0+bob);ctx.lineTo(55,-25+bob);ctx.lineTo(40,-5+bob);ctx.lineTo(55,5+bob);ctx.lineTo(25,10+bob);ctx.fill();
+      drawCircle(-8,-5+bob,5,'#f00');drawCircle(8,-5+bob,5,'#f00');
+      drawCircle(-8,-5+bob,2,'#ff0');drawCircle(8,-5+bob,2,'#ff0');
+      // fangs
+      ctx.fillStyle='#fff';
+      ctx.beginPath();ctx.moveTo(-5,8+bob);ctx.lineTo(-3,16+bob);ctx.lineTo(-1,8+bob);ctx.fill();
+      ctx.beginPath();ctx.moveTo(5,8+bob);ctx.lineTo(3,16+bob);ctx.lineTo(1,8+bob);ctx.fill();
+      break;
+    case 'goblin':
+      drawRect(-20,5+bob,40,40,def.color);
+      drawCircle(0,-5+bob,22,def.color);
+      drawCircle(-10,-10+bob,6,'#fff');drawCircle(10,-10+bob,6,'#fff');
+      drawCircle(-10,-10+bob,3,'#000');drawCircle(10,-10+bob,3,'#000');
+      // ears
+      ctx.fillStyle='#5d4e37';
+      ctx.beginPath();ctx.moveTo(-20,-5+bob);ctx.lineTo(-32,-20+bob);ctx.lineTo(-18,-15+bob);ctx.fill();
+      ctx.beginPath();ctx.moveTo(20,-5+bob);ctx.lineTo(32,-20+bob);ctx.lineTo(18,-15+bob);ctx.fill();
+      ctx.fillStyle='#4a3b20';
+      ctx.beginPath();ctx.arc(0,5+bob,8,0,Math.PI);ctx.fill();
+      break;
+    case 'skeleton':
+      drawRect(-15,5+bob,30,40,def.color);
+      drawCircle(0,-8+bob,22,def.color);
+      // hollow eyes
+      drawCircle(-9,-12+bob,7,'#000');drawCircle(9,-12+bob,7,'#000');
+      drawCircle(-9,-12+bob,3,'#f00');drawCircle(9,-12+bob,3,'#f00');
+      // teeth
+      ctx.fillStyle='#000';ctx.fillRect(-10,0+bob,20,3);
+      for(let i=0;i<5;i++){ctx.fillStyle='#fff';ctx.fillRect(-8+i*4,0+bob,3,5);}
+      // ribs
+      for(let i=0;i<3;i++){ctx.fillStyle='#ccc';ctx.fillRect(-12,12+i*8+bob,24,3);}
+      break;
+    case 'darkknight':
+      drawRect(-22,0+bob,44,50,'#2c3e50');
+      drawCircle(0,-15+bob,25,'#1a1a2e');
+      // visor
+      drawRect(-15,-20+bob,30,10,'#0d0d1a');
+      drawCircle(-8,-16+bob,4,'#e74c3c');drawCircle(8,-16+bob,4,'#e74c3c');
+      // sword
+      ctx.fillStyle='#bdc3c7';ctx.fillRect(25,-10+bob,5,50);
+      ctx.fillStyle='#f1c40f';ctx.fillRect(22,5+bob,11,5);
+      // shield
+      drawRect(-35,0+bob,15,25,'#34495e');
+      ctx.fillStyle='#f1c40f';ctx.fillRect(-32,5+bob,9,4);
+      break;
+    case 'witch':
+      drawRect(-18,10+bob,36,35,'#9b59b6');
+      drawCircle(0,-5+bob,22,'#d5a6e6');
+      // hat
+      ctx.fillStyle='#4a0080';
+      ctx.beginPath();ctx.moveTo(0,-55+bob);ctx.lineTo(-30,-5+bob);ctx.lineTo(30,-5+bob);ctx.closePath();ctx.fill();
+      ctx.fillStyle='#f1c40f';ctx.fillRect(-30,-8+bob,60,5);
+      drawCircle(-8,-8+bob,4,'#0f0');drawCircle(8,-8+bob,4,'#0f0');
+      drawCircle(-8,-8+bob,2,'#000');drawCircle(8,-8+bob,2,'#000');
+      // staff
+      ctx.fillStyle='#8B4513';ctx.fillRect(30,-20+bob,4,60);
+      drawCircle(32,-22+bob,8,'#e74c3c');
+      break;
+    case 'maou':
+      drawRect(-30,5+bob,60,50,'#c0392b');
+      drawCircle(0,-15+bob,30,'#c0392b');
+      // crown
+      ctx.fillStyle='#f1c40f';
+      ctx.fillRect(-20,-45+bob,40,12);
+      ctx.fillRect(-20,-50+bob,8,8);ctx.fillRect(-4,-53+bob,8,11);ctx.fillRect(12,-50+bob,8,8);
+      // wings
+      ctx.fillStyle='#922b21';
+      ctx.beginPath();ctx.moveTo(-30,0+bob);ctx.lineTo(-65,-30+bob);ctx.lineTo(-50,-10+bob);ctx.lineTo(-65,10+bob);ctx.lineTo(-30,15+bob);ctx.fill();
+      ctx.beginPath();ctx.moveTo(30,0+bob);ctx.lineTo(65,-30+bob);ctx.lineTo(50,-10+bob);ctx.lineTo(65,10+bob);ctx.lineTo(30,15+bob);ctx.fill();
+      // eyes
+      drawCircle(-10,-20+bob,6,'#ff0');drawCircle(10,-20+bob,6,'#ff0');
+      drawCircle(-10,-20+bob,3,'#000');drawCircle(10,-20+bob,3,'#000');
+      // mouth
+      ctx.fillStyle='#000';ctx.beginPath();ctx.arc(0,-5+bob,15,0.1,Math.PI-0.1);ctx.fill();
+      ctx.fillStyle='#fff';
+      for(let i=0;i<5;i++){
+        ctx.beginPath();ctx.moveTo(-10+i*5,-5+bob);ctx.lineTo(-8+i*5,5+bob);ctx.lineTo(-6+i*5,-5+bob);ctx.fill();
+      }
+      // cape
+      ctx.fillStyle='rgba(100,0,0,0.5)';
+      ctx.beginPath();ctx.moveTo(-30,5+bob);ctx.lineTo(-25,55+bob);ctx.lineTo(25,55+bob);ctx.lineTo(30,5+bob);ctx.fill();
+      break;
+  }
+  ctx.restore();
+}
+
+// Player drawing
+function drawPlayer(px,py){
+  const d=player.dir;
+  const af=player.animFrame;
+  const x=px+2,y=py+2;
+  // body
+  drawRect(x+4,y+12,20,14,'#3498db');
+  // legs
+  const loff=af?2:-2;
+  drawRect(x+6,y+24,6,6,'#2c3e50');
+  drawRect(x+16,y+24,6,6,'#2c3e50');
+  if(player.moving){
+    ctx.fillStyle='#2c3e50';
+    ctx.fillRect(x+6,y+24+loff,6,6);
+    ctx.fillRect(x+16,y+24-loff,6,6);
+  }
+  // head
+  drawCircle(x+14,y+9,9,'#ffe0bd');
+  // hair
+  drawCircle(x+14,y+4,8,'#5d4037');
+  ctx.fillStyle='#5d4037';ctx.fillRect(x+6,y+2,16,6);
+  // eyes based on direction
+  if(d===0){// down
+    drawCircle(x+10,y+10,2,'#333');drawCircle(x+18,y+10,2,'#333');
+  }else if(d===3){// up
+    // back of head only
+  }else if(d===1){// left
+    drawCircle(x+8,y+10,2,'#333');
+  }else{// right
+    drawCircle(x+20,y+10,2,'#333');
+  }
+  // arms
+  ctx.fillStyle='#2980b9';
+  ctx.fillRect(x+0,y+14,5,8);
+  ctx.fillRect(x+23,y+14,5,8);
+}
+
+// Draw HP/MP bar
+function drawBar(x,y,w,h,val,max,c1,c2){
+  drawRect(x,y,w,h,'#333');
+  const ratio=Math.max(0,val/max);
+  drawRect(x+1,y+1,(w-2)*ratio,h-2,c1);
+}
+
+// Title screen
+function drawTitle(){
+  ctx.fillStyle='#0a0a2e';ctx.fillRect(0,0,W,H);
+  // stars
+  for(let i=0;i<50;i++){
+    const sx=(i*137+frame*0.2)%W;
+    const sy=(i*89+frame*0.1)%H;
+    const bright=0.3+Math.sin(frame*0.05+i)*0.3;
+    ctx.fillStyle=`rgba(255,255,255,${bright})`;
+    ctx.fillRect(sx,sy,2,2);
+  }
+  // title
+  const ty=150+Math.sin(frame*0.03)*8;
+  ctx.save();
+  ctx.shadowColor='#f1c40f';ctx.shadowBlur=20;
+  drawTextCenter('たんけんRPG！',W/2,ty,42,'#f1c40f');
+  ctx.restore();
+  drawTextCenter('マップをたんけんして まおうをたおせ！',W/2,ty+55,16,'#ecf0f1');
+
+  // sword icon
+  const sw=W/2,sh=ty-40;
+  ctx.strokeStyle='#bdc3c7';ctx.lineWidth=3;
+  ctx.beginPath();ctx.moveTo(sw,sh-20);ctx.lineTo(sw,sh+20);ctx.stroke();
+  ctx.beginPath();ctx.moveTo(sw-10,sh-5);ctx.lineTo(sw+10,sh-5);ctx.stroke();
+  ctx.fillStyle='#f1c40f';ctx.fillRect(sw-3,sh-25,6,8);
+
+  const hasSave=!!localStorage.getItem('rpg_save');
+
+  // buttons
+  const btnY=350;
+  const blink=Math.sin(frame*0.08)>0;
+  drawRect(W/2-80,btnY,160,44,blink?'#e74c3c':'#c0392b');
+  drawTextCenter('はじめから',W/2,btnY+12,18,'#fff');
+
+  if(hasSave){
+    drawRect(W/2-80,btnY+60,160,44,'#2980b9');
+    drawTextCenter('つづきから',W/2,btnY+72,18,'#fff');
+  }
+
+  drawTextCenter('🏠 ゲームいちらんにもどる',W/2,H-50,14,'#888');
+}
+
+// Explore screen
+function drawExplore(){
+  const map=MAPS[player.area];
+  // Draw tiles
+  for(let ty=0;ty<TH;ty++){
+    for(let tx=0;tx<TW;tx++){
+      drawTile(map[ty][tx],tx*TS,ty*TS);
+    }
+  }
+
+  // Draw NPCs
+  NPCS.forEach(n=>{
+    if(n.area===player.area){
+      drawNPCSprite(n.tx,n.ty,n);
+    }
+  });
+
+  // Draw enemies
+  (areaEnemies[player.area]||[]).forEach(e=>{
+    drawMapEnemy(e);
+  });
+
+  // crystals already collected should not show
+  // Check crystal tiles and hide if collected
+  for(let ty=0;ty<TH;ty++){
+    for(let tx=0;tx<TW;tx++){
+      if(map[ty][tx]===CRYSTAL){
+        const ci=player.area===1?0:player.area===2?1:2;
+        if(crystalsCollected[ci]){
+          // Redraw as floor
+          drawRect(tx*TS,ty*TS,TS,TS,player.area===2?'#d4b896':'#27ae60');
+        }
+      }
+    }
+  }
+
+  // Draw player with smooth movement
+  let px,py;
+  if(player.moving){
+    const t=player.moveTimer/150;
+    px=player.fromX*TS+(player.x-player.fromX)*TS*t;
+    py=player.fromY*TS+(player.y-player.fromY)*TS*t;
+  }else{
+    px=player.x*TS;py=player.y*TS;
+  }
+  drawPlayer(px,py);
+
+  // UI Panel
+  drawRect(0,MAP_H,W,UI_H,'#1a1a2e');
+  drawRect(0,MAP_H,W,2,'#f1c40f');
+
+  // Area name
+  drawTextCenter(AREA_NAMES[player.area],W/2,MAP_H+6,14,'#f1c40f');
+
+  // HP
+  drawText('HP',12,MAP_H+26,12,'#e74c3c');
+  drawBar(36,MAP_H+26,100,14,player.hp,player.maxHp,'#e74c3c','#333');
+  drawText(`${player.hp}/${player.maxHp}`,140,MAP_H+26,11,'#fff');
+
+  // MP
+  drawText('MP',12,MAP_H+44,12,'#3498db');
+  drawBar(36,MAP_H+44,100,14,player.mp,player.maxMp,'#3498db','#333');
+  drawText(`${player.mp}/${player.maxMp}`,140,MAP_H+44,11,'#fff');
+
+  // Level & EXP
+  drawText(`Lv.${player.level}`,12,MAP_H+64,12,'#f1c40f');
+  drawText('EXP',50,MAP_H+64,10,'#888');
+  drawBar(76,MAP_H+64,60,10,player.exp,player.nextExp,'#f39c12','#333');
+
+  // Right side
+  drawText(`💎 ${player.crystals}/3`,W-120,MAP_H+26,14,'#00bcd4');
+  drawText(`💰 ${player.gold}G`,W-120,MAP_H+46,14,'#f1c40f');
+  drawText(`⚔ ${player.equip.weapon}`,W-120,MAP_H+66,11,'#bdc3c7');
+  drawText(`🛡 ${player.equip.armor}`,W-120,MAP_H+84,11,'#bdc3c7');
+
+  // ATK/DEF
+  drawText(`ATK:${player.atk} DEF:${player.def}`,12,MAP_H+82,10,'#aaa');
+
+  // Touch controls
+  drawTouchControls();
+}
+
+function drawTouchControls(){
+  const bx=60,by=MAP_H+105,bs=36,gap=2;
+  ctx.globalAlpha=0.5;
+  // dpad
+  drawRect(bx-bs/2,by-bs-gap-bs/2,bs,bs,'#555');drawTextCenter('↑',bx,by-bs-gap-bs/2+8,18,'#fff');
+  drawRect(bx-bs-gap-bs/2,by-bs/2,bs,bs,'#555');drawTextCenter('←',bx-bs-gap,by-bs/2+8,18,'#fff');
+  drawRect(bx+gap+bs/2,by-bs/2,bs,bs,'#555');drawTextCenter('→',bx+gap+bs,by-bs/2+8,18,'#fff');
+  drawRect(bx-bs/2,by+gap+bs/2,bs,bs,'#555');drawTextCenter('↓',bx,by+gap+bs/2+8,18,'#fff');
+  // A button
+  ctx.fillStyle='#e74c3c';
+  ctx.beginPath();ctx.arc(W-70,by,26,0,Math.PI*2);ctx.fill();
+  drawTextCenter('A',W-70,by-10,20,'#fff');
+  ctx.globalAlpha=1;
+}
+
+// Battle drawing
+function drawBattle(){
+  // BG
+  const bgColors={0:'#1a472a',1:'#1a472a',2:'#2c2c3e',3:'#1a1a2e'};
+  ctx.fillStyle=bgColors[player.area]||'#1a1a2e';
+  ctx.fillRect(0,0,W,MAP_H);
+
+  // BG decoration
+  if(player.area<=1){
+    // trees
+    for(let i=0;i<5;i++){
+      drawCircle(50+i*100,MAP_H-40,30,'#0d3b0d');
+      drawCircle(50+i*100,MAP_H-60,25,'#1a5c1a');
+    }
+  }else if(player.area===2){
+    // cave walls
+    for(let i=0;i<8;i++){
+      drawRect(i*65,0,60,MAP_H,'#252535');
+      ctx.fillStyle='#1e1e2e';ctx.fillRect(i*65+5,0,50,MAP_H);
+    }
+  }else{
+    // castle columns
+    for(let i=0;i<4;i++){
+      drawRect(40+i*130,50,30,MAP_H-50,'#2c2c3e');
+      drawRect(42+i*130,50,26,MAP_H-50,'#383850');
+    }
+    // windows
+    drawCircle(W/2,100,30,'#0d0d2e');
+    drawCircle(W/2,100,25,`rgba(100,0,0,${0.3+Math.sin(frame*.05)*.2})`);
+  }
+
+  if(!battleEnemy)return;
+  const def=ENEMY_DEFS[battleEnemy.type];
+
+  // Enemy
+  const ex=W/2, ey=160;
+  if(battleFlash>0&&battleFlash%4<2){
+    ctx.globalAlpha=0.3;
+  }
+  drawBattleEnemy(battleEnemy.type,ex,ey,1);
+  ctx.globalAlpha=1;
+
+  // Enemy name & HP
+  drawTextCenter(def.name,W/2,20,20,'#fff');
+  drawBar(W/2-60,46,120,12,battleEnemy.hp,battleEnemy.maxHp,'#e74c3c');
+  drawTextCenter(`${Math.max(0,battleEnemy.hp)}/${battleEnemy.maxHp}`,W/2,60,12,'#fff');
+
+  // Battle log
+  const logY=280;
+  drawRect(10,logY,W-20,80,'rgba(0,0,0,0.7)');
+  ctx.strokeStyle='#f1c40f';ctx.lineWidth=2;ctx.strokeRect(10,logY,W-20,80);
+  const visibleLog=battleLog.slice(-3);
+  visibleLog.forEach((l,i)=>{
+    drawText(l,20,logY+8+i*24,14,'#fff');
+  });
+
+  // Player info at bottom
+  drawRect(0,MAP_H-100,W,100,'rgba(0,0,20,0.8)');
+  if(battlePlayerFlash>0&&battlePlayerFlash%4<2){
+    drawRect(0,MAP_H-100,W,100,'rgba(255,0,0,0.3)');
+  }
+  drawText(`${player.equip.weapon}のゆうしゃ Lv.${player.level}`,15,MAP_H-95,13,'#f1c40f');
+  drawText('HP',15,MAP_H-75,12,'#e74c3c');
+  drawBar(40,MAP_H-75,100,14,player.hp,player.maxHp,'#e74c3c');
+  drawText(`${player.hp}/${player.maxHp}`,145,MAP_H-75,11,'#fff');
+  drawText('MP',15,MAP_H-55,12,'#3498db');
+  drawBar(40,MAP_H-55,100,14,player.mp,player.maxMp,'#3498db');
+  drawText(`${player.mp}/${player.maxMp}`,145,MAP_H-55,11,'#fff');
+
+  // Action buttons (when menu phase)
+  if(battlePhase==='menu'){
+    const btns=['こうげき','まほう','アイテム','にげる'];
+    const colors=['#e74c3c','#9b59b6','#27ae60','#f39c12'];
+    for(let i=0;i<4;i++){
+      const bx=W/2-170+i*88,by=MAP_H-35;
+      drawRect(bx,by,82,30,battleCursor===i?'#fff':colors[i]);
+      drawTextCenter(btns[i],bx+41,by+6,13,battleCursor===i?'#000':'#fff');
+    }
+  }
+  if(battlePhase==='item'){
+    drawRect(20,MAP_H-200,W-40,150,'rgba(0,0,30,0.9)');
+    ctx.strokeStyle='#f1c40f';ctx.lineWidth=2;ctx.strokeRect(20,MAP_H-200,W-40,150);
+    drawText('アイテムをえらんでね',30,MAP_H-195,14,'#f1c40f');
+    const usable=player.items.filter(it=>it.count>0);
+    if(usable.length===0){
+      drawText('アイテムがないよ...',30,MAP_H-165,14,'#aaa');
+    }else{
+      usable.forEach((it,i)=>{
+        const idef=ITEM_DEFS[it.id];
+        const sel=battleItemCursor===i;
+        if(sel)drawRect(25,MAP_H-170+i*28,W-50,26,'rgba(255,255,255,0.15)');
+        drawText(`${sel?'▶ ':'  '}${idef.name} ×${it.count}  ${idef.desc}`,30,MAP_H-168+i*28,13,sel?'#fff':'#bbb');
+      });
+    }
+    drawText('← → でえらぶ / Z/Space でけってい / X でもどる',30,MAP_H-55,11,'#888');
+  }
+
+  // Touch action buttons during battle
+  if(battlePhase==='menu'){
+    drawTouchBattleButtons();
+  }
+}
+
+function drawTouchBattleButtons(){
+  // Already drawn as part of the menu buttons
+}
+
+// Dialogue box
+function drawDialogue(){
+  drawExplore();
+  drawRect(10,MAP_H-130,W-20,120,'rgba(0,0,30,0.9)');
+  ctx.strokeStyle='#f1c40f';ctx.lineWidth=2;ctx.strokeRect(10,MAP_H-130,W-20,120);
+  if(dialogueName){
+    drawText(dialogueName,25,MAP_H-125,14,'#f1c40f');
+  }
+  const lines=dialogueText.split('\n');
+  lines.forEach((l,i)=>{
+    drawText(l,25,MAP_H-105+i*22,14,'#fff');
+  });
+  const blink=Math.sin(frame*0.1)>0;
+  if(blink)drawText('▼ Z/Space でとじる',W-200,MAP_H-25,11,'#888');
+}
+
+// Shop
+function drawShop(){
+  drawExplore();
+  drawRect(20,40,W-40,400,'rgba(0,0,30,0.95)');
+  ctx.strokeStyle='#f1c40f';ctx.lineWidth=2;ctx.strokeRect(20,40,W-40,400);
+  drawTextCenter('おみせ',W/2,50,22,'#f1c40f');
+  drawText(`💰 ${player.gold}G`,W-130,55,14,'#f1c40f');
+
+  const shopItems=[];
+  // consumables
+  ['potion','mppotion','holywater'].forEach(id=>{
+    const d=ITEM_DEFS[id];shopItems.push({type:'item',id,name:d.name,desc:d.desc,cost:d.cost});
+  });
+  // weapon upgrade
+  WEAPON_UPGRADES.forEach(u=>{
+    if(player.equip.weapon===u.from){
+      shopItems.push({type:'weapon',name:u.to,desc:`ATK+${u.atkBonus}`,cost:u.cost,upgrade:u});
+    }
+  });
+  // armor upgrade
+  ARMOR_UPGRADES.forEach(u=>{
+    if(player.equip.armor===u.from){
+      shopItems.push({type:'armor',name:u.to,desc:`DEF+${u.defBonus}`,cost:u.cost,upgrade:u});
+    }
+  });
+
+  shopItems.forEach((si,i)=>{
+    const sy=90+i*45;
+    const sel=shopCursor===i;
+    if(sel)drawRect(30,sy,W-60,40,'rgba(255,255,0,0.1)');
+    const canBuy=player.gold>=si.cost;
+    drawText(`${sel?'▶ ':'  '}${si.name}`,40,sy+5,15,sel?'#fff':'#bbb');
+    drawText(si.desc,200,sy+8,12,'#aaa');
+    drawText(`${si.cost}G`,W-100,sy+5,14,canBuy?'#f1c40f':'#666');
+  });
+
+  // store shopItems for reference
+  drawShop._items=shopItems;
+
+  drawText('↑↓ でえらぶ / Z でかう / X でとじる',40,410,12,'#888');
+}
+
+// Level up overlay
+function drawLevelUp(){
+  drawExplore();
+  drawRect(W/2-120,100,240,200,'rgba(0,0,30,0.95)');
+  ctx.strokeStyle='#f1c40f';ctx.lineWidth=3;ctx.strokeRect(W/2-120,100,240,200);
+  drawTextCenter('レベルアップ！',W/2,115,22,'#f1c40f');
+  if(levelUpInfo){
+    drawTextCenter(`Lv.${levelUpInfo.oldLv} → Lv.${levelUpInfo.newLv}`,W/2,150,18,'#fff');
+    drawText(`HP: ${levelUpInfo.oldMaxHp} → ${levelUpInfo.newMaxHp}`,W/2-80,180,14,'#e74c3c');
+    drawText(`MP: ${levelUpInfo.oldMaxMp} → ${levelUpInfo.newMaxMp}`,W/2-80,200,14,'#3498db');
+    drawText(`ATK: ${levelUpInfo.oldAtk} → ${levelUpInfo.newAtk}`,W/2-80,220,14,'#f39c12');
+    drawText(`DEF: ${levelUpInfo.oldDef} → ${levelUpInfo.newDef}`,W/2-80,240,14,'#27ae60');
+  }
+  drawTextCenter('HP・MPがぜんかいふくした！',W/2,270,13,'#2ecc71');
+}
+
+// Game over
+function drawGameOver(){
+  ctx.fillStyle='rgba(0,0,0,0.85)';ctx.fillRect(0,0,W,H);
+  const ty=200+Math.sin(frame*0.03)*5;
+  drawTextCenter('ゲームオーバー...',W/2,ty,32,'#e74c3c');
+  drawTextCenter('でも だいじょうぶ！',W/2,ty+50,18,'#ecf0f1');
+  drawTextCenter('まちにもどって もういちどチャレンジ！',W/2,ty+80,14,'#aaa');
+  if(gameOverTimer>90){
+    const blink=Math.sin(frame*0.08)>0;
+    if(blink)drawTextCenter('Z/Space/タップ でつづける',W/2,ty+130,16,'#f1c40f');
+  }
+}
+
+// Ending
+function drawEnding(){
+  ctx.fillStyle='#0a0a2e';ctx.fillRect(0,0,W,H);
+  // stars
+  for(let i=0;i<80;i++){
+    const sx=(i*137+frame*0.5)%W;
+    const sy=(i*89-frame*0.3+600)%H;
+    ctx.fillStyle=`rgba(255,255,255,${0.3+Math.sin(frame*0.05+i)*0.3})`;
+    ctx.fillRect(sx,sy,2,2);
+  }
+  // fireworks
+  for(let i=0;i<5;i++){
+    const t=(frame*0.02+i*1.3)%3;
+    if(t<1){
+      const fx=80+i*90,fy=100+i*40;
+      for(let j=0;j<12;j++){
+        const a=j/12*Math.PI*2;
+        const r=t*60;
+        const c=`hsl(${(i*60+j*30)%360},80%,60%)`;
+        drawCircle(fx+Math.cos(a)*r,fy+Math.sin(a)*r,3,c);
+      }
+    }
+  }
+  drawTextCenter('おめでとう！！',W/2,120,36,'#f1c40f');
+  drawTextCenter('まおうをたおした！',W/2,170,22,'#ecf0f1');
+  drawTextCenter('3つのクリスタルをとりもどし',W/2,220,16,'#00bcd4');
+  drawTextCenter('せかいにへいわがもどった！',W/2,245,16,'#00bcd4');
+
+  drawTextCenter('ゆうしゃのきろく',W/2,300,14,'#f39c12');
+  drawTextCenter(`レベル: ${player.level}`,W/2,325,14,'#fff');
+  drawTextCenter(`バトルすう: たくさん`,W/2,345,14,'#fff');
+
+  if(endingTimer>120){
+    drawTextCenter('ありがとう！また あそんでね！',W/2,400,18,'#2ecc71');
+    const blink=Math.sin(frame*0.08)>0;
+    if(blink)drawTextCenter('タップ/Z でタイトルへ',W/2,440,14,'#888');
+  }
+}
+
+// Input
+const keys={};
+document.addEventListener('keydown',e=>{
+  ensureAudio();
+  keys[e.key]=true;
+  if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight',' '].includes(e.key))e.preventDefault();
+});
+document.addEventListener('keyup',e=>{keys[e.key]=false;});
+
+function isDown(){return keys['ArrowDown']||keys['s']||keys['S']||touchDirs.down;}
+function isUp(){return keys['ArrowUp']||keys['w']||keys['W']||touchDirs.up;}
+function isLeft(){return keys['ArrowLeft']||keys['a']||keys['A']||touchDirs.left;}
+function isRight(){return keys['ArrowRight']||keys['d']||keys['D']||touchDirs.right;}
+function isAction(){return keys['z']||keys['Z']||keys[' ']||keys['Enter']||touchDirs.a;}
+function isCancel(){return keys['x']||keys['X']||keys['Escape'];}
+
+let actionPressed=false;
+let cancelPressed=false;
+function actionJustPressed(){
+  const p=isAction();
+  if(p&&!actionPressed){actionPressed=true;return true;}
+  if(!p)actionPressed=false;
+  return false;
+}
+function cancelJustPressed(){
+  const p=isCancel();
+  if(p&&!cancelPressed){cancelPressed=true;return true;}
+  if(!p)cancelPressed=false;
+  return false;
+}
+
+// direction just pressed tracking
+let dirPressed={up:false,down:false,left:false,right:false};
+function dirJust(dir){
+  const fn={up:isUp,down:isDown,left:isLeft,right:isRight}[dir];
+  const p=fn();
+  if(p&&!dirPressed[dir]){dirPressed[dir]=true;return true;}
+  if(!p)dirPressed[dir]=false;
+  return false;
+}
+
+// Touch handling
+cvs.addEventListener('touchstart',e=>{
+  ensureAudio();
+  e.preventDefault();
+  handleTouch(e.touches,true);
+},{passive:false});
+cvs.addEventListener('touchmove',e=>{
+  e.preventDefault();
+  handleTouch(e.touches,true);
+},{passive:false});
+cvs.addEventListener('touchend',e=>{
+  e.preventDefault();
+  touchDirs={left:false,right:false,up:false,down:false,a:false};
+},{passive:false});
+
+cvs.addEventListener('click',e=>{
+  ensureAudio();
+  const rect=cvs.getBoundingClientRect();
+  const scaleX=W/rect.width,scaleY=H/rect.height;
+  const cx=(e.clientX-rect.left)*scaleX;
+  const cy=(e.clientY-rect.top)*scaleY;
+  handleClick(cx,cy);
+});
+
+function handleTouch(touches,isDown){
+  touchDirs={left:false,right:false,up:false,down:false,a:false};
+  if(!isDown)return;
+  const rect=cvs.getBoundingClientRect();
+  const scaleX=W/rect.width,scaleY=H/rect.height;
+  for(let t of touches){
+    const cx=(t.clientX-rect.left)*scaleX;
+    const cy=(t.clientY-rect.top)*scaleY;
+    // dpad
+    const bx=60,by=MAP_H+105,bs=36,gap=2;
+    if(cy>MAP_H+60){
+      // up
+      if(cx>bx-bs&&cx<bx+bs&&cy>by-bs*2&&cy<by-bs/2)touchDirs.up=true;
+      // down
+      if(cx>bx-bs&&cx<bx+bs&&cy>by+bs/2&&cy<by+bs*2)touchDirs.down=true;
+      // left
+      if(cx>bx-bs*2&&cx<bx-bs/2&&cy>by-bs&&cy<by+bs)touchDirs.left=true;
+      // right
+      if(cx>bx+bs/2&&cx<bx+bs*2&&cy>by-bs&&cy<by+bs)touchDirs.right=true;
+      // A button
+      if(Math.hypot(cx-(W-70),cy-by)<35)touchDirs.a=true;
+    }
+  }
+}
+
+function handleClick(cx,cy){
+  if(scene==='title'){
+    const btnY=350;
+    if(cx>W/2-80&&cx<W/2+80){
+      if(cy>btnY&&cy<btnY+44){
+        resetGame();scene='explore';
+      }
+      if(cy>btnY+60&&cy<btnY+104){
+        if(loadGame()){scene='explore';}
+      }
+    }
+    // home link
+    if(cy>H-60&&cx>W/2-120&&cx<W/2+120){
+      window.location.href='../../index.html';
+    }
+    return;
+  }
+  if(scene==='gameover'&&gameOverTimer>90){
+    continueAfterGameOver();return;
+  }
+  if(scene==='ending'&&endingTimer>120){
+    resetGame();scene='title';return;
+  }
+  if(scene==='battle'&&battlePhase==='menu'){
+    // Check button clicks
+    for(let i=0;i<4;i++){
+      const bx=W/2-170+i*88,by=MAP_H-35;
+      if(cx>bx&&cx<bx+82&&cy>by&&cy<by+30){
+        battleCursor=i;
+        executeBattleAction(i);
+        return;
+      }
+    }
+  }
+}
+
+// Walkable check
+function isWalkable(area,tx,ty){
+  if(tx<0||ty<0||tx>=TW||ty>=TH)return false;
+  const t=MAPS[area][ty][tx];
+  return t===GRASS||t===FLOOR||t===DOOR||t===CHEST||t===SIGN||t===STAIRS_DOWN||t===STAIRS_UP||t===CRYSTAL||t===BOSS_TRIGGER;
+}
+
+// Check NPC at tile
+function getNPC(area,tx,ty){
+  return NPCS.find(n=>n.area===area&&n.tx===tx&&n.ty===ty);
+}
+
+// Check enemy at tile
+function getEnemy(area,tx,ty){
+  const enemies=areaEnemies[area]||[];
+  return enemies.find(e=>e.alive&&e.tx===tx&&e.ty===ty);
+}
+
+// Move player
+function tryMove(dx,dy){
+  if(player.moving)return;
+  const nd=dx<0?1:dx>0?2:dy<0?3:0;
+  player.dir=nd;
+
+  const nx=player.x+dx,ny=player.y+dy;
+
+  // Check NPC blocking (not walkable conceptually)
+  const npc=getNPC(player.area,nx,ny);
+  if(npc)return;
+
+  if(!isWalkable(player.area,nx,ny))return;
+
+  // Check enemy
+  const enemy=getEnemy(player.area,nx,ny);
+  if(enemy){
+    startBattle(enemy);
+    return;
+  }
+
+  player.fromX=player.x;player.fromY=player.y;
+  player.x=nx;player.y=ny;
+  player.moving=true;player.moveTimer=0;
+  player.animFrame=1-player.animFrame;
+  sfxWalk();
+}
+
+// Interact
+function interact(){
+  const dx=[0,-1,1,0][player.dir];
+  const dy=[1,0,0,-1][player.dir];
+  const tx=player.x+dx,ty=player.y+dy;
+
+  // NPC
+  const npc=getNPC(player.area,tx,ty);
+  if(npc){
+    if(npc.isShop){
+      scene='shop';shopCursor=0;sfxShop();
+      return;
+    }
+    dialogueName=npc.name;dialogueText=npc.msg;scene='dialogue';
+    return;
+  }
+
+  // Sign
+  const sign=SIGNS.find(s=>s.area===player.area&&s.tx===tx&&s.ty===ty);
+  if(sign){
+    dialogueName='かんばん';dialogueText=sign.msg;scene='dialogue';
+    return;
+  }
+
+  // Check current tile too
+  checkTile();
+}
+
+function checkTile(){
+  const tile=MAPS[player.area][player.y][player.x];
+
+  // Door
+  if(tile===DOOR){
+    const doors=DOORS[player.area]||[];
+    const d=doors.find(dd=>dd.tx===player.x&&dd.ty===player.y);
+    if(d){
+      // Check if going to castle requires 2 crystals (forest+cave)
+      if(d.dest===3&&player.crystals<2){
+        dialogueName='';dialogueText='クリスタルが2つひつようだ！\nもりとどうくつをたんけんしよう。';
+        scene='dialogue';return;
+      }
+      player.area=d.dest;player.x=d.dx;player.y=d.dy;
+      player.moving=false;
+      saveGame();
+    }
+    return;
+  }
+
+  // Chest
+  if(tile===CHEST){
+    const ck=`${player.area}_${player.x}_${player.y}`;
+    if(!openedChests[ck]){
+      openedChests[ck]=true;
+      sfxChest();
+      // Determine reward
+      let reward='';
+      if(player.area===1){
+        addItem('potion',1);reward='ポーション を てにいれた！';
+      }else if(player.area===2){
+        if(player.x===2&&player.y===2){addItem('mppotion',2);reward='マジックポーション ×2 を てにいれた！';}
+        else{addItem('potion',2);reward='ポーション ×2 を てにいれた！';}
+      }else if(player.area===3){
+        if(player.x===5){addItem('potion',3);reward='ポーション ×3 を てにいれた！';}
+        else{addItem('mppotion',2);reward='マジックポーション ×2 を てにいれた！';}
+      }
+      dialogueName='たからばこ';dialogueText=reward;scene='dialogue';
+      saveGame();
+    }
+    return;
+  }
+
+  // Crystal
+  if(tile===CRYSTAL){
+    const ci=player.area===1?0:player.area===2?1:2;
+    if(!crystalsCollected[ci]){
+      crystalsCollected[ci]=true;
+      player.crystals++;
+      sfxCrystal();
+      dialogueName='';dialogueText=`💎 クリスタルをてにいれた！（${player.crystals}/3）`;
+      scene='dialogue';
+      saveGame();
+    }
+    return;
+  }
+
+  // Boss trigger
+  if(tile===BOSS_TRIGGER&&!defeatedBoss){
+    if(player.crystals<3){
+      // Need to get crystal from cave first if not all collected
+      // Actually crystal 3 is in cave, boss just requires 2 to enter castle
+      // Let boss fight happen
+    }
+    // Find boss enemy
+    const bossEnemy={type:'maou',tx:player.x,ty:player.y,alive:true,timer:0,isBoss:true};
+    sfxBoss();
+    startBattle(bossEnemy,true);
+    return;
+  }
+}
+
+function addItem(id,count){
+  const it=player.items.find(i=>i.id===id);
+  if(it)it.count+=count;
+  else player.items.push({id,count});
+}
+
+// Battle
+function startBattle(enemy,isBossFight){
+  const def=ENEMY_DEFS[enemy.type];
+  battleEnemy={...enemy,hp:def.hp,maxHp:def.hp,mapRef:isBossFight?null:enemy};
+  battleEnemyMaxHp=def.hp;
+  battleLog=[`${def.name} があらわれた！`];
+  battlePhase='menu';
+  battleCursor=0;
+  battleFlash=0;
+  battlePlayerFlash=0;
+  scene='battle';
+  if(def.isBoss){
+    battleLog.push('ボスバトル！きあいをいれろ！');
+  }
+}
+
+function executeBattleAction(action){
+  if(battlePhase!=='menu')return;
+  const def=ENEMY_DEFS[battleEnemy.type];
+
+  if(action===0){// Attack
+    battlePhase='playerAnim';battleAnimTimer=0;
+    sfxAttack();
+    const dmg=Math.max(1,player.atk+Math.floor(Math.random()*5)-def.def);
+    battleEnemy.hp-=dmg;
+    battleLog.push(`こうげき！ ${dmg}ダメージ！`);
+    battleFlash=20;
+    setTimeout(()=>afterPlayerAction(),600);
+  }
+  else if(action===1){// Magic
+    if(player.mp<3){
+      battleLog.push('MPがたりない！');
+      return;
+    }
+    battlePhase='playerAnim';battleAnimTimer=0;
+    sfxMagic();
+    player.mp-=3;
+    const dmg=Math.max(1,Math.floor(player.atk*1.5)+5);
+    battleEnemy.hp-=dmg;
+    battleLog.push(`まほう！ ${dmg}ダメージ！`);
+    battleFlash=20;
+    setTimeout(()=>afterPlayerAction(),600);
+  }
+  else if(action===2){// Item
+    battlePhase='item';
+    battleItemCursor=0;
+  }
+  else if(action===3){// Run
+    if(def.isBoss){
+      battleLog.push('ボスからは にげられない！');
+      return;
+    }
+    if(Math.random()<0.7){
+      battleLog.push('にげきれた！');
+      setTimeout(()=>{scene='explore';},500);
+    }else{
+      battleLog.push('にげられなかった！');
+      setTimeout(()=>enemyTurn(),500);
+    }
+    battlePhase='playerAnim';
+  }
+}
+
+function useItemInBattle(itemIdx){
+  const usable=player.items.filter(it=>it.count>0);
+  if(itemIdx>=usable.length)return;
+  const it=usable[itemIdx];
+  battlePhase='playerAnim';
+
+  if(it.id==='potion'){
+    it.count--;
+    const heal=Math.min(20,player.maxHp-player.hp);
+    player.hp+=heal;
+    battleLog.push(`ポーションをつかった！HP ${heal}かいふく！`);
+    sfxShop();
+    setTimeout(()=>enemyTurn(),600);
+  }else if(it.id==='mppotion'){
+    it.count--;
+    const heal=Math.min(10,player.maxMp-player.mp);
+    player.mp+=heal;
+    battleLog.push(`マジックポーションをつかった！MP ${heal}かいふく！`);
+    sfxShop();
+    setTimeout(()=>enemyTurn(),600);
+  }else if(it.id==='holywater'){
+    const def=ENEMY_DEFS[battleEnemy.type];
+    if(def.isBoss){
+      battleLog.push('ボスにはきかない！');
+      setTimeout(()=>{battlePhase='menu';},400);
+      return;
+    }
+    it.count--;
+    battleLog.push('せいすいをつかった！にげきれた！');
+    setTimeout(()=>{scene='explore';},600);
+  }
+  // Clean up empty items
+  player.items=player.items.filter(i=>i.count>0);
+}
+
+function afterPlayerAction(){
+  if(battleEnemy.hp<=0){
+    // Victory
+    const def=ENEMY_DEFS[battleEnemy.type];
+    battleLog.push(`${def.name} をたおした！`);
+    sfxVictory();
+
+    // Mark map enemy as dead
+    if(battleEnemy.mapRef){
+      battleEnemy.mapRef.alive=false;
+      battleEnemy.mapRef.timer=3600; // respawn after 60s at 60fps
+    }
+
+    setTimeout(()=>{
+      battleLog.push(`${def.exp}EXP と ${def.gold}G をもらった！`);
+      player.exp+=def.exp;
+      player.gold+=def.gold;
+
+      // Boss defeat
+      if(def.isBoss){
+        defeatedBoss=true;
+        if(!crystalsCollected[2]){
+          crystalsCollected[2]=true;
+          player.crystals++;
+        }
+        saveGame();
+        setTimeout(()=>{scene='ending';endingTimer=0;},1500);
+        return;
+      }
+
+      // Check level up
+      if(player.exp>=player.nextExp){
+        doLevelUp();
+      }
+
+      setTimeout(()=>{
+        scene='explore';
+        saveGame();
+      },1200);
+    },600);
+    battlePhase='result';
+    return;
+  }
+  // Enemy turn
+  setTimeout(()=>enemyTurn(),300);
+}
+
+function enemyTurn(){
+  const def=ENEMY_DEFS[battleEnemy.type];
+  battlePhase='enemyTurn';
+
+  let dmg;
+  const special=Math.random()<0.3;
+  if(special&&def.isBoss){
+    // Boss special attacks based on HP
+    const hpRatio=battleEnemy.hp/battleEnemy.maxHp;
+    if(hpRatio<0.3){
+      dmg=Math.max(1,def.atk*2-player.def);
+      battleLog.push(`${def.name} のぜんりょくこうげき！`);
+    }else if(hpRatio<0.6){
+      dmg=Math.max(1,Math.floor(def.atk*1.5)-player.def);
+      battleLog.push(`${def.name} のとくしゅこうげき！`);
+    }else{
+      dmg=Math.max(1,def.atk+3-player.def);
+      battleLog.push(`${def.name} のつよいこうげき！`);
+    }
+  }else if(special){
+    dmg=Math.max(1,def.atk+Math.floor(Math.random()*4)+2-player.def);
+    battleLog.push(`${def.name} のとくしゅこうげき！`);
+  }else{
+    dmg=Math.max(1,def.atk+Math.floor(Math.random()*3)-player.def);
+    battleLog.push(`${def.name} のこうげき！`);
+  }
+  player.hp-=dmg;
+  battleLog.push(`${dmg}ダメージをうけた！`);
+  sfxHit();
+  battlePlayerFlash=20;
+
+  setTimeout(()=>{
+    if(player.hp<=0){
+      player.hp=0;
+      battleLog.push('たおれてしまった...');
+      sfxGameOver();
+      setTimeout(()=>{scene='gameover';gameOverTimer=0;},1000);
+    }else{
+      battlePhase='menu';
+    }
+  },600);
+}
+
+function doLevelUp(){
+  while(player.exp>=player.nextExp&&player.level<10){
+    const oldLv=player.level,oldMaxHp=player.maxHp,oldMaxMp=player.maxMp,oldAtk=player.baseAtk,oldDef=player.baseDef;
+    player.level++;
+    player.exp-=player.nextExp;
+    player.nextExp=player.level*20;
+    player.maxHp+=8;player.maxMp+=3;player.baseAtk+=2;player.baseDef+=1;
+    player.hp=player.maxHp;player.mp=player.maxMp;
+    recalcStats();
+    levelUpInfo={oldLv,newLv:player.level,oldMaxHp,newMaxHp:player.maxHp,oldMaxMp,newMaxMp:player.maxMp,oldAtk,newAtk:player.baseAtk,oldDef,newDef:player.baseDef};
+  }
+  sfxLevelUp();
+  scene='levelup';levelUpTimer=0;
+}
+
+function continueAfterGameOver(){
+  player.hp=player.maxHp;player.mp=player.maxMp;
+  player.gold=Math.floor(player.gold/2);
+  player.area=0;player.x=7;player.y=7;
+  scene='explore';
+  saveGame();
+}
+
+// Shop logic
+function buyShopItem(){
+  const items=drawShop._items;
+  if(!items||shopCursor>=items.length)return;
+  const si=items[shopCursor];
+  if(player.gold<si.cost){
+    dialogueName='おかみさん';dialogueText='お金がたりないよ！';scene='dialogue';return;
+  }
+  player.gold-=si.cost;
+  sfxShop();
+  if(si.type==='item'){
+    addItem(si.id,1);
+    dialogueName='おかみさん';dialogueText=`${si.name} をかったよ！`;scene='dialogue';
+  }else if(si.type==='weapon'){
+    player.equip.weapon=si.upgrade.to;
+    recalcStats();
+    dialogueName='おかみさん';dialogueText=`${si.name} をそうびした！\nATKが${si.upgrade.atkBonus}あがった！`;scene='dialogue';
+  }else if(si.type==='armor'){
+    player.equip.armor=si.upgrade.to;
+    recalcStats();
+    dialogueName='おかみさん';dialogueText=`${si.name} をそうびした！\nDEFが${si.upgrade.defBonus}あがった！`;scene='dialogue';
+  }
+  saveGame();
+}
+
+// Update
+let lastTime=0;
+function update(dt){
+  frame++;
+  waterAnim+=0.03;
+  crystalAnim+=0.05;
+
+  if(battleFlash>0)battleFlash--;
+  if(battlePlayerFlash>0)battlePlayerFlash--;
+
+  // Respawn timers
+  areaEnemies.forEach(enemies=>{
+    enemies.forEach(e=>{
+      if(!e.alive){
+        e.timer--;
+        if(e.timer<=0){e.alive=true;}
+      }
+    });
+  });
+
+  if(scene==='explore'){
+    if(player.moving){
+      player.moveTimer+=dt;
+      if(player.moveTimer>=150){
+        player.moving=false;
+        player.moveTimer=0;
+        // Check tile effects after landing
+        checkTile();
+      }
+    }
+    if(!player.moving&&inputCooldown<=0){
+      if(isDown())tryMove(0,1);
+      else if(isUp())tryMove(0,-1);
+      else if(isLeft())tryMove(-1,0);
+      else if(isRight())tryMove(1,0);
+      if(actionJustPressed())interact();
+    }
+    if(inputCooldown>0)inputCooldown-=dt;
+  }
+  else if(scene==='title'){
+    titleAnim++;
+    if(actionJustPressed()){
+      if(loadGame())scene='explore';
+      else{resetGame();scene='explore';}
+    }
+  }
+  else if(scene==='dialogue'){
+    if(actionJustPressed()){
+      scene=shopOpen?'shop':'explore';
+    }
+  }
+  else if(scene==='shop'){
+    shopOpen=true;
+    const items=drawShop._items||[];
+    if(dirJust('up'))shopCursor=Math.max(0,shopCursor-1);
+    if(dirJust('down'))shopCursor=Math.min(items.length-1,shopCursor+1);
+    if(actionJustPressed())buyShopItem();
+    if(cancelJustPressed()){scene='explore';shopOpen=false;}
+  }
+  else if(scene==='battle'){
+    if(battlePhase==='menu'){
+      if(dirJust('left'))battleCursor=Math.max(0,battleCursor-1);
+      if(dirJust('right'))battleCursor=Math.min(3,battleCursor+1);
+      if(actionJustPressed())executeBattleAction(battleCursor);
+    }
+    if(battlePhase==='item'){
+      const usable=player.items.filter(it=>it.count>0);
+      if(dirJust('up'))battleItemCursor=Math.max(0,battleItemCursor-1);
+      if(dirJust('down'))battleItemCursor=Math.min(usable.length-1,battleItemCursor+1);
+      if(actionJustPressed())useItemInBattle(battleItemCursor);
+      if(cancelJustPressed())battlePhase='menu';
+    }
+  }
+  else if(scene==='levelup'){
+    levelUpTimer++;
+    if(levelUpTimer>60&&actionJustPressed()){
+      scene='explore';saveGame();
+    }
+  }
+  else if(scene==='gameover'){
+    gameOverTimer++;
+    if(gameOverTimer>90&&actionJustPressed()){
+      continueAfterGameOver();
+    }
+  }
+  else if(scene==='ending'){
+    endingTimer++;
+    if(endingTimer>120&&actionJustPressed()){
+      resetGame();scene='title';
+    }
+  }
+}
+
+// Main loop
+function gameLoop(time){
+  const dt=lastTime?Math.min(time-lastTime,50):16;
+  lastTime=time;
+  update(dt);
+
+  ctx.clearRect(0,0,W,H);
+  switch(scene){
+    case 'title':drawTitle();break;
+    case 'explore':drawExplore();break;
+    case 'battle':drawBattle();break;
+    case 'dialogue':drawDialogue();break;
+    case 'shop':drawShop();break;
+    case 'levelup':drawLevelUp();break;
+    case 'gameover':drawGameOver();break;
+    case 'ending':drawEnding();break;
+  }
+  requestAnimationFrame(gameLoop);
+}
+
+// Show home link on title
+document.getElementById('home-link').style.display='block';
+
+// Init shop items cache
+drawShop._items=[];
+
+// Start
+requestAnimationFrame(gameLoop);
+
+</script>
+</body>
+</html>
