@@ -98,179 +98,199 @@ window.addEventListener('resize', () => { resizeCanvas(); draw(); });
 // =====================================================
 // LEVELS DATA
 // =====================================================
+// Directions: UP=0, RIGHT=1, DOWN=2, LEFT=3
 const LEVELS = [
-  {
-    name: 'レベル1: まっすぐ進め！',
-    hint: '「前に進む」を4回つかおう！',
-    start: {row:3, col:1, dir:1},
-    grid: [
-      [1,1,1,1,1,1,1],
-      [1,0,0,0,0,0,1],
-      [1,0,1,1,1,0,1],
-      [1,0,0,0,0,3,1],
-      [1,0,1,1,1,0,1],
-      [1,0,0,0,0,0,1],
-      [1,1,1,1,1,1,1],
-    ],
-    availableCmds: ['forward','turnR','turnL'],
-    stars: [],
-  },
-  {
-    name: 'レベル2: まがり道',
-    hint: '「左を向く」→「前に進む」でまがれるよ！',
-    start: {row:3, col:1, dir:1},
-    grid: [
-      [1,1,1,1,1,1,1],
-      [1,1,1,0,0,3,1],
-      [1,1,1,0,1,1,1],
-      [1,0,0,0,1,1,1],
-      [1,1,1,1,1,1,1],
-      [1,1,1,1,1,1,1],
-      [1,1,1,1,1,1,1],
-    ],
-    availableCmds: ['forward','turnR','turnL'],
-    stars: [],
-  },
-  {
-    name: 'レベル3: ★を集めろ！',
-    hint: '⭐を全部とってからゴールへ！',
-    start: {row:1, col:1, dir:1},
-    grid: [
-      [1,1,1,1,1,1,1],
-      [1,0,0,0,0,0,1],
-      [1,1,1,0,1,1,1],
-      [1,0,0,0,0,0,1],
-      [1,0,1,1,1,0,1],
-      [1,0,0,3,0,0,1],
-      [1,1,1,1,1,1,1],
-    ],
-    availableCmds: ['forward','turnR','turnL','turnB'],
-    stars: [{row:1,col:4},{row:3,col:1}],
-  },
-  {
-    name: 'レベル4: あなに注意！',
-    hint: '🕳の手前で曲がろう！まっすぐ行くと落ちるよ',
-    start: {row:1, col:1, dir:1},
-    grid: [
-      [1,1,1,1,1,1,1],
-      [1,0,0,0,4,0,1],
-      [1,1,1,0,1,1,1],
-      [1,1,1,0,0,3,1],
-      [1,1,1,1,1,1,1],
-      [1,1,1,1,1,1,1],
-      [1,1,1,1,1,1,1],
-    ],
-    availableCmds: ['forward','turnR','turnL','turnB'],
-    stars: [],
-  },
-  {
-    name: 'レベル5: はこを越えろ！',
-    hint: '📦の上は「ジャンプ！」でとびこえよう',
-    start: {row:3, col:1, dir:1},
-    grid: [
-      [1,1,1,1,1,1,1],
-      [1,1,1,0,1,1,1],
-      [1,1,1,0,1,1,1],
-      [1,0,5,0,5,3,1],
-      [1,1,1,0,1,1,1],
-      [1,1,1,0,1,1,1],
-      [1,1,1,1,1,1,1],
-    ],
-    availableCmds: ['forward','turnR','turnL','jump'],
-    stars: [{row:1,col:3},{row:5,col:3}],
-  },
-  {
-    name: 'レベル6: くりかえし！',
-    hint: '「くりかえし×2」を使うと短いプログラムで遠くへ行けるよ！',
-    start: {row:3, col:1, dir:1},
-    grid: [
-      [1,1,1,1,1,1,1],
-      [1,1,1,1,1,1,1],
-      [1,1,1,1,1,1,1],
-      [1,0,0,0,0,3,1],
-      [1,1,1,1,1,1,1],
-      [1,1,1,1,1,1,1],
-      [1,1,1,1,1,1,1],
-    ],
-    availableCmds: ['forward','turnR','turnL','repeat2'],
-    stars: [],
-  },
-  {
-    name: 'レベル7: めいろ',
-    hint: '複雑な迷路！頭を使って解こう',
-    start: {row:1, col:1, dir:2},
-    grid: [
-      [1,1,1,1,1,1,1],
-      [1,0,1,0,0,0,1],
-      [1,0,1,0,1,0,1],
-      [1,0,0,0,1,0,1],
-      [1,1,1,0,1,0,1],
-      [1,1,1,0,0,3,1],
-      [1,1,1,1,1,1,1],
-    ],
-    availableCmds: ['forward','turnR','turnL','turnB','repeat2'],
-    stars: [{row:1,col:5}],
-  },
-  {
-    name: 'レベル8: 大迷路',
-    hint: 'すべての⭐を集めてゴールだ！',
-    start: {row:1, col:1, dir:1},
-    grid: [
-      [1,1,1,1,1,1,1],
-      [1,0,0,0,1,0,1],
-      [1,0,1,0,1,0,1],
-      [1,0,1,0,0,0,1],
-      [1,0,1,1,1,0,1],
-      [1,0,0,0,0,3,1],
-      [1,1,1,1,1,1,1],
-    ],
-    availableCmds: ['forward','turnR','turnL','turnB','jump','repeat2'],
-    stars: [{row:1,col:5},{row:3,col:5},{row:5,col:1}],
-  },
-  {
-    name: 'レベル9: あなとはこ',
-    hint: 'あなを避けて、はこを飛び越えて！',
-    start: {row:1, col:1, dir:2},
-    grid: [
-      [1,1,1,1,1,1,1],
-      [1,0,1,1,1,1,1],
-      [1,0,1,1,1,1,1],
-      [1,0,4,5,4,0,1],
-      [1,1,1,1,1,0,1],
-      [1,1,1,1,1,3,1],
-      [1,1,1,1,1,1,1],
-    ],
-    availableCmds: ['forward','turnR','turnL','turnB','jump'],
-    stars: [{row:3,col:5}],
-  },
-  {
-    name: 'レベル10: 最終問題！',
-    hint: 'これが最後のステージ！全部の知識を使え！',
-    start: {row:1, col:1, dir:1},
-    grid: [
-      [1,1,1,1,1,1,1],
-      [1,0,5,0,4,0,1],
-      [1,4,1,0,1,0,1],
-      [1,0,0,0,1,0,1],
-      [1,0,1,4,1,0,1],
-      [1,0,0,0,0,3,1],
-      [1,1,1,1,1,1,1],
-    ],
-    availableCmds: ['forward','turnR','turnL','turnB','jump','repeat2'],
-    stars: [{row:1,col:3},{row:1,col:5},{row:3,col:1}],
-  },
+  // ── GROUP 1: チュートリアル ──
+  { name:'まっすぐ進め！', hint:'「前に進む」を4回つかおう！',
+    start:{row:3,col:1,dir:1},
+    grid:[[1,1,1,1,1,1,1],[1,0,0,0,0,0,1],[1,0,1,1,1,0,1],[1,0,0,0,0,3,1],[1,0,1,1,1,0,1],[1,0,0,0,0,0,1],[1,1,1,1,1,1,1]],
+    availableCmds:['forward','turnR','turnL'], maxSlots:12, stars:[]},
+
+  { name:'まがり道', hint:'「右を向く」→「前に進む」でまがれる！',
+    start:{row:3,col:1,dir:1},
+    grid:[[1,1,1,1,1,1,1],[1,1,1,0,0,3,1],[1,1,1,0,1,1,1],[1,0,0,0,1,1,1],[1,1,1,1,1,1,1],[1,1,1,1,1,1,1],[1,1,1,1,1,1,1]],
+    availableCmds:['forward','turnR','turnL'], maxSlots:12, stars:[]},
+
+  { name:'★をあつめろ！', hint:'⭐を全部とってからゴールへ！',
+    start:{row:1,col:1,dir:1},
+    grid:[[1,1,1,1,1,1,1],[1,0,0,0,0,0,1],[1,1,1,0,1,1,1],[1,0,0,0,0,0,1],[1,0,1,1,1,0,1],[1,0,0,3,0,0,1],[1,1,1,1,1,1,1]],
+    availableCmds:['forward','turnR','turnL','turnB'], maxSlots:12, stars:[{row:1,col:4},{row:3,col:1}]},
+
+  { name:'あなに注意！', hint:'🕳に入ると落ちる！まがって避けよう',
+    start:{row:1,col:1,dir:1},
+    grid:[[1,1,1,1,1,1,1],[1,0,0,0,4,0,1],[1,1,1,0,1,1,1],[1,1,1,0,0,3,1],[1,1,1,1,1,1,1],[1,1,1,1,1,1,1],[1,1,1,1,1,1,1]],
+    availableCmds:['forward','turnR','turnL','turnB'], maxSlots:12, stars:[]},
+
+  { name:'はこをとびこえろ！', hint:'📦は「ジャンプ！」でとびこえよう',
+    start:{row:3,col:1,dir:1},
+    grid:[[1,1,1,1,1,1,1],[1,1,1,0,1,1,1],[1,1,1,0,1,1,1],[1,0,5,0,5,3,1],[1,1,1,0,1,1,1],[1,1,1,0,1,1,1],[1,1,1,1,1,1,1]],
+    availableCmds:['forward','turnR','turnL','jump'], maxSlots:12, stars:[{row:1,col:3},{row:5,col:3}]},
+
+  // ── GROUP 2: くりかえし ──
+  { name:'×2くりかえし！', hint:'スロット3つだけ！くりかえしで4マス進もう！',
+    start:{row:3,col:1,dir:1},
+    grid:[[1,1,1,1,1,1,1],[1,1,1,1,1,1,1],[1,1,1,1,1,1,1],[1,0,0,0,0,3,1],[1,1,1,1,1,1,1],[1,1,1,1,1,1,1],[1,1,1,1,1,1,1]],
+    availableCmds:['forward','repeat2'], maxSlots:3, stars:[]},
+
+  { name:'×3くりかえし！', hint:'スロット3つ！×3で6マス進もう！',
+    start:{row:3,col:0,dir:1},
+    grid:[[1,1,1,1,1,1,1],[1,1,1,1,1,1,1],[1,1,1,1,1,1,1],[0,0,0,0,0,0,3],[1,1,1,1,1,1,1],[1,1,1,1,1,1,1],[1,1,1,1,1,1,1]],
+    availableCmds:['forward','repeat3'], maxSlots:3, stars:[]},
+
+  { name:'L字めいろ！', hint:'6スロットだけ！くりかえしでL字を進もう！',
+    start:{row:1,col:1,dir:1},
+    grid:[[1,1,1,1,1,1,1],[1,0,0,0,0,0,1],[1,1,1,1,1,0,1],[1,1,1,1,1,0,1],[1,1,1,1,1,0,1],[1,1,1,1,1,3,1],[1,1,1,1,1,1,1]],
+    availableCmds:['forward','turnR','repeat2'], maxSlots:6, stars:[]},
+
+  { name:'くねくね道', hint:'8スロット以内で★を集めてゴール！',
+    start:{row:1,col:1,dir:1},
+    grid:[[1,1,1,1,1,1,1],[1,0,0,0,0,0,1],[1,0,1,1,1,0,1],[1,0,0,0,0,0,1],[1,1,1,0,1,0,1],[1,1,1,3,1,0,1],[1,1,1,1,1,1,1]],
+    availableCmds:['forward','turnR','turnL','turnB'], maxSlots:8, stars:[{row:1,col:5},{row:3,col:5}]},
+
+  { name:'くりかえしとジャンプ', hint:'8スロット！くりかえしとジャンプを組み合わせよう！',
+    start:{row:3,col:1,dir:1},
+    grid:[[1,1,1,1,1,1,1],[1,1,1,0,1,1,1],[1,1,1,0,1,1,1],[1,0,5,0,5,0,1],[1,1,1,0,1,0,1],[1,1,1,3,1,0,1],[1,1,1,1,1,1,1]],
+    availableCmds:['forward','turnR','turnL','jump','repeat2'], maxSlots:8, stars:[]},
+
+  // ── GROUP 3: コマンド制限 ──
+  { name:'前に進む：4回まで！', hint:'「前に進む」は4回しか使えない！ちょうど4回でゴールへ！',
+    start:{row:3,col:1,dir:1},
+    grid:[[1,1,1,1,1,1,1],[1,1,1,1,1,1,1],[1,1,1,1,1,1,1],[1,0,0,0,0,3,1],[1,1,1,1,1,1,1],[1,1,1,1,1,1,1],[1,1,1,1,1,1,1]],
+    availableCmds:['forward','turnR','turnL'], maxSlots:12, stars:[],
+    cmdLimits:{forward:4}},
+
+  { name:'右を向く：1回まで！', hint:'「右を向く」は1回だけ！うまく使ってゴールへ！',
+    start:{row:3,col:1,dir:1},
+    grid:[[1,1,1,1,1,1,1],[1,1,1,1,1,1,1],[1,1,1,1,1,1,1],[1,0,0,0,1,1,1],[1,1,1,0,1,1,1],[1,1,1,3,1,1,1],[1,1,1,1,1,1,1]],
+    availableCmds:['forward','turnR','turnL'], maxSlots:12, stars:[],
+    cmdLimits:{turnR:1}},
+
+  { name:'ジャンプ：1回まで！', hint:'「ジャンプ！」は1回だけ！うまくとびこえよう！',
+    start:{row:3,col:1,dir:1},
+    grid:[[1,1,1,1,1,1,1],[1,1,1,1,1,1,1],[1,1,1,1,1,1,1],[1,0,5,0,0,3,1],[1,1,1,1,1,1,1],[1,1,1,1,1,1,1],[1,1,1,1,1,1,1]],
+    availableCmds:['forward','turnR','turnL','jump'], maxSlots:12, stars:[],
+    cmdLimits:{jump:1}},
+
+  { name:'制限コンビ！', hint:'「前」は5回まで、「左を向く」は1回まで！',
+    start:{row:3,col:1,dir:1},
+    grid:[[1,1,1,1,1,1,1],[1,1,1,1,3,1,1],[1,1,1,1,0,1,1],[1,0,0,0,0,1,1],[1,1,1,1,1,1,1],[1,1,1,1,1,1,1],[1,1,1,1,1,1,1]],
+    availableCmds:['forward','turnR','turnL'], maxSlots:12, stars:[],
+    cmdLimits:{forward:5,turnL:1}},
+
+  { name:'使えるのは前とくりかえし！', hint:'「前に進む」と「×2くりかえし」だけで8スロット以内に！',
+    start:{row:1,col:1,dir:2},
+    grid:[[1,1,1,1,1,1,1],[1,0,0,0,0,0,1],[1,0,1,1,1,1,1],[1,0,1,1,1,1,1],[1,0,1,1,1,1,1],[1,3,1,1,1,1,1],[1,1,1,1,1,1,1]],
+    availableCmds:['forward','repeat2'], maxSlots:8, stars:[]},
+
+  // ── GROUP 4: 複合 ──
+  { name:'あなとくりかえし', hint:'穴を避けながら10スロット以内でゴール！',
+    start:{row:1,col:1,dir:1},
+    grid:[[1,1,1,1,1,1,1],[1,0,0,4,0,0,1],[1,1,1,0,1,0,1],[1,1,1,0,1,0,1],[1,1,1,0,0,0,1],[1,1,1,1,1,3,1],[1,1,1,1,1,1,1]],
+    availableCmds:['forward','turnR','turnL','repeat2'], maxSlots:10, stars:[]},
+
+  { name:'はこと★', hint:'📦をとびこえて⭐を集めてゴール！10スロット以内！',
+    start:{row:3,col:1,dir:1},
+    grid:[[1,1,1,1,1,1,1],[1,1,1,0,1,0,1],[1,1,1,0,1,0,1],[1,0,5,0,5,0,1],[1,1,1,0,1,0,1],[1,1,1,0,0,3,1],[1,1,1,1,1,1,1]],
+    availableCmds:['forward','turnR','turnL','jump'], maxSlots:10, stars:[{row:1,col:3},{row:1,col:5}]},
+
+  { name:'★3つあつめろ！', hint:'⭐を3つ全部とってゴール！12スロット以内！',
+    start:{row:1,col:1,dir:1},
+    grid:[[1,1,1,1,1,1,1],[1,0,0,0,0,0,1],[1,0,1,0,1,0,1],[1,0,0,0,0,0,1],[1,0,1,0,1,0,1],[1,0,0,0,0,3,1],[1,1,1,1,1,1,1]],
+    availableCmds:['forward','turnR','turnL','turnB'], maxSlots:12, stars:[{row:1,col:5},{row:3,col:1},{row:5,col:1}]},
+
+  { name:'制限+あな', hint:'「前」は6回まで！穴に落ちないように！',
+    start:{row:1,col:1,dir:1},
+    grid:[[1,1,1,1,1,1,1],[1,0,0,0,0,0,1],[1,4,4,0,4,4,1],[1,1,1,0,1,1,1],[1,1,1,0,1,1,1],[1,1,1,3,1,1,1],[1,1,1,1,1,1,1]],
+    availableCmds:['forward','turnR','turnL'], maxSlots:12, stars:[],
+    cmdLimits:{forward:6}},
+
+  { name:'全部使え！', hint:'全てのコマンドを使って12スロット以内でゴール！',
+    start:{row:1,col:1,dir:1},
+    grid:[[1,1,1,1,1,1,1],[1,0,0,0,0,0,1],[1,0,1,5,4,0,1],[1,0,0,0,0,0,1],[1,0,4,1,5,0,1],[1,0,0,0,0,3,1],[1,1,1,1,1,1,1]],
+    availableCmds:['forward','turnR','turnL','turnB','jump'], maxSlots:12, stars:[{row:3,col:5}]},
+
+  // ── GROUP 5: 上級 ──
+  { name:'複雑めいろ1', hint:'8スロット以内でゴール！',
+    start:{row:1,col:1,dir:1},
+    grid:[[1,1,1,1,1,1,1],[1,0,1,0,0,0,1],[1,0,1,0,1,0,1],[1,0,0,0,1,0,1],[1,1,1,0,1,0,1],[1,1,1,0,0,3,1],[1,1,1,1,1,1,1]],
+    availableCmds:['forward','turnR','turnL','turnB','repeat2'], maxSlots:8, stars:[{row:1,col:5}]},
+
+  { name:'タイトなスロット！', hint:'6スロットだけ！くりかえしを使いこなせ！',
+    start:{row:1,col:1,dir:2},
+    grid:[[1,1,1,1,1,1,1],[1,0,0,0,1,1,1],[1,0,1,0,1,1,1],[1,0,1,0,1,1,1],[1,0,1,0,1,1,1],[1,0,0,3,1,1,1],[1,1,1,1,1,1,1]],
+    availableCmds:['forward','turnR','turnL','repeat2'], maxSlots:6, stars:[]},
+
+  { name:'×3だけでゴール！', hint:'「×3くりかえし」と「前」と「右を向く」だけ！5スロット！',
+    start:{row:1,col:1,dir:1},
+    grid:[[1,1,1,1,1,1,1],[1,0,0,0,0,0,1],[1,1,1,1,1,0,1],[1,1,1,1,1,0,1],[1,1,1,1,1,0,1],[1,1,1,1,1,3,1],[1,1,1,1,1,1,1]],
+    availableCmds:['forward','turnR','repeat3'], maxSlots:5, stars:[]},
+
+  { name:'★+あな+はこ', hint:'全部ある！10スロットで攻略しよう！',
+    start:{row:1,col:1,dir:1},
+    grid:[[1,1,1,1,1,1,1],[1,0,0,0,0,0,1],[1,0,4,5,4,0,1],[1,0,0,0,0,0,1],[1,0,4,1,4,0,1],[1,0,0,0,0,3,1],[1,1,1,1,1,1,1]],
+    availableCmds:['forward','turnR','turnL','jump','repeat2'], maxSlots:10, stars:[{row:1,col:5},{row:3,col:5}]},
+
+  { name:'きびしい制限！', hint:'「前」は5回・「右」は2回・スロットは8つ！',
+    start:{row:1,col:1,dir:1},
+    grid:[[1,1,1,1,1,1,1],[1,0,0,0,0,0,1],[1,1,1,1,1,0,1],[1,1,1,1,1,0,1],[1,1,1,1,0,0,1],[1,1,1,1,3,1,1],[1,1,1,1,1,1,1]],
+    availableCmds:['forward','turnR','turnL'], maxSlots:8, stars:[],
+    cmdLimits:{forward:5,turnR:2}},
+
+  // ── GROUP 6: エキスパート ──
+  { name:'エキスパート1', hint:'穴だらけ！6スロットでゴールへ！',
+    start:{row:1,col:1,dir:1},
+    grid:[[1,1,1,1,1,1,1],[1,0,4,0,4,0,1],[1,4,0,4,0,4,1],[1,0,4,0,4,0,1],[1,4,0,4,0,4,1],[1,0,0,0,0,3,1],[1,1,1,1,1,1,1]],
+    availableCmds:['forward','turnR','turnL','turnB'], maxSlots:6, stars:[]},
+
+  { name:'エキスパート2', hint:'「前」4回・「右」1回だけ！',
+    start:{row:1,col:1,dir:1},
+    grid:[[1,1,1,1,1,1,1],[1,0,0,0,0,1,1],[1,1,1,1,0,1,1],[1,1,1,1,0,1,1],[1,1,1,1,3,1,1],[1,1,1,1,1,1,1],[1,1,1,1,1,1,1]],
+    availableCmds:['forward','turnR','turnL'], maxSlots:12, stars:[],
+    cmdLimits:{forward:4,turnR:1}},
+
+  { name:'エキスパート3：くりかえしのみ！', hint:'くりかえしと前だけ！6スロットでゴール！',
+    start:{row:1,col:1,dir:1},
+    grid:[[1,1,1,1,1,1,1],[1,0,0,0,0,0,1],[1,1,1,1,1,0,1],[1,1,1,1,1,0,1],[1,1,1,1,1,0,1],[1,1,1,1,1,3,1],[1,1,1,1,1,1,1]],
+    availableCmds:['forward','turnR','repeat2'], maxSlots:6, stars:[]},
+
+  { name:'大めいろ！', hint:'★2つ+たくさんの穴！12スロットでゴール！',
+    start:{row:1,col:1,dir:1},
+    grid:[[1,1,1,1,1,1,1],[1,0,0,0,0,0,1],[1,0,4,0,4,0,1],[1,0,0,0,0,0,1],[1,0,4,0,4,0,1],[1,0,0,0,0,3,1],[1,1,1,1,1,1,1]],
+    availableCmds:['forward','turnR','turnL','turnB','jump','repeat2'], maxSlots:12, stars:[{row:1,col:5},{row:5,col:1}]},
+
+  { name:'さいしゅうボス！', hint:'全コマンド使える！10スロットで完璧クリアを！',
+    start:{row:1,col:1,dir:1},
+    grid:[[1,1,1,1,1,1,1],[1,0,0,0,5,0,1],[1,0,4,1,0,4,1],[1,0,0,0,0,0,1],[1,0,4,1,4,0,1],[1,0,0,0,0,3,1],[1,1,1,1,1,1,1]],
+    availableCmds:['forward','turnR','turnL','turnB','jump','repeat2','repeat3'], maxSlots:10, stars:[{row:1,col:5},{row:3,col:1},{row:3,col:5}]},
 ];
+
+// Free play map
+const FREE_PLAY_MAP = {
+  name:'じゆうあそびマップ', hint:'どんなプログラムでもためしてみよう！',
+  start:{row:1,col:1,dir:1},
+  grid:[
+    [1,1,1,1,1,1,1],
+    [1,0,0,0,0,0,1],
+    [1,0,1,0,1,0,1],
+    [1,0,0,0,0,0,1],
+    [1,0,1,0,1,0,1],
+    [1,0,0,0,0,3,1],
+    [1,1,1,1,1,1,1],
+  ],
+  availableCmds:['forward','turnR','turnL','turnB','jump','repeat2','repeat3'],
+  maxSlots:20, stars:[], cmdLimits:{}
+};
 
 // Command definitions
 const CMD_DEFS = {
-  forward: { label:'前に進む', emoji:'🟩', color:'#2ecc71', dark:'#27ae60' },
-  turnR:   { label:'右を向く', emoji:'🔵', color:'#3498db', dark:'#2980b9' },
-  turnL:   { label:'左を向く', emoji:'🟣', color:'#9b59b6', dark:'#8e44ad' },
-  turnB:   { label:'後ろを向く', emoji:'🟡', color:'#f1c40f', dark:'#f39c12' },
-  jump:    { label:'ジャンプ！', emoji:'🟠', color:'#e67e22', dark:'#d35400' },
-  repeat2: { label:'くりかえし×2', emoji:'🔴', color:'#e74c3c', dark:'#c0392b' },
+  forward: { label:'前に進む',     emoji:'🟩', color:'#2ecc71', dark:'#27ae60' },
+  turnR:   { label:'右を向く',     emoji:'🔵', color:'#3498db', dark:'#2980b9' },
+  turnL:   { label:'左を向く',     emoji:'🟣', color:'#9b59b6', dark:'#8e44ad' },
+  turnB:   { label:'後ろを向く',   emoji:'🟡', color:'#f1c40f', dark:'#f39c12' },
+  jump:    { label:'ジャンプ！',   emoji:'🟠', color:'#e67e22', dark:'#d35400' },
+  repeat2: { label:'×2くりかえし', emoji:'🔴', color:'#e74c3c', dark:'#c0392b' },
+  repeat3: { label:'×3くりかえし', emoji:'🩷', color:'#ff69b4', dark:'#c0146c' },
 };
-const ALL_CMDS = ['forward','turnR','turnL','turnB','jump','repeat2'];
 
 // Directions: UP=0, RIGHT=1, DOWN=2, LEFT=3
 const DIR_DR = [-1, 0, 1, 0];
@@ -279,10 +299,13 @@ const DIR_DC = [ 0, 1, 0,-1];
 // =====================================================
 // GAME STATE
 // =====================================================
-let gameState = 'title'; // 'title','levelSelect','playing','success'
-let currentLevel = 0;
+// gameState: 'title','modeSelect','levelSelect','playing','freePlay'
+let gameState = 'title';
+let currentLevel = 0;   // -1 = free play
 let unlockedLevel = 1;
 let starsPerLevel = {};
+let levelSelectPage = 0;
+const LEVELS_PER_PAGE = 15;
 
 // Load from localStorage
 function loadProgress() {
@@ -294,6 +317,7 @@ function loadProgress() {
   }
 }
 function saveProgress(levelIdx, stars) {
+  if (levelIdx < 0) return; // free play
   if (levelIdx + 1 > unlockedLevel && levelIdx + 1 <= LEVELS.length) {
     unlockedLevel = levelIdx + 1;
     localStorage.setItem('robot_prog_level', unlockedLevel);
@@ -306,12 +330,11 @@ function saveProgress(levelIdx, stars) {
 loadProgress();
 
 // Playing state
-let program = []; // array of cmd strings
-const MAX_SLOTS = 12;
-let gridState = []; // copy of grid for current play
+let program = [];
+let gridState = [];
 let starCollected = [];
 let robotPos = {row:0, col:0, dir:1};
-let robotAnim = { // animation state
+let robotAnim = {
   x: 0, y: 0,
   targetX: 0, targetY: 0,
   progress: 1,
@@ -324,7 +347,7 @@ let execState = {
   step: 0,
   expandedProgram: [],
   timer: 0,
-  phase: 'wait', // 'wait','move','result'
+  phase: 'wait',
   failMsg: '',
   succeeded: false,
   currentSlot: -1,
@@ -379,10 +402,14 @@ function gridToPixel(row, col) {
   };
 }
 
+function getCurrentMap() {
+  return currentLevel === -1 ? FREE_PLAY_MAP : LEVELS[currentLevel];
+}
+
 function initLevel(idx) {
-  const lv = LEVELS[idx];
+  currentLevel = idx;
+  const lv = getCurrentMap();
   gridState = lv.grid.map(row => [...row]);
-  // Place stars
   lv.stars.forEach(s => { gridState[s.row][s.col] = 2; });
   starCollected = new Array(lv.stars.length).fill(false);
   const sp = lv.start;
@@ -399,39 +426,48 @@ function initLevel(idx) {
 }
 
 function countStars() {
-  const lv = LEVELS[currentLevel];
-  return lv.stars.length;
+  return getCurrentMap().stars.length;
 }
 function collectedStarCount() {
   return starCollected.filter(Boolean).length;
 }
 
 // =====================================================
+// CMD LIMITS HELPERS
+// =====================================================
+function getCmdLimit(cmd) {
+  const lv = getCurrentMap();
+  if (!lv.cmdLimits) return Infinity;
+  const v = lv.cmdLimits[cmd];
+  return (v !== undefined) ? v : Infinity;
+}
+function getCmdUsed(cmd) {
+  return program.filter(c => c === cmd).length;
+}
+
+// =====================================================
 // EXECUTION LOGIC
 // =====================================================
 function buildExpandedProgram() {
-  let result = [];
-  let hasRepeat = false;
-  let baseProgram = [...program];
-  // Check if repeat2 is in program, expand
-  for (let c of baseProgram) {
-    if (c === 'repeat2') { hasRepeat = true; break; }
+  const hasRepeat2 = program.includes('repeat2');
+  const hasRepeat3 = program.includes('repeat3');
+
+  if (hasRepeat2 || hasRepeat3) {
+    // Base = program without any repeat commands
+    const base = program.filter(c => c !== 'repeat2' && c !== 'repeat3');
+    if (hasRepeat3) {
+      return [...base, ...base, ...base];
+    } else {
+      return [...base, ...base];
+    }
   }
-  if (hasRepeat) {
-    // repeat2: run entire program (without the repeat2 command itself) twice
-    let base = baseProgram.filter(c => c !== 'repeat2');
-    result = [...base, ...base];
-  } else {
-    result = baseProgram;
-  }
-  return result;
+  return [...program];
 }
 
 function startExecution() {
   if (execState.running) return;
   initAudio();
-  // Reset state to beginning of level
-  const lv = LEVELS[currentLevel];
+  const lv = getCurrentMap();
   gridState = lv.grid.map(row => [...row]);
   lv.stars.forEach(s => { gridState[s.row][s.col] = 2; });
   starCollected = new Array(lv.stars.length).fill(false);
@@ -464,18 +500,15 @@ function startExecution() {
 }
 
 const STEP_DUR = 400; // ms per step
-let lastTime = 0;
 
 function updateExecution(dt) {
   if (!execState.running) return;
 
-  // Phase: start_step → apply command immediately, then animate
   if (execState.phase === 'start_step') {
     const cmd = execState.expandedProgram[execState.step];
     execState.currentSlot = findOriginalSlot(execState.step, execState.expandedProgram);
     soundStep(execState.step);
 
-    // Record animation start position BEFORE applying command
     robotAnim._fromX = robotAnim.targetX;
     robotAnim._fromY = robotAnim.targetY;
 
@@ -492,25 +525,33 @@ function updateExecution(dt) {
     } else if (result === 'goal') {
       execState.running = false;
       execState.phase = 'idle';
-      const totalStars = countStars();
-      const collected = collectedStarCount();
-      const stars = (totalStars === 0 || collected >= totalStars) ? 3 : 1;
-      saveProgress(currentLevel, stars);
-      execState.succeeded = true;
-      resultMsg = 'クリア！！🎉';
-      resultColor = '#2ecc71';
-      soundClear();
-      robotAnim.spinning = true; robotAnim.spinAngle = 0;
-      spawnConfetti();
+      if (currentLevel === -1) {
+        // Free play
+        execState.succeeded = true;
+        resultMsg = 'クリア！自由にためしてね！';
+        resultColor = '#2ecc71';
+        soundClear();
+        robotAnim.spinning = true; robotAnim.spinAngle = 0;
+        spawnConfetti();
+      } else {
+        const totalStars = countStars();
+        const collected = collectedStarCount();
+        const stars = (totalStars === 0 || collected >= totalStars) ? 3 : 1;
+        saveProgress(currentLevel, stars);
+        execState.succeeded = true;
+        resultMsg = 'クリア！！🎉';
+        resultColor = '#2ecc71';
+        soundClear();
+        robotAnim.spinning = true; robotAnim.spinAngle = 0;
+        spawnConfetti();
+      }
     } else {
-      // Start animation timer
       execState.timer = 0;
       execState.phase = 'animating';
     }
     return;
   }
 
-  // Phase: animating → wait STEP_DUR, then advance to next step
   if (execState.phase === 'animating') {
     execState.timer += dt;
     if (execState.timer >= STEP_DUR) {
@@ -531,22 +572,7 @@ function updateExecution(dt) {
   }
 }
 
-// Lerp robot animation
-let prevRobotX, prevRobotY;
-function startRobotMove(newRow, newCol) {
-  const p = gridToPixel(newRow, newCol);
-  prevRobotX = robotAnim.x;
-  prevRobotY = robotAnim.y;
-  robotAnim.targetX = p.x;
-  robotAnim.targetY = p.y;
-  // Store old position as starting point
-  robotAnim._fromX = robotAnim.x;
-  robotAnim._fromY = robotAnim.y;
-  execState.timer = 0;
-}
-
 function applyCommand(cmd) {
-  const lv = LEVELS[currentLevel];
   if (cmd === 'turnR') {
     robotPos.dir = (robotPos.dir + 1) % 4;
     return 'ok';
@@ -565,22 +591,18 @@ function applyCommand(cmd) {
     return moveRobot(nr, nc);
   }
   if (cmd === 'jump') {
-    // Jump over one box (5)
     const mr = robotPos.row + DIR_DR[robotPos.dir];
     const mc = robotPos.col + DIR_DC[robotPos.dir];
-    // middle must be box or empty (not wall/hole)
     if (mr < 0 || mr >= GRID_ROWS || mc < 0 || mc >= GRID_COLS) {
       execState.failMsg = 'とびこえるものがないよ！💥';
       return 'fail';
     }
     const middleCell = gridState[mr][mc];
-    // Can jump over box (5) — land 2 squares ahead
     const nr = robotPos.row + DIR_DR[robotPos.dir]*2;
     const nc = robotPos.col + DIR_DC[robotPos.dir]*2;
     if (middleCell === 5) {
       return moveRobot(nr, nc, true);
     } else if (middleCell === 0 || middleCell === 2 || middleCell === 3) {
-      // Jump over empty? Just move forward 1
       return moveRobot(mr, mc);
     } else {
       execState.failMsg = 'かべにぶつかった！💥';
@@ -607,15 +629,12 @@ function moveRobot(nr, nc, jumped) {
     execState.failMsg = 'あなに落ちた！💀';
     return 'fail';
   }
-  // Move
   robotPos.row = nr; robotPos.col = nc;
   const p = gridToPixel(nr, nc);
-  // _fromX is already set in updateExecution before applyCommand
   robotAnim.targetX = p.x; robotAnim.targetY = p.y;
 
   if (cell === 2) {
-    // Collect star
-    const lv = LEVELS[currentLevel];
+    const lv = getCurrentMap();
     const si = lv.stars.findIndex(s => s.row === nr && s.col === nc);
     if (si >= 0 && !starCollected[si]) {
       starCollected[si] = true;
@@ -627,7 +646,6 @@ function moveRobot(nr, nc, jumped) {
     return 'ok';
   }
   if (cell === 3) {
-    // Goal
     if (collectedStarCount() < countStars()) {
       execState.failMsg = '⭐をぜんぶとって！';
       return 'fail';
@@ -638,19 +656,18 @@ function moveRobot(nr, nc, jumped) {
 }
 
 function findOriginalSlot(expandedStep, expanded) {
-  // Map back to original program slot
-  const hasRepeat = program.includes('repeat2');
-  if (!hasRepeat) {
+  const hasRepeat2 = program.includes('repeat2');
+  const hasRepeat3 = program.includes('repeat3');
+  if (!hasRepeat2 && !hasRepeat3) {
     return Math.min(expandedStep, program.length - 1);
   }
-  // With repeat, expanded = base+base where base = program without repeat2
-  const base = program.filter(c => c !== 'repeat2');
+  const base = program.filter(c => c !== 'repeat2' && c !== 'repeat3');
   const baseLen = base.length;
+  if (baseLen === 0) return 0;
   const posInBase = expandedStep % baseLen;
-  // Find the actual index in original program
   let count = 0;
   for (let i = 0; i < program.length; i++) {
-    if (program[i] !== 'repeat2') {
+    if (program[i] !== 'repeat2' && program[i] !== 'repeat3') {
       if (count === posInBase) return i;
       count++;
     }
@@ -678,9 +695,11 @@ function draw() {
   ctx.fillStyle = bg;
   ctx.fillRect(0,0,BASE_W,BASE_H);
 
-  if (gameState === 'title') drawTitle();
+  if (gameState === 'title')       drawTitle();
+  else if (gameState === 'modeSelect')  drawModeSelect();
   else if (gameState === 'levelSelect') drawLevelSelect();
-  else if (gameState === 'playing') drawPlaying();
+  else if (gameState === 'playing')     drawPlaying();
+  else if (gameState === 'freePlay')    drawPlaying(); // reuse same draw
 
   ctx.restore();
 }
@@ -713,8 +732,7 @@ function drawTitle() {
 
   // Animated robot
   const ry = BASE_H/2 - 20 + Math.sin(t * 2) * 15;
-  const rdir = 1;
-  drawRobot(BASE_W/2, ry, rdir, Math.sin(t*3)*0.3, null, 0);
+  drawRobot(BASE_W/2, ry, 1, Math.sin(t*3)*0.3, null, 0);
 
   // Tap to start pulsing
   const alpha = 0.5 + 0.5 * Math.sin(t * 3);
@@ -722,28 +740,68 @@ function drawTitle() {
   ctx.font = '20px sans-serif';
   ctx.fillText('タップしてはじめる！', BASE_W/2, BASE_H - 120);
 
-  // Home link note
   ctx.fillStyle = 'rgba(255,255,255,0.3)';
   ctx.font = '13px sans-serif';
   ctx.fillText('🏠 ゲームいちらんにもどる → 左上のリンク', BASE_W/2, BASE_H - 80);
+}
+
+// ---- MODE SELECT ----
+function drawModeSelect() {
+  ctx.textAlign = 'center';
+  ctx.fillStyle = '#fff';
+  ctx.font = 'bold 30px sans-serif';
+  ctx.fillText('モードをえらんでね！', BASE_W/2, 80);
+
+  // Level mode button
+  const btn1X = BASE_W/2 - 160, btn1Y = 160, btnW = 320, btnH = 110;
+  drawRoundRect(ctx, btn1X, btn1Y, btnW, btnH, 16, '#1a2a4e');
+  ctx.strokeStyle = '#3498db';
+  ctx.lineWidth = 3;
+  strokeRoundRect(ctx, btn1X, btn1Y, btnW, btnH, 16);
+  ctx.fillStyle = '#fff';
+  ctx.font = 'bold 28px sans-serif';
+  ctx.fillText('🏆 レベルモード', BASE_W/2, btn1Y + 50);
+  ctx.font = '14px sans-serif';
+  ctx.fillStyle = '#a0c4ff';
+  ctx.fillText('30のステージをクリアしよう！', BASE_W/2, btn1Y + 80);
+
+  // Free play button
+  const btn2Y = 310;
+  drawRoundRect(ctx, btn1X, btn2Y, btnW, btnH, 16, '#1a3a2a');
+  ctx.strokeStyle = '#2ecc71';
+  ctx.lineWidth = 3;
+  strokeRoundRect(ctx, btn1X, btn2Y, btnW, btnH, 16);
+  ctx.fillStyle = '#fff';
+  ctx.font = 'bold 28px sans-serif';
+  ctx.fillText('🎮 じゆうモード', BASE_W/2, btn2Y + 50);
+  ctx.font = '14px sans-serif';
+  ctx.fillStyle = '#a0ffc4';
+  ctx.fillText('じゆうにプログラムをためそう！', BASE_W/2, btn2Y + 80);
+
+  // Back
+  drawButton(ctx, 20, BASE_H - 55, 120, 40, '← もどる', '#333', '#aaa', false);
 }
 
 // ---- LEVEL SELECT ----
 function drawLevelSelect() {
   ctx.textAlign = 'center';
   ctx.fillStyle = '#fff';
-  ctx.font = 'bold 28px sans-serif';
-  ctx.fillText('レベルをえらんでね！', BASE_W/2, 50);
+  ctx.font = 'bold 24px sans-serif';
+  ctx.fillText('レベルをえらんでね！', BASE_W/2, 38);
 
-  const cols = 2, rows = 5;
-  const btnW = 200, btnH = 70, gap = 10;
+  const cols = 3, rows = 5;
+  const btnW = 140, btnH = 70, gap = 8;
   const totalW = cols * btnW + (cols-1) * gap;
   const startX = (BASE_W - totalW) / 2;
-  const startY = 80;
+  const startY = 58;
+  const pageStart = levelSelectPage * LEVELS_PER_PAGE;
+  const pageEnd = Math.min(pageStart + LEVELS_PER_PAGE, LEVELS.length);
 
-  for (let i = 0; i < LEVELS.length; i++) {
-    const col = i % cols;
-    const row = Math.floor(i / cols);
+  for (let pi = pageStart; pi < pageEnd; pi++) {
+    const i = pi;
+    const slot = pi - pageStart;
+    const col = slot % cols;
+    const row = Math.floor(slot / cols);
     const x = startX + col * (btnW + gap);
     const y = startY + row * (btnH + gap);
     const locked = i + 1 > unlockedLevel;
@@ -752,52 +810,78 @@ function drawLevelSelect() {
 
     drawRoundRect(ctx, x + (pressing?2:0), y + (pressing?2:0), btnW, btnH, 12,
       cleared ? '#1a3a2a' : (locked ? '#1a1a2e' : '#1e1e3e'));
-    // Border
     ctx.strokeStyle = cleared ? '#2ecc71' : (locked ? '#333' : '#4a4a8e');
     ctx.lineWidth = 2;
     strokeRoundRect(ctx, x + (pressing?2:0), y + (pressing?2:0), btnW, btnH, 12);
 
     if (locked) {
       ctx.fillStyle = '#555';
-      ctx.font = '28px sans-serif';
-      ctx.fillText('🔒', x + btnW/2 + (pressing?2:0), y + 32 + (pressing?2:0));
-      ctx.font = '13px sans-serif';
-      ctx.fillText(`レベル ${i+1}`, x + btnW/2 + (pressing?2:0), y + 55 + (pressing?2:0));
+      ctx.font = '24px sans-serif';
+      ctx.fillText('🔒', x + btnW/2 + (pressing?2:0), y + 30 + (pressing?2:0));
+      ctx.font = '11px sans-serif';
+      ctx.fillText(`Lv.${i+1}`, x + btnW/2 + (pressing?2:0), y + 53 + (pressing?2:0));
     } else {
-      ctx.font = 'bold 13px sans-serif';
+      ctx.font = 'bold 10px sans-serif';
+      ctx.fillStyle = '#a0c4ff';
+      ctx.fillText(`Lv.${i+1}`, x + btnW/2 + (pressing?2:0), y + 16 + (pressing?2:0));
+      ctx.font = 'bold 11px sans-serif';
       ctx.fillStyle = cleared ? '#2ecc71' : '#ccc';
-      const lvName = LEVELS[i].name.replace(/レベル\d+: /, '');
-      ctx.fillText(`Lv.${i+1} ${lvName}`, x + btnW/2 + (pressing?2:0), y + 28 + (pressing?2:0));
+      // Wrap name if long
+      const name = LEVELS[i].name;
+      const maxLen = 9;
+      if (name.length > maxLen) {
+        ctx.fillText(name.slice(0, maxLen), x + btnW/2 + (pressing?2:0), y + 33 + (pressing?2:0));
+        ctx.fillText(name.slice(maxLen), x + btnW/2 + (pressing?2:0), y + 47 + (pressing?2:0));
+      } else {
+        ctx.fillText(name, x + btnW/2 + (pressing?2:0), y + 40 + (pressing?2:0));
+      }
       // Stars
       const s = starsPerLevel[i] || 0;
-      ctx.font = '18px sans-serif';
+      ctx.font = '13px sans-serif';
       let starStr = '';
       for (let j = 0; j < 3; j++) starStr += (j < s ? '★' : '☆');
       ctx.fillStyle = '#f1c40f';
-      ctx.fillText(starStr, x + btnW/2 + (pressing?2:0), y + 52 + (pressing?2:0));
+      ctx.fillText(starStr, x + btnW/2 + (pressing?2:0), y + 60 + (pressing?2:0));
     }
   }
 
+  // Page navigation
+  const navY = startY + rows * (btnH + gap) + 10;
+  const totalPages = Math.ceil(LEVELS.length / LEVELS_PER_PAGE);
+  if (levelSelectPage > 0) {
+    drawButton(ctx, 20, navY, 130, 38, '← まえへ', '#222', '#aaa', false);
+  }
+  if (levelSelectPage < totalPages - 1) {
+    drawButton(ctx, BASE_W - 150, navY, 130, 38, 'つぎへ →', '#222', '#aaa', false);
+  }
+  // Page indicator
+  ctx.fillStyle = 'rgba(255,255,255,0.5)';
+  ctx.font = '13px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText(`${levelSelectPage + 1} / ${totalPages}ページ`, BASE_W/2, navY + 22);
+
   // Back button
-  drawButton(ctx, 20, BASE_H - 55, 120, 40, '← もどる', '#333', '#aaa', false);
+  drawButton(ctx, 20, BASE_H - 50, 120, 38, '← もどる', '#333', '#aaa', false);
 }
 
 // ---- PLAYING SCREEN ----
 function drawPlaying() {
-  const lv = LEVELS[currentLevel];
+  const lv = getCurrentMap();
+  const isFree = currentLevel === -1;
 
   // Header
   ctx.fillStyle = '#fff';
-  ctx.font = 'bold 16px sans-serif';
+  ctx.font = 'bold 14px sans-serif';
   ctx.textAlign = 'left';
-  ctx.fillText(lv.name, 12, 38);
+  const displayName = isFree ? '🎮 じゆうあそびモード' : `Lv.${currentLevel+1} ${lv.name}`;
+  ctx.fillText(displayName, 12, 35);
   ctx.textAlign = 'right';
   ctx.fillStyle = '#a0c4ff';
-  ctx.font = '14px sans-serif';
+  ctx.font = '13px sans-serif';
   const totalStars = countStars();
   if (totalStars > 0) {
     const col = collectedStarCount();
-    ctx.fillText(`⭐ ${col}/${totalStars}`, BASE_W - 12, 38);
+    ctx.fillText(`⭐ ${col}/${totalStars}`, BASE_W - 12, 35);
   }
 
   // Grid
@@ -809,7 +893,6 @@ function drawPlaying() {
     const t = easeInOut(Math.min(execState.timer / STEP_DUR, 1));
     rx = lerp(robotAnim._fromX, robotAnim.targetX, t);
     ry = lerp(robotAnim._fromY, robotAnim.targetY, t);
-    // Bounce arc during forward/jump
     const curCmd = execState.expandedProgram[execState.step];
     if (curCmd === 'forward' || curCmd === 'jump') {
       ry -= Math.sin(t * Math.PI) * 8;
@@ -832,22 +915,22 @@ function drawPlaying() {
   ctx.fillStyle = '#8888cc';
   ctx.font = '13px sans-serif';
   ctx.textAlign = 'center';
-  ctx.fillText('↓ プログラムをつくろう！', BASE_W/2, 348);
+  ctx.fillText('↓ プログラムをつくろう！', BASE_W/2, 345);
 
   // Program slots
   drawProgramSlots();
+
+  // Hint text
+  ctx.fillStyle = 'rgba(160,180,255,0.75)';
+  ctx.font = '11px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText('💡 ' + lv.hint, BASE_W/2, 425);
 
   // Command palette
   drawCommandPalette();
 
   // Action row
   drawActionRow();
-
-  // Hint text (above command palette)
-  ctx.fillStyle = 'rgba(160,180,255,0.75)';
-  ctx.font = '12px sans-serif';
-  ctx.textAlign = 'center';
-  ctx.fillText('💡 ' + lv.hint, BASE_W/2, 430);
 
   // Confetti
   updateConfetti();
@@ -867,7 +950,6 @@ function drawPlaying() {
 }
 
 function drawGrid() {
-  const lv = LEVELS[currentLevel];
   for (let r = 0; r < GRID_ROWS; r++) {
     for (let c = 0; c < GRID_COLS; c++) {
       const x = GRID_X + c * CELL;
@@ -875,13 +957,11 @@ function drawGrid() {
       const cell = gridState[r][c];
 
       if (cell === 1) {
-        // Wall
         const grad = ctx.createLinearGradient(x,y,x+CELL,y+CELL);
         grad.addColorStop(0,'#222');
         grad.addColorStop(1,'#111');
         ctx.fillStyle = grad;
         ctx.fillRect(x, y, CELL, CELL);
-        // Bevel
         ctx.fillStyle = 'rgba(255,255,255,0.07)';
         ctx.fillRect(x, y, CELL, 3);
         ctx.fillRect(x, y, 3, CELL);
@@ -889,10 +969,8 @@ function drawGrid() {
         ctx.fillRect(x+CELL-3, y, 3, CELL);
         ctx.fillRect(x, y+CELL-3, CELL, 3);
       } else {
-        // Floor
         ctx.fillStyle = '#1e1e38';
         ctx.fillRect(x, y, CELL, CELL);
-        // Grid line
         ctx.strokeStyle = 'rgba(255,255,255,0.05)';
         ctx.lineWidth = 0.5;
         ctx.strokeRect(x+0.25, y+0.25, CELL-0.5, CELL-0.5);
@@ -900,7 +978,6 @@ function drawGrid() {
         const cx = x + CELL/2, cy = y + CELL/2;
 
         if (cell === 2) {
-          // Star - gold glow
           ctx.save();
           ctx.shadowColor = '#f1c40f';
           ctx.shadowBlur = 12;
@@ -910,7 +987,6 @@ function drawGrid() {
           ctx.fillText('⭐', cx, cy);
           ctx.restore();
         } else if (cell === 3) {
-          // Goal
           ctx.fillStyle = '#1a3a2a';
           ctx.fillRect(x+1, y+1, CELL-2, CELL-2);
           ctx.save();
@@ -922,7 +998,6 @@ function drawGrid() {
           ctx.fillText('🚩', cx, cy);
           ctx.restore();
         } else if (cell === 4) {
-          // Hole
           const hg = ctx.createRadialGradient(cx, cy, 2, cx, cy, CELL/2);
           hg.addColorStop(0,'#050510');
           hg.addColorStop(1,'#1a1a2e');
@@ -938,13 +1013,11 @@ function drawGrid() {
           ctx.textBaseline = 'middle';
           ctx.fillText('🕳', cx, cy);
         } else if (cell === 5) {
-          // Box
           ctx.fillStyle = '#5c3d11';
           ctx.fillRect(x+3, y+3, CELL-6, CELL-6);
           ctx.strokeStyle = '#8B5E3C';
           ctx.lineWidth = 1.5;
           ctx.strokeRect(x+3, y+3, CELL-6, CELL-6);
-          // Wood grain
           ctx.strokeStyle = 'rgba(139,94,60,0.3)';
           ctx.lineWidth = 1;
           for (let g = 0; g < 3; g++) {
@@ -968,43 +1041,35 @@ function drawRobot(x, y, dir, spin, flashColor, bounceY) {
   ctx.translate(x, y - bounceY);
   if (spin) ctx.rotate(spin);
 
-  const s = 30; // robot size
-  // Body
+  const s = 30;
   const bodyColor = flashColor || '#4a9eff';
   ctx.fillStyle = bodyColor;
   drawRoundRectFill(ctx, -s/2, -s/2, s, s, 7);
 
-  // Shine
   ctx.fillStyle = 'rgba(255,255,255,0.2)';
   drawRoundRectFill(ctx, -s/2+2, -s/2+2, s/2, s/3, 4);
 
-  // Cheeks
   ctx.fillStyle = 'rgba(255,100,100,0.5)';
   ctx.beginPath(); ctx.arc(-8, 5, 4, 0, Math.PI*2); ctx.fill();
   ctx.beginPath(); ctx.arc(8, 5, 4, 0, Math.PI*2); ctx.fill();
 
-  // Eyes - position depends on dir
   let eyeOffX = 0, eyeOffY = 0;
   let pupilDX = 0, pupilDY = 0;
-  if (dir === 0) { eyeOffY = -1; pupilDY = -2; } // UP
-  if (dir === 1) { eyeOffX = 1; pupilDX = 2; }   // RIGHT
-  if (dir === 2) { eyeOffY = 1; pupilDY = 2; }    // DOWN
-  if (dir === 3) { eyeOffX = -1; pupilDX = -2; }  // LEFT
+  if (dir === 0) { eyeOffY = -1; pupilDY = -2; }
+  if (dir === 1) { eyeOffX = 1; pupilDX = 2; }
+  if (dir === 2) { eyeOffY = 1; pupilDY = 2; }
+  if (dir === 3) { eyeOffX = -1; pupilDX = -2; }
 
-  // Eye whites
   ctx.fillStyle = '#fff';
   ctx.beginPath(); ctx.arc(-7 + eyeOffX, -4 + eyeOffY, 5, 0, Math.PI*2); ctx.fill();
   ctx.beginPath(); ctx.arc(7 + eyeOffX, -4 + eyeOffY, 5, 0, Math.PI*2); ctx.fill();
-  // Pupils
   ctx.fillStyle = '#1a1a3e';
   ctx.beginPath(); ctx.arc(-7+eyeOffX+pupilDX, -4+eyeOffY+pupilDY, 3, 0, Math.PI*2); ctx.fill();
   ctx.beginPath(); ctx.arc(7+eyeOffX+pupilDX, -4+eyeOffY+pupilDY, 3, 0, Math.PI*2); ctx.fill();
-  // Eye shine
   ctx.fillStyle = '#fff';
   ctx.beginPath(); ctx.arc(-6+eyeOffX+pupilDX, -5+eyeOffY+pupilDY, 1.2, 0, Math.PI*2); ctx.fill();
   ctx.beginPath(); ctx.arc(8+eyeOffX+pupilDX, -5+eyeOffY+pupilDY, 1.2, 0, Math.PI*2); ctx.fill();
 
-  // Antenna
   ctx.strokeStyle = '#a0c4ff';
   ctx.lineWidth = 2;
   ctx.beginPath();
@@ -1014,15 +1079,12 @@ function drawRobot(x, y, dir, spin, flashColor, bounceY) {
   ctx.fillStyle = '#ffd700';
   ctx.beginPath(); ctx.arc(0, -s/2 - 10, 3.5, 0, Math.PI*2); ctx.fill();
 
-  // Mouth - smile or flat
   ctx.strokeStyle = 'rgba(255,255,255,0.7)';
   ctx.lineWidth = 1.5;
   ctx.beginPath();
   if (flashColor === '#e74c3c') {
-    // Sad mouth
     ctx.arc(0, 12, 5, Math.PI * 0.1, Math.PI * 0.9, true);
   } else {
-    // Happy mouth
     ctx.arc(0, 8, 5, Math.PI * 0.1, Math.PI * 0.9, false);
   }
   ctx.stroke();
@@ -1031,54 +1093,48 @@ function drawRobot(x, y, dir, spin, flashColor, bounceY) {
 }
 
 function drawProgramSlots() {
-  const slotW = 36, slotH = 42, gap = 2;
-  const totalW = MAX_SLOTS * (slotW + gap) - gap;
+  const lv = getCurrentMap();
+  const maxSlots = lv.maxSlots;
+  const slotW = Math.min(36, Math.floor((BASE_W - 20) / maxSlots) - 2);
+  const gap = 2;
+  const totalW = maxSlots * (slotW + gap) - gap;
   const sx = (BASE_W - totalW) / 2;
-  const sy = 357;
+  const sy = 353;
 
-  for (let i = 0; i < MAX_SLOTS; i++) {
+  for (let i = 0; i < maxSlots; i++) {
     const x = sx + i * (slotW + gap);
+    const slotH = 42;
     const isExecuting = execState.running && execState.currentSlot === i;
-    const isCurrent = !execState.running && execState.succeeded === false && i === program.length;
     const pressing = slotPress[i];
 
-    // Slot background
     let bgColor = '#1a1a38';
     if (isExecuting) bgColor = '#4a3a00';
     else if (program[i]) bgColor = '#1e2a4e';
 
     drawRoundRect(ctx, x + (pressing?1:0), sy + (pressing?1:0), slotW, slotH, 7, bgColor);
 
-    // Border
     ctx.strokeStyle = isExecuting ? '#f1c40f' : (program[i] ? '#4a6aaa' : '#333');
     ctx.lineWidth = isExecuting ? 2.5 : 1.5;
     strokeRoundRect(ctx, x + (pressing?1:0), sy + (pressing?1:0), slotW, slotH, 7);
 
     if (program[i]) {
       const def = CMD_DEFS[program[i]];
-      ctx.fillStyle = def.color;
-      ctx.font = '11px sans-serif';
-      ctx.textAlign = 'center';
-      const lines = def.label.split('');
-      // Show short label
-      const short = def.label.length > 5 ? def.label.slice(0,5) : def.label;
+      const short = def.label.length > 4 ? def.label.slice(0,4) : def.label;
       ctx.fillStyle = '#fff';
-      ctx.font = 'bold 9px sans-serif';
+      ctx.font = `bold ${Math.max(7, slotW > 28 ? 9 : 7)}px sans-serif`;
       ctx.textAlign = 'center';
       ctx.fillText(short, x + slotW/2 + (pressing?1:0), sy + slotH*0.45 + (pressing?1:0));
-      // Color dot
       ctx.fillStyle = def.color;
       ctx.beginPath();
-      ctx.arc(x + slotW/2 + (pressing?1:0), sy + slotH*0.75 + (pressing?1:0), 5, 0, Math.PI*2);
+      ctx.arc(x + slotW/2 + (pressing?1:0), sy + slotH*0.75 + (pressing?1:0), 4, 0, Math.PI*2);
       ctx.fill();
-    } else if (i < MAX_SLOTS) {
+    } else if (i < maxSlots) {
       ctx.fillStyle = '#333';
-      ctx.font = '10px sans-serif';
+      ctx.font = '9px sans-serif';
       ctx.textAlign = 'center';
-      ctx.fillText(i+1, x + slotW/2, sy + slotH/2 + 4);
+      ctx.fillText(i+1, x + slotW/2, sy + slotH/2 + 3);
     }
 
-    // Executing highlight
     if (isExecuting) {
       ctx.fillStyle = 'rgba(255,220,0,0.15)';
       drawRoundRectFill(ctx, x, sy, slotW, slotH, 7);
@@ -1087,14 +1143,14 @@ function drawProgramSlots() {
 }
 
 function drawCommandPalette() {
-  const lv = LEVELS[currentLevel];
+  const lv = getCurrentMap();
   const cmds = lv.availableCmds;
-  const btnW = 88, btnH = 38, gap = 6;
+  const btnW = 86, btnH = 44, gap = 5;
   const cols = Math.min(cmds.length, 3);
   const rows = Math.ceil(cmds.length / cols);
   const totalW = cols * btnW + (cols-1)*gap;
   const sx = (BASE_W - totalW) / 2;
-  const sy = 440;
+  const sy = 435;
   const dimmed = execState.running;
 
   for (let i = 0; i < cmds.length; i++) {
@@ -1106,7 +1162,12 @@ function drawCommandPalette() {
     const def = CMD_DEFS[cmd];
     const pressing = cmdBtnPress[cmd];
 
-    ctx.globalAlpha = dimmed ? 0.4 : 1.0;
+    const limit = getCmdLimit(cmd);
+    const used = getCmdUsed(cmd);
+    const limitReached = (limit !== Infinity) && (used >= limit);
+    const isDimmed = dimmed || limitReached;
+
+    ctx.globalAlpha = isDimmed ? 0.4 : 1.0;
     drawRoundRect(ctx, x + (pressing?2:0), y + (pressing?2:0), btnW, btnH, 8, def.dark);
     ctx.strokeStyle = def.color;
     ctx.lineWidth = 1.5;
@@ -1115,59 +1176,81 @@ function drawCommandPalette() {
     ctx.fillStyle = '#fff';
     ctx.font = 'bold 11px sans-serif';
     ctx.textAlign = 'center';
-    ctx.fillText(def.label, x + btnW/2 + (pressing?2:0), y + btnH*0.62 + (pressing?2:0));
+    ctx.fillText(def.label, x + btnW/2 + (pressing?2:0), y + btnH*0.52 + (pressing?2:0));
+
+    // Show remaining count badge if limit exists
+    if (limit !== Infinity) {
+      const remaining = Math.max(0, limit - used);
+      ctx.font = '9px sans-serif';
+      ctx.fillStyle = limitReached ? '#ff6666' : '#ffddaa';
+      ctx.fillText(`のこり${remaining}`, x + btnW/2 + (pressing?2:0), y + btnH*0.82 + (pressing?2:0));
+    }
+
     ctx.globalAlpha = 1.0;
   }
 }
 
 function drawActionRow() {
-  const sy = 537;
+  const sy = 580;
+  const isFree = currentLevel === -1;
 
   if (execState.succeeded) {
-    // ---- クリア後のボタン配置 ----
-    if (currentLevel < LEVELS.length - 1) {
-      drawButton(ctx, 20, sy, 200, 44, 'つぎのレベル →', '#1a2a3a', '#3498db', false);
+    if (isFree) {
+      // Free play: just retry
+      drawButton(ctx, BASE_W/2 - 75, sy, 150, 44, '🔄 もう一回', '#3a1a1a', '#e67e22', false);
+      drawButton(ctx, 20, sy, 130, 44, '← モードへ', '#2a1a3a', '#9b59b6', false);
+    } else {
+      if (currentLevel < LEVELS.length - 1) {
+        drawButton(ctx, 10, sy, 185, 44, 'つぎのレベル →', '#1a2a3a', '#3498db', false);
+      }
+      drawButton(ctx, BASE_W - 200, sy, 190, 44, '🔄 もう一回', '#3a1a1a', '#e67e22', false);
+      drawButton(ctx, BASE_W/2 - 70, sy + 50, 140, 36, 'レベルせんたく', '#2a1a3a', '#9b59b6', false);
     }
-    drawButton(ctx, BASE_W - 230, sy, 210, 44, '🔄 もう一回', '#3a1a1a', '#e67e22', false);
-    drawButton(ctx, BASE_W/2 - 75, sy + 52, 150, 36, 'レベルせんたく', '#2a1a3a', '#9b59b6', false);
   } else {
-    // ---- 通常の実行ボタン ----
     ctx.globalAlpha = execState.running ? 0.4 : 1.0;
-    drawButton(ctx, 20, sy, 110, 44, '🗑 クリア', '#3a1a1a', '#e74c3c', false);
+    drawButton(ctx, 10, sy, 100, 44, '🗑 クリア', '#3a1a1a', '#e74c3c', false);
     ctx.globalAlpha = 1.0;
 
     ctx.globalAlpha = execState.running ? 0.6 : 1.0;
     const runLabel = execState.running ? '実行中…' : '▶ 実行！';
-    drawButton(ctx, BASE_W/2 - 65, sy, 130, 44, runLabel, '#1a3a1a', '#2ecc71', false);
+    drawButton(ctx, BASE_W/2 - 60, sy, 120, 44, runLabel, '#1a3a1a', '#2ecc71', false);
     ctx.globalAlpha = 1.0;
+
+    // Back to mode select (small)
+    drawButton(ctx, BASE_W - 110, sy, 100, 44, '← もどる', '#221a2e', '#8855cc', false);
   }
 
   // Result message
-  if (resultMsg) {
-    ctx.fillStyle = execState.succeeded ? '#2ecc71' : (resultColor || '#e74c3c');
-    ctx.font = 'bold 15px sans-serif';
+  if (resultMsg && !execState.succeeded) {
+    ctx.fillStyle = resultColor || '#e74c3c';
+    ctx.font = 'bold 14px sans-serif';
     ctx.textAlign = 'center';
-    ctx.fillText(resultMsg, BASE_W/2, execState.succeeded ? sy - 16 : sy + 65);
+    ctx.fillText(resultMsg, BASE_W/2, sy + 62);
   }
 }
 
 function drawSuccessOverlay() {
-  // Semi-transparent overlay
-  ctx.fillStyle = 'rgba(0,0,0,0.3)';
-  ctx.fillRect(0, 200, BASE_W, 120);
+  ctx.fillStyle = 'rgba(0,0,0,0.35)';
+  ctx.fillRect(0, 185, BASE_W, 130);
 
   ctx.textAlign = 'center';
   ctx.fillStyle = '#2ecc71';
-  ctx.font = 'bold 36px sans-serif';
-  ctx.fillText('クリア！！🎉', BASE_W/2, 250);
+  ctx.font = 'bold 34px sans-serif';
+  const isFree = currentLevel === -1;
+  ctx.fillText(isFree ? 'クリア！🎉' : 'クリア！！🎉', BASE_W/2, 240);
 
-  // Stars
-  const earned = starsPerLevel[currentLevel] || 0;
-  ctx.font = '30px sans-serif';
-  let starStr = '';
-  for (let j = 0; j < 3; j++) starStr += (j < earned ? '★' : '☆');
-  ctx.fillStyle = '#f1c40f';
-  ctx.fillText(starStr, BASE_W/2, 290);
+  if (!isFree) {
+    const earned = starsPerLevel[currentLevel] || 0;
+    ctx.font = '30px sans-serif';
+    let starStr = '';
+    for (let j = 0; j < 3; j++) starStr += (j < earned ? '★' : '☆');
+    ctx.fillStyle = '#f1c40f';
+    ctx.fillText(starStr, BASE_W/2, 282);
+  } else {
+    ctx.font = '16px sans-serif';
+    ctx.fillStyle = '#a0ffc4';
+    ctx.fillText('じゆうにためしてね！', BASE_W/2, 280);
+  }
 }
 
 // =====================================================
@@ -1222,7 +1305,7 @@ function drawButton(ctx, x, y, w, h, label, bg, border, pressed) {
   ctx.lineWidth = 2;
   strokeRoundRect(ctx, x+(pressed?2:0), y+(pressed?2:0), w, h, 10);
   ctx.fillStyle = '#fff';
-  ctx.font = 'bold 14px sans-serif';
+  ctx.font = 'bold 13px sans-serif';
   ctx.textAlign = 'center';
   ctx.fillText(label, x+w/2+(pressed?2:0), y+h*0.63+(pressed?2:0));
 }
@@ -1249,30 +1332,26 @@ function handlePointerDown(e) {
   const {x, y} = getCanvasPos(e);
 
   if (gameState === 'title') {
-    gameState = 'levelSelect';
+    gameState = 'modeSelect';
     return;
   }
 
-  if (gameState === 'levelSelect') {
-    const cols = 2, btnW = 200, btnH = 70, gap = 10;
-    const totalW = cols * btnW + (cols-1) * gap;
-    const startX = (BASE_W - totalW) / 2;
-    const startY = 80;
-    for (let i = 0; i < LEVELS.length; i++) {
-      const col = i % cols, row = Math.floor(i / cols);
-      const bx = startX + col * (btnW + gap);
-      const by = startY + row * (btnH + gap);
-      if (x >= bx && x <= bx+btnW && y >= by && y <= by+btnH) {
-        if (i + 1 <= unlockedLevel) {
-          levelBtnPress[i] = true;
-          setTimeout(() => { levelBtnPress[i] = false; }, 150);
-          currentLevel = i;
-          initLevel(i);
-          gameState = 'playing';
-          soundAdd();
-        }
-        return;
-      }
+  if (gameState === 'modeSelect') {
+    // Level mode button: y 160..270
+    const btn1X = BASE_W/2 - 160, btn1Y = 160, btnW = 320, btnH = 110;
+    if (x >= btn1X && x <= btn1X+btnW && y >= btn1Y && y <= btn1Y+btnH) {
+      gameState = 'levelSelect';
+      levelSelectPage = 0;
+      soundAdd();
+      return;
+    }
+    // Free play button: y 310..420
+    const btn2Y = 310;
+    if (x >= btn1X && x <= btn1X+btnW && y >= btn2Y && y <= btn2Y+btnH) {
+      initLevel(-1);
+      gameState = 'freePlay';
+      soundAdd();
+      return;
     }
     // Back button
     if (x >= 20 && x <= 140 && y >= BASE_H-55 && y <= BASE_H-15) {
@@ -1281,7 +1360,53 @@ function handlePointerDown(e) {
     return;
   }
 
-  if (gameState === 'playing') {
+  if (gameState === 'levelSelect') {
+    const cols = 3, btnW = 140, btnH = 70, gap = 8;
+    const totalW = cols * btnW + (cols-1) * gap;
+    const startX = (BASE_W - totalW) / 2;
+    const startY = 58;
+    const rows = 5;
+    const pageStart = levelSelectPage * LEVELS_PER_PAGE;
+    const pageEnd = Math.min(pageStart + LEVELS_PER_PAGE, LEVELS.length);
+
+    for (let pi = pageStart; pi < pageEnd; pi++) {
+      const slot = pi - pageStart;
+      const col = slot % cols;
+      const row = Math.floor(slot / cols);
+      const bx = startX + col * (btnW + gap);
+      const by = startY + row * (btnH + gap);
+      if (x >= bx && x <= bx+btnW && y >= by && y <= by+btnH) {
+        if (pi + 1 <= unlockedLevel) {
+          levelBtnPress[pi] = true;
+          setTimeout(() => { levelBtnPress[pi] = false; }, 150);
+          initLevel(pi);
+          gameState = 'playing';
+          soundAdd();
+        }
+        return;
+      }
+    }
+
+    // Page navigation
+    const navY = startY + rows * (btnH + gap) + 10;
+    const totalPages = Math.ceil(LEVELS.length / LEVELS_PER_PAGE);
+    if (levelSelectPage > 0 && x >= 20 && x <= 150 && y >= navY && y <= navY+38) {
+      levelSelectPage--;
+      return;
+    }
+    if (levelSelectPage < totalPages - 1 && x >= BASE_W-150 && x <= BASE_W-20 && y >= navY && y <= navY+38) {
+      levelSelectPage++;
+      return;
+    }
+
+    // Back button
+    if (x >= 20 && x <= 140 && y >= BASE_H-50 && y <= BASE_H-12) {
+      gameState = 'modeSelect';
+    }
+    return;
+  }
+
+  if (gameState === 'playing' || gameState === 'freePlay') {
     handlePlayingClick(x, y);
   }
 }
@@ -1289,24 +1414,31 @@ function handlePointerDown(e) {
 function handlePlayingClick(x, y) {
   if (execState.running) return;
 
-  const lv = LEVELS[currentLevel];
+  const lv = getCurrentMap();
   const cmds = lv.availableCmds;
-  const btnW = 88, btnH = 38, gap = 6;
+  const maxSlots = lv.maxSlots;
+  const isFree = currentLevel === -1;
+
+  // Command palette
+  const btnW = 86, btnH = 44, gap = 5;
   const cols = Math.min(cmds.length, 3);
   const totalW = cols * btnW + (cols-1)*gap;
   const sx = (BASE_W - totalW) / 2;
-  const sy = 440;
+  const sy = 435;
 
-  // Command palette
   for (let i = 0; i < cmds.length; i++) {
     const col = i % cols, row = Math.floor(i / cols);
     const bx = sx + col * (btnW + gap);
     const by = sy + row * (btnH + gap);
     if (x >= bx && x <= bx+btnW && y >= by && y <= by+btnH) {
-      if (program.length < MAX_SLOTS) {
-        cmdBtnPress[cmds[i]] = true;
-        setTimeout(() => { cmdBtnPress[cmds[i]] = false; }, 150);
-        program.push(cmds[i]);
+      const cmd = cmds[i];
+      const limit = getCmdLimit(cmd);
+      const used = getCmdUsed(cmd);
+      const limitReached = (limit !== Infinity) && (used >= limit);
+      if (program.length < maxSlots && !limitReached) {
+        cmdBtnPress[cmd] = true;
+        setTimeout(() => { cmdBtnPress[cmd] = false; }, 150);
+        program.push(cmd);
         soundAdd();
         execState.succeeded = false;
         resultMsg = '';
@@ -1316,11 +1448,13 @@ function handlePlayingClick(x, y) {
   }
 
   // Program slots (click to remove)
-  const slotW = 36, slotH = 42, gapS = 2;
-  const totalWS = MAX_SLOTS * (slotW + gapS) - gapS;
+  const slotW = Math.min(36, Math.floor((BASE_W - 20) / maxSlots) - 2);
+  const gapS = 2;
+  const totalWS = maxSlots * (slotW + gapS) - gapS;
   const sxS = (BASE_W - totalWS) / 2;
-  const syS = 357;
-  for (let i = 0; i < MAX_SLOTS; i++) {
+  const syS = 353;
+  const slotH = 42;
+  for (let i = 0; i < maxSlots; i++) {
     const bx = sxS + i * (slotW + gapS);
     if (x >= bx && x <= bx+slotW && y >= syS && y <= syS+slotH) {
       if (i < program.length) {
@@ -1336,35 +1470,55 @@ function handlePlayingClick(x, y) {
   }
 
   // Action row
-  const asy = 537;
+  const asy = 580;
   if (execState.succeeded) {
-    // つぎのレベル
-    if (currentLevel < LEVELS.length - 1 && x >= 20 && x <= 220 && y >= asy && y <= asy+44) {
-      currentLevel++;
-      initLevel(currentLevel);
-      return;
-    }
-    // もう一回
-    if (x >= BASE_W-230 && x <= BASE_W-20 && y >= asy && y <= asy+44) {
-      initLevel(currentLevel);
-      return;
-    }
-    // レベルせんたく
-    if (x >= BASE_W/2-75 && x <= BASE_W/2+75 && y >= asy+52 && y <= asy+88) {
-      gameState = 'levelSelect';
-      return;
+    if (isFree) {
+      // もう一回
+      if (x >= BASE_W/2-75 && x <= BASE_W/2+75 && y >= asy && y <= asy+44) {
+        initLevel(-1);
+        gameState = 'freePlay';
+        return;
+      }
+      // ← モードへ
+      if (x >= 20 && x <= 150 && y >= asy && y <= asy+44) {
+        gameState = 'modeSelect';
+        return;
+      }
+    } else {
+      // つぎのレベル
+      if (currentLevel < LEVELS.length - 1 && x >= 10 && x <= 195 && y >= asy && y <= asy+44) {
+        const nextLv = currentLevel + 1;
+        initLevel(nextLv);
+        gameState = 'playing';
+        return;
+      }
+      // もう一回
+      if (x >= BASE_W-200 && x <= BASE_W-10 && y >= asy && y <= asy+44) {
+        initLevel(currentLevel);
+        return;
+      }
+      // レベルせんたく
+      if (x >= BASE_W/2-70 && x <= BASE_W/2+70 && y >= asy+50 && y <= asy+86) {
+        gameState = 'levelSelect';
+        return;
+      }
     }
   } else {
     // クリアボタン
-    if (x >= 20 && x <= 130 && y >= asy && y <= asy+44) {
+    if (x >= 10 && x <= 110 && y >= asy && y <= asy+44) {
       program = [];
       resultMsg = '';
       soundRemove();
       return;
     }
     // 実行ボタン
-    if (x >= BASE_W/2-65 && x <= BASE_W/2+65 && y >= asy && y <= asy+44) {
+    if (x >= BASE_W/2-60 && x <= BASE_W/2+60 && y >= asy && y <= asy+44) {
       if (!execState.running) startExecution();
+      return;
+    }
+    // もどるボタン
+    if (x >= BASE_W-110 && x <= BASE_W-10 && y >= asy && y <= asy+44) {
+      gameState = 'modeSelect';
       return;
     }
   }
@@ -1381,7 +1535,7 @@ function gameLoop(timestamp) {
   const dt = Math.min(timestamp - lastTimestamp, 50);
   lastTimestamp = timestamp;
 
-  if (gameState === 'playing' && execState.running) {
+  if ((gameState === 'playing' || gameState === 'freePlay') && execState.running) {
     updateExecution(dt);
   }
 
