@@ -72,226 +72,322 @@ function wallBorder(p){
 
 const LEVELS = (function(){
   const L=[];
+  // helper: set a row range to type t
+  function row(p,r,c1,c2,t){for(let c=c1;c<=c2;c++)p[r][c]=t;}
+  // helper: set a col range
+  function col(p,c,r1,r2,t){for(let r=r1;r<=r2;r++)p[r][c]=t;}
 
-  // Level 1: ゆかをならべよう
-  {const p=makeEmpty();wallBorder(p);
-   p[0][1]=-1; // open start
-   for(let c=2;c<=7;c++)p[3][c]=FLOOR;
-   for(let c=9;c<=13;c++)p[7][c]=FLOOR;
-   L.push({name:'ゆかをならべよう',hint:'「ゆか」を8まいならべてボールをゴールに届けよう！',
-     preset:p,allowedBlocks:[FLOOR],blockCounts:{[FLOOR]:8},goalRow:5,goalCol:14});}
-
-  // Level 2: かべでかこもう
+  // ── Lv1: 坂を1個おこう！ ────────────────────────────────
+  // 左の台にのってから右の台へ。坂↘を1個つかって落ちずにゴール！
   {const p=makeEmpty();wallBorder(p);p[0][1]=-1;
-   for(let c=2;c<=6;c++)p[3][c]=FLOOR;
-   p[5][8]=FLOOR;p[5][9]=FLOOR;
-   L.push({name:'かべでかこもう',hint:'ゆかとかべを組み合わせてコースを作ろう！',
-     preset:p,allowedBlocks:[FLOOR,WALL],blockCounts:{[FLOOR]:6,[WALL]:4},goalRow:7,goalCol:14});}
+   row(p,3,1,7,FLOOR);   // 左の台（固定）
+   row(p,7,8,13,FLOOR);  // 右の台（固定）
+   // p[5][8]は空欄→プレイヤーがRamp_Rを置く場所（ヒント通り）
+   L.push({name:'坂を1個おこう！',
+     hint:'右の台の上あたりに「坂↘」を1個置いてボールを右の台に落とそう！',
+     preset:p,allowedBlocks:[RAMP_R],blockCounts:{[RAMP_R]:1},
+     goalRow:7,goalCol:14});}
 
-  // Level 3: ゆかと坂
+  // ── Lv2: バネでとばそう！ ─────────────────────────────
+  // 長い床でボールが来る。バネでうえに打ち上げる！
   {const p=makeEmpty();wallBorder(p);p[0][1]=-1;
-   for(let c=2;c<=5;c++)p[2][c]=FLOOR;
-   p[5][10]=FLOOR;p[5][11]=FLOOR;
-   L.push({name:'ゆかと坂',hint:'坂を使ってボールの向きを変えよう！',
-     preset:p,allowedBlocks:[FLOOR,RAMP_R,RAMP_L],blockCounts:{[FLOOR]:5,[RAMP_R]:3,[RAMP_L]:3},goalRow:7,goalCol:14});}
+   row(p,7,1,11,FLOOR);  // 長い床（固定）
+   col(p,12,3,7,WALL);   // 右かべ（固定）
+   row(p,3,12,13,FLOOR); // 上の台（固定）
+   L.push({name:'バネでとばそう！',
+     hint:'長い床の上に「バネ」を1個置いてボールを上にとばそう！',
+     preset:p,allowedBlocks:[SPRING],blockCounts:{[SPRING]:1},
+     goalRow:3,goalCol:14});}
 
-  // Level 4: バネを使え！
+  // ── Lv3: 坂2個でジグザグ！ ──────────────────────────
+  // 3段の台を坂でつなぐ。坂↘を2個で！
   {const p=makeEmpty();wallBorder(p);p[0][1]=-1;
-   for(let c=2;c<=5;c++)p[4][c]=FLOOR;
-   p[8][12]=FLOOR;p[8][13]=FLOOR;
-   L.push({name:'バネを使え！',hint:'バネでボールをたかくとばそう！',
-     preset:p,allowedBlocks:[FLOOR,WALL,SPRING],blockCounts:{[FLOOR]:6,[WALL]:4,[SPRING]:2},goalRow:2,goalCol:14});}
+   row(p,2,1,4,FLOOR);   // 上の台
+   row(p,5,4,8,FLOOR);   // 中の台
+   row(p,8,8,13,FLOOR);  // 下の台
+   // p[2][5]と p[5][9]に坂を置く（ヒント通り）
+   L.push({name:'坂2個でジグザグ！',
+     hint:'3つの台の「段差のところ」にそれぞれ「坂↘」を置いてつなごう！',
+     preset:p,allowedBlocks:[RAMP_R],blockCounts:{[RAMP_R]:2},
+     goalRow:8,goalCol:14});}
 
-  // Level 5: こおりですべれ！
+  // ── Lv4: バネ2個でのぼれ！ ──────────────────────────
+  // 3段の台をバネでのぼる。
   {const p=makeEmpty();wallBorder(p);p[0][1]=-1;
-   for(let c=2;c<=4;c++)p[3][c]=FLOOR;
-   p[6][10]=FLOOR;p[6][11]=FLOOR;p[6][12]=FLOOR;
-   L.push({name:'こおりですべれ！',hint:'こおりの上はすべりやすい！うまく使おう',
-     preset:p,allowedBlocks:[FLOOR,ICE,WALL],blockCounts:{[FLOOR]:4,[ICE]:4,[WALL]:3},goalRow:8,goalCol:14});}
+   row(p,8,1,5,FLOOR);   // 下の台
+   row(p,5,4,8,FLOOR);   // 中の台
+   row(p,2,8,13,FLOOR);  // 上の台
+   L.push({name:'バネ2個でのぼれ！',
+     hint:'下と中の台に「バネ」を1個ずつ置いてどんどん上へ！',
+     preset:p,allowedBlocks:[SPRING],blockCounts:{[SPRING]:2},
+     goalRow:2,goalCol:14});}
 
-  // Level 6: ぬかるみ注意！
+  // ── Lv5: コンベアで加速！ ────────────────────────────
+  // 長い床。コンベアでボールを右に押し進める！
   {const p=makeEmpty();wallBorder(p);p[0][1]=-1;
-   for(let c=3;c<=7;c++)p[2][c]=FLOOR;
-   p[6][11]=WALL;p[7][11]=WALL;
-   L.push({name:'ぬかるみ注意！',hint:'ぬかるみでゆっくりして、バネでとびこえよう！',
-     preset:p,allowedBlocks:[FLOOR,MUD,SPRING],blockCounts:{[FLOOR]:4,[MUD]:3,[SPRING]:2},goalRow:8,goalCol:14});}
+   row(p,6,1,13,FLOOR);  // 全部固定の床
+   L.push({name:'コンベアで加速！',
+     hint:'床の上に「コンベア→」を何個か並べてボールをゴールまで押し進めよう！',
+     preset:p,allowedBlocks:[CONVEYOR_R],blockCounts:{[CONVEYOR_R]:6},
+     goalRow:6,goalCol:14});}
 
-  // Level 7: トランポリン！
+  // ── Lv6: トランポリンで高く！ ────────────────────────
   {const p=makeEmpty();wallBorder(p);p[0][1]=-1;
-   for(let c=2;c<=5;c++)p[5][c]=FLOOR;
-   p[2][12]=FLOOR;p[2][13]=FLOOR;
-   L.push({name:'トランポリン！',hint:'トランポリンでたかくはねよう！',
-     preset:p,allowedBlocks:[FLOOR,TRAMPOLINE,WALL],blockCounts:{[FLOOR]:4,[TRAMPOLINE]:3,[WALL]:3},goalRow:1,goalCol:14});}
+   row(p,8,1,10,FLOOR);  // 床
+   col(p,7,2,8,WALL);    // 右のかべ（固定）
+   L.push({name:'トランポリンで高く！',
+     hint:'かべの左側の床に「トランポリン」を置いてボールを上にはねとばそう！',
+     preset:p,allowedBlocks:[TRAMPOLINE],blockCounts:{[TRAMPOLINE]:2},
+     goalRow:1,goalCol:14});}
 
-  // Level 8: コンベア→
+  // ── Lv7: 坂↘＋坂↙で折り返し！ ─────────────────────
   {const p=makeEmpty();wallBorder(p);p[0][1]=-1;
-   for(let c=2;c<=4;c++)p[4][c]=FLOOR;
-   p[7][12]=FLOOR;p[7][13]=FLOOR;
-   L.push({name:'コンベア→',hint:'コンベアにのってビュンビュンすすもう！',
-     preset:p,allowedBlocks:[FLOOR,CONVEYOR_R,WALL],blockCounts:{[FLOOR]:4,[CONVEYOR_R]:4,[WALL]:3},goalRow:5,goalCol:14});}
+   row(p,3,1,6,FLOOR);
+   row(p,6,5,10,FLOOR);
+   row(p,9,8,13,FLOOR);
+   L.push({name:'坂で折り返し！',
+     hint:'台の端に「坂↘」「坂↙」を置いてうまく落とそう！',
+     preset:p,allowedBlocks:[RAMP_R,RAMP_L],blockCounts:{[RAMP_R]:2,[RAMP_L]:1},
+     goalRow:9,goalCol:14});}
 
-  // Level 9: 風にのれ！
+  // ── Lv8: バネ＋坂 ──────────────────────────────────
   {const p=makeEmpty();wallBorder(p);p[0][1]=-1;
-   for(let c=2;c<=5;c++)p[6][c]=FLOOR;
-   p[3][10]=WALL;p[3][11]=WALL;p[3][12]=WALL;
-   L.push({name:'風にのれ！',hint:'ファンの風でボールをふきあげよう！',
-     preset:p,allowedBlocks:[FLOOR,FAN_U,WALL],blockCounts:{[FLOOR]:4,[FAN_U]:3,[WALL]:3},goalRow:2,goalCol:14});}
+   row(p,7,1,6,FLOOR);
+   row(p,4,7,11,FLOOR);
+   row(p,1,10,13,FLOOR);
+   L.push({name:'バネ＋坂！',
+     hint:'「坂↘」と「バネ」をうまく使って3段の台をつなごう！',
+     preset:p,allowedBlocks:[RAMP_R,SPRING],blockCounts:{[RAMP_R]:1,[SPRING]:2},
+     goalRow:1,goalCol:14});}
 
-  // Level 10: 大砲ドーン！
+  // ── Lv9: 大砲でぶっとばせ！ ─────────────────────────
   {const p=makeEmpty();wallBorder(p);p[0][1]=-1;
-   for(let c=2;c<=5;c++)p[6][c]=FLOOR;
-   p[4][9]=WALL;p[4][10]=WALL;
-   L.push({name:'大砲ドーン！',hint:'大砲でボールをぶっとばそう！',
-     preset:p,allowedBlocks:[FLOOR,CANNON,WALL],blockCounts:{[FLOOR]:4,[CANNON]:2,[WALL]:3},goalRow:2,goalCol:14});}
+   row(p,8,1,8,FLOOR);
+   row(p,4,10,13,FLOOR);
+   L.push({name:'大砲でぶっとばせ！',
+     hint:'「大砲↑」を床に置いてボールをうえの台まで一気にとばそう！',
+     preset:p,allowedBlocks:[CANNON,FLOOR],blockCounts:{[CANNON]:1,[FLOOR]:2},
+     goalRow:4,goalCol:14});}
 
-  // Level 11: 歯車コース
+  // ── Lv10: 風でふき上げろ！ ──────────────────────────
   {const p=makeEmpty();wallBorder(p);p[0][1]=-1;
-   for(let c=2;c<=4;c++)p[3][c]=FLOOR;
-   p[6][7]=FLOOR;p[6][8]=FLOOR;
-   p[9][12]=FLOOR;p[9][13]=FLOOR;
-   L.push({name:'歯車コース',hint:'歯車にあたってうまくはじかれよう！',
-     preset:p,allowedBlocks:[FLOOR,GEAR_R,GEAR_L],blockCounts:{[FLOOR]:5,[GEAR_R]:2,[GEAR_L]:2},goalRow:7,goalCol:14});}
+   row(p,8,1,6,FLOOR);
+   col(p,5,2,8,WALL);    // 左かべ（誘導）
+   col(p,7,2,8,WALL);    // 右かべ（誘導）
+   L.push({name:'風でふき上げろ！',
+     hint:'2つのかべの間に「上むき風」を置いてボールを上にふき上げよう！',
+     preset:p,allowedBlocks:[FAN_U],blockCounts:{[FAN_U]:3},
+     goalRow:1,goalCol:14});}
 
-  // Level 12: ブースト！
+  // ── Lv11〜30: 複合・上級 ──────────────────────────────
+  // Level 11: こおりで滑れ！
   {const p=makeEmpty();wallBorder(p);p[0][1]=-1;
-   for(let c=2;c<=4;c++)p[4][c]=FLOOR;
-   p[7][11]=WALL;p[7][12]=WALL;
-   L.push({name:'ブースト！',hint:'ブーストでスピードをあげよう！',
-     preset:p,allowedBlocks:[FLOOR,BOOST_R,BOOST_L],blockCounts:{[FLOOR]:5,[BOOST_R]:3,[BOOST_L]:2},goalRow:5,goalCol:14});}
+   row(p,5,1,3,FLOOR);
+   row(p,5,11,13,FLOOR);
+   L.push({name:'こおりで滑れ！',
+     hint:'「こおり」を7枚並べてすべすべのコースを作ろう！',
+     preset:p,allowedBlocks:[ICE],blockCounts:{[ICE]:8},
+     goalRow:5,goalCol:14});}
+
+  // Level 12: コンベア＋坂
+  {const p=makeEmpty();wallBorder(p);p[0][1]=-1;
+   row(p,3,1,5,FLOOR);
+   row(p,7,5,12,FLOOR);
+   L.push({name:'コンベア＋坂！',
+     hint:'「坂↘」でおろして「コンベア→」で加速してゴールへ！',
+     preset:p,allowedBlocks:[RAMP_R,CONVEYOR_R],blockCounts:{[RAMP_R]:1,[CONVEYOR_R]:4},
+     goalRow:7,goalCol:14});}
 
   // Level 13: バンパー！
   {const p=makeEmpty();wallBorder(p);p[0][1]=-1;
-   for(let c=2;c<=4;c++)p[2][c]=FLOOR;
-   p[5][7]=WALL;p[6][7]=WALL;
-   L.push({name:'バンパー！',hint:'バンパーにぶつかってゴールを目指そう！',
-     preset:p,allowedBlocks:[FLOOR,BUMPER,WALL],blockCounts:{[FLOOR]:5,[BUMPER]:3,[WALL]:2},goalRow:8,goalCol:14});}
+   row(p,8,1,8,FLOOR);
+   row(p,5,7,10,FLOOR);
+   row(p,2,9,13,FLOOR);
+   L.push({name:'バンパーではねかえれ！',
+     hint:'「バンパー」をうまく置いてはじかれながらゴールへ！',
+     preset:p,allowedBlocks:[BUMPER,FLOOR],blockCounts:{[BUMPER]:3,[FLOOR]:2},
+     goalRow:2,goalCol:14});}
 
-  // Level 14: ハネる！
+  // Level 14: ブースト！
   {const p=makeEmpty();wallBorder(p);p[0][1]=-1;
-   for(let c=2;c<=5;c++)p[5][c]=FLOOR;
-   p[8][10]=FLOOR;p[8][11]=FLOOR;
-   L.push({name:'ハネる！',hint:'フリッパーでボールをはねとばそう！',
-     preset:p,allowedBlocks:[FLOOR,FLIPPER_R,FLIPPER_L],blockCounts:{[FLOOR]:4,[FLIPPER_R]:2,[FLIPPER_L]:2},goalRow:2,goalCol:14});}
+   row(p,6,1,13,FLOOR);
+   p[5][6]=WALL;p[5][7]=WALL;p[5][8]=WALL; // 天井の障害物
+   L.push({name:'ブーストで加速！',
+     hint:'「ブースト→」を並べてボールをすごいスピードにしてゴール！',
+     preset:p,allowedBlocks:[BOOST_R],blockCounts:{[BOOST_R]:5},
+     goalRow:6,goalCol:14});}
 
-  // Level 15: じしゃく！
+  // Level 15: フリッパーではねとばせ！
   {const p=makeEmpty();wallBorder(p);p[0][1]=-1;
-   for(let c=2;c<=4;c++)p[4][c]=FLOOR;
-   p[7][10]=FLOOR;p[7][11]=FLOOR;p[7][12]=FLOOR;
-   L.push({name:'じしゃく！',hint:'じしゃくの引力をうまく使おう！',
-     preset:p,allowedBlocks:[FLOOR,MAGNET,WALL,RAMP_R],blockCounts:{[FLOOR]:4,[MAGNET]:2,[WALL]:2,[RAMP_R]:2},goalRow:5,goalCol:14});}
+   row(p,7,1,6,FLOOR);
+   row(p,3,8,13,FLOOR);
+   L.push({name:'フリッパーではねとばせ！',
+     hint:'「ハネ↗」を台の右端に置いてボールを右上にとばしてゴール！',
+     preset:p,allowedBlocks:[FLIPPER_R,FLOOR],blockCounts:{[FLIPPER_R]:2,[FLOOR]:1},
+     goalRow:3,goalCol:14});}
 
   // Level 16: ワープ！
   {const p=makeEmpty();wallBorder(p);p[0][1]=-1;
-   for(let c=2;c<=5;c++)p[5][c]=FLOOR;
-   p[2][13]=FLOOR;p[2][12]=FLOOR;
-   L.push({name:'ワープ！',hint:'AとBの両方を置いてワープしよう！',
-     preset:p,allowedBlocks:[FLOOR,WARP_A,WARP_B],blockCounts:{[FLOOR]:4,[WARP_A]:1,[WARP_B]:1},goalRow:1,goalCol:14});}
+   row(p,7,1,7,FLOOR);
+   row(p,3,9,13,FLOOR);
+   L.push({name:'ワープで一瞬移動！',
+     hint:'「ワープA」と「ワープB」の両方を置いて瞬間移動しよう！',
+     preset:p,allowedBlocks:[WARP_A,WARP_B,FLOOR],blockCounts:{[WARP_A]:1,[WARP_B]:1,[FLOOR]:2},
+     goalRow:3,goalCol:14});}
 
-  // Level 17: 観覧車！
+  // Level 17: 歯車コース
   {const p=makeEmpty();wallBorder(p);p[0][1]=-1;
-   for(let c=2;c<=4;c++)p[3][c]=FLOOR;
-   p[7][9]=FLOOR;p[7][10]=FLOOR;p[7][11]=FLOOR;
-   L.push({name:'観覧車！',hint:'観覧車にのってくるっとまわろう！',
-     preset:p,allowedBlocks:[FLOOR,FERRIS,WALL],blockCounts:{[FLOOR]:4,[FERRIS]:2,[WALL]:3},goalRow:5,goalCol:14});}
+   row(p,5,1,13,FLOOR);
+   L.push({name:'歯車でころがれ！',
+     hint:'「歯車→」や「歯車←」を置いてボールをはじきながら進もう！',
+     preset:p,allowedBlocks:[GEAR_R,GEAR_L,FLOOR],blockCounts:{[GEAR_R]:2,[GEAR_L]:2,[FLOOR]:2},
+     goalRow:5,goalCol:14});}
 
-  // Level 18: とげ回避
+  // Level 18: 磁石！
   {const p=makeEmpty();wallBorder(p);p[0][1]=-1;
-   p[5][6]=SPIKE;p[5][7]=SPIKE;p[5][8]=SPIKE; // locked spikes
-   for(let c=2;c<=4;c++)p[3][c]=FLOOR;
-   L.push({name:'とげ回避',hint:'とげにあたらないようにゴールを目指せ！',
-     preset:p,allowedBlocks:[FLOOR,RAMP_L,WALL],blockCounts:{[FLOOR]:5,[RAMP_L]:3,[WALL]:3},goalRow:7,goalCol:14});}
+   row(p,6,1,4,FLOOR);
+   row(p,6,10,13,FLOOR);
+   col(p,6,2,6,WALL); col(p,8,2,6,WALL);
+   L.push({name:'じしゃくで引き寄せろ！',
+     hint:'「じしゃく」を置いてボールを引き寄せながらゴールへ！',
+     preset:p,allowedBlocks:[MAGNET,FLOOR,RAMP_R],blockCounts:{[MAGNET]:2,[FLOOR]:3,[RAMP_R]:1},
+     goalRow:6,goalCol:14});}
 
-  // Level 19: マグマ回避
+  // Level 19: とげ回避！
   {const p=makeEmpty();wallBorder(p);p[0][1]=-1;
-   p[7][4]=LAVA;p[7][5]=LAVA;p[7][6]=LAVA;p[7][7]=LAVA; // locked lava
-   for(let c=2;c<=3;c++)p[4][c]=FLOOR;
-   p[4][9]=FLOOR;p[4][10]=FLOOR;
-   L.push({name:'マグマ回避',hint:'マグマにおちないようにわたろう！',
-     preset:p,allowedBlocks:[FLOOR,RAMP_R,SPRING],blockCounts:{[FLOOR]:5,[RAMP_R]:2,[SPRING]:2},goalRow:2,goalCol:14});}
+   row(p,6,1,4,FLOOR);
+   p[6][5]=SPIKE;p[6][6]=SPIKE;p[6][7]=SPIKE; // とげ（固定）
+   row(p,6,8,13,FLOOR);
+   L.push({name:'とげを避けろ！',
+     hint:'とげの上を飛び越えてゴールへ！「バネ」と「坂↘」を使おう！',
+     preset:p,allowedBlocks:[SPRING,RAMP_R,FLOOR],blockCounts:{[SPRING]:1,[RAMP_R]:2,[FLOOR]:2},
+     goalRow:6,goalCol:14});}
 
-  // Level 20: コンビネーション
+  // Level 20: マグマわたり！
   {const p=makeEmpty();wallBorder(p);p[0][1]=-1;
-   for(let c=2;c<=3;c++)p[3][c]=FLOOR;
-   p[6][8]=FLOOR;p[6][9]=FLOOR;
-   L.push({name:'コンビネーション',hint:'いろんなブロックを組み合わせよう！',
-     preset:p,allowedBlocks:[FLOOR,SPRING,CONVEYOR_R,RAMP_R],blockCounts:{[FLOOR]:4,[SPRING]:2,[CONVEYOR_R]:3,[RAMP_R]:2},goalRow:4,goalCol:14});}
+   row(p,8,1,3,FLOOR);
+   p[8][4]=LAVA;p[8][5]=LAVA;p[8][6]=LAVA; // マグマ（固定）
+   row(p,8,7,13,FLOOR);
+   L.push({name:'マグマをわたれ！',
+     hint:'マグマの上を飛び越えてゴールへ！「バネ」か「トランポリン」で！',
+     preset:p,allowedBlocks:[SPRING,TRAMPOLINE,RAMP_R],blockCounts:{[SPRING]:1,[TRAMPOLINE]:1,[RAMP_R]:1},
+     goalRow:8,goalCol:14});}
 
-  // Level 21: 上をめざせ
+  // Level 21: ジグザグ上級
   {const p=makeEmpty();wallBorder(p);p[0][1]=-1;
-   p[8][3]=FLOOR;p[8][4]=FLOOR;p[8][5]=FLOOR;
-   p[5][8]=WALL;p[5][9]=WALL;p[6][9]=WALL;
-   L.push({name:'上をめざせ',hint:'かぎられたブロックで上までのぼろう！',
-     preset:p,allowedBlocks:[FLOOR,SPRING,FAN_U,WALL],blockCounts:{[FLOOR]:4,[SPRING]:2,[FAN_U]:2,[WALL]:2},goalRow:1,goalCol:14});}
+   row(p,2,1,4,FLOOR);
+   row(p,5,4,8,FLOOR);
+   row(p,8,7,11,FLOOR);
+   row(p,5,10,13,FLOOR);
+   L.push({name:'ジグザグ上級！',
+     hint:'4つの台を「坂↘」「坂↙」でつなごう！',
+     preset:p,allowedBlocks:[RAMP_R,RAMP_L],blockCounts:{[RAMP_R]:2,[RAMP_L]:2},
+     goalRow:5,goalCol:14});}
 
-  // Level 22: ジグザグロード
+  // Level 22: 複合1
   {const p=makeEmpty();wallBorder(p);p[0][1]=-1;
-   for(let c=2;c<=6;c++)p[3][c]=WALL;
-   for(let c=7;c<=11;c++)p[6][c]=WALL;
-   L.push({name:'ジグザグロード',hint:'ジグザグにコースを作ろう！',
-     preset:p,allowedBlocks:[FLOOR,RAMP_R,RAMP_L,ICE],blockCounts:{[FLOOR]:4,[RAMP_R]:2,[RAMP_L]:2,[ICE]:3},goalRow:8,goalCol:14});}
+   row(p,8,1,5,FLOOR);
+   row(p,5,5,9,FLOOR);
+   row(p,2,9,13,FLOOR);
+   p[8][6]=SPIKE;
+   L.push({name:'複合チャレンジ1！',
+     hint:'「バネ」「坂↘」「トランポリン」を使ってゴールへ！',
+     preset:p,allowedBlocks:[SPRING,RAMP_R,TRAMPOLINE,FLOOR],blockCounts:{[SPRING]:1,[RAMP_R]:1,[TRAMPOLINE]:1,[FLOOR]:2},
+     goalRow:2,goalCol:14});}
 
-  // Level 23: 連続バネ
+  // Level 23: コンベア迷路
   {const p=makeEmpty();wallBorder(p);p[0][1]=-1;
-   p[8][3]=FLOOR;p[8][4]=FLOOR;
-   p[5][8]=WALL;p[4][11]=WALL;
-   L.push({name:'連続バネ',hint:'バネを連続でジャンプしてのぼれ！',
-     preset:p,allowedBlocks:[FLOOR,SPRING,WALL,RAMP_R],blockCounts:{[FLOOR]:4,[SPRING]:3,[WALL]:2,[RAMP_R]:2},goalRow:1,goalCol:14});}
+   row(p,3,1,6,FLOOR);
+   row(p,6,4,10,FLOOR);
+   row(p,9,7,13,FLOOR);
+   L.push({name:'コンベア迷路！',
+     hint:'「コンベア→」「坂↘」を使って3段の台をすばやくくだろう！',
+     preset:p,allowedBlocks:[CONVEYOR_R,RAMP_R],blockCounts:{[CONVEYOR_R]:3,[RAMP_R]:2},
+     goalRow:9,goalCol:14});}
 
-  // Level 24: コンベア迷路
+  // Level 24: スピードコース
   {const p=makeEmpty();wallBorder(p);p[0][1]=-1;
-   p[3][5]=WALL;p[3][6]=WALL;p[3][7]=WALL;
-   p[7][7]=WALL;p[7][8]=WALL;p[7][9]=WALL;
-   L.push({name:'コンベア迷路',hint:'コンベアをうまく使って迷路を抜けろ！',
-     preset:p,allowedBlocks:[FLOOR,CONVEYOR_R,CONVEYOR_L,WALL],blockCounts:{[FLOOR]:3,[CONVEYOR_R]:3,[CONVEYOR_L]:2,[WALL]:2},goalRow:5,goalCol:14});}
+   row(p,5,1,13,FLOOR);
+   p[4][5]=WALL;p[4][6]=WALL;p[4][7]=WALL;p[4][8]=WALL;
+   L.push({name:'スピードコース！',
+     hint:'「ブースト→」「コンベア→」でとにかく速くゴールへ！',
+     preset:p,allowedBlocks:[BOOST_R,CONVEYOR_R],blockCounts:{[BOOST_R]:3,[CONVEYOR_R]:3},
+     goalRow:5,goalCol:14});}
 
-  // Level 25: 磁石とワープ
+  // Level 25: 上へ上へ！
   {const p=makeEmpty();wallBorder(p);p[0][1]=-1;
-   for(let c=3;c<=5;c++)p[4][c]=FLOOR;
-   p[2][10]=FLOOR;p[2][11]=FLOOR;p[2][12]=FLOOR;
-   L.push({name:'磁石とワープ',hint:'じしゃくとワープを両方使おう！',
-     preset:p,allowedBlocks:[FLOOR,MAGNET,WARP_A,WARP_B],blockCounts:{[FLOOR]:3,[MAGNET]:2,[WARP_A]:1,[WARP_B]:1},goalRow:1,goalCol:14});}
+   row(p,9,1,4,FLOOR);
+   row(p,7,3,7,FLOOR);
+   row(p,5,5,9,FLOOR);
+   row(p,3,7,11,FLOOR);
+   row(p,1,9,13,FLOOR);
+   L.push({name:'上へ上へ！',
+     hint:'バネを4個置いて5段の台をジャンプでのぼれ！',
+     preset:p,allowedBlocks:[SPRING,FLOOR],blockCounts:{[SPRING]:4,[FLOOR]:2},
+     goalRow:1,goalCol:14});}
 
-  // Level 26: 全部使え！
+  // Level 26: とげ＋マグマ回避
   {const p=makeEmpty();wallBorder(p);p[0][1]=-1;
-   p[5][5]=SPIKE;p[5][6]=SPIKE;
+   row(p,7,1,3,FLOOR);
+   p[7][4]=SPIKE;p[7][5]=SPIKE;
+   row(p,7,6,8,FLOOR);
    p[7][9]=LAVA;p[7][10]=LAVA;
-   L.push({name:'全部使え！',hint:'あらゆるブロックを1個ずつ使いこなせ！',
-     preset:p,allowedBlocks:[FLOOR,RAMP_R,SPRING,CONVEYOR_R,FAN_U,BUMPER],blockCounts:{[FLOOR]:3,[RAMP_R]:1,[SPRING]:1,[CONVEYOR_R]:1,[FAN_U]:1,[BUMPER]:1},goalRow:3,goalCol:14});}
+   row(p,7,11,13,FLOOR);
+   L.push({name:'とげ＆マグマ回避！',
+     hint:'とげとマグマをとびこえてゴールへ！バネや大砲を使おう！',
+     preset:p,allowedBlocks:[SPRING,CANNON,TRAMPOLINE],blockCounts:{[SPRING]:2,[CANNON]:1,[TRAMPOLINE]:1},
+     goalRow:7,goalCol:14});}
 
-  // Level 27: 超精密コース
+  // Level 27: 複合上級
   {const p=makeEmpty();wallBorder(p);p[0][1]=-1;
-   p[3][4]=WALL;p[3][5]=WALL;
-   p[6][8]=WALL;p[6][9]=WALL;
-   p[5][6]=SPIKE;p[8][11]=SPIKE;
-   L.push({name:'超精密コース',hint:'とげをよけながらピッタリ合わせよう！',
-     preset:p,allowedBlocks:[FLOOR,RAMP_R,RAMP_L,WALL,SPRING],blockCounts:{[FLOOR]:3,[RAMP_R]:1,[RAMP_L]:1,[WALL]:2,[SPRING]:1},goalRow:7,goalCol:14});}
+   row(p,8,1,4,FLOOR);
+   row(p,5,5,9,FLOOR);
+   row(p,2,10,13,FLOOR);
+   p[8][5]=SPIKE;p[5][10]=LAVA;
+   L.push({name:'複合上級！',
+     hint:'「バネ」「坂↘」「フリッパー」で障害物をよけながらゴールへ！',
+     preset:p,allowedBlocks:[SPRING,RAMP_R,FLIPPER_R,FLOOR],blockCounts:{[SPRING]:2,[RAMP_R]:1,[FLIPPER_R]:1,[FLOOR]:2},
+     goalRow:2,goalCol:14});}
 
-  // Level 28: 逆さコース
+  // Level 28: ワープ上級
   {const p=makeEmpty();wallBorder(p);p[0][1]=-1;
-   p[2][4]=LAVA;p[2][5]=LAVA;p[2][6]=LAVA;
-   for(let c=8;c<=11;c++)p[4][c]=FLOOR;
-   L.push({name:'逆さコース',hint:'上から落ちずにゴールを目指せ！',
-     preset:p,allowedBlocks:[FLOOR,FLIPPER_R,FLIPPER_L,WALL,RAMP_L],blockCounts:{[FLOOR]:3,[FLIPPER_R]:1,[FLIPPER_L]:1,[WALL]:2,[RAMP_L]:1},goalRow:6,goalCol:14});}
+   row(p,8,1,6,FLOOR);
+   row(p,3,9,13,FLOOR);
+   p[8][7]=SPIKE;p[8][8]=SPIKE;p[8][9]=SPIKE;
+   L.push({name:'ワープ上級！',
+     hint:'とげを超えるために「ワープA」「ワープB」を使おう！',
+     preset:p,allowedBlocks:[WARP_A,WARP_B,FLOOR,RAMP_R],blockCounts:{[WARP_A]:1,[WARP_B]:1,[FLOOR]:2,[RAMP_R]:1},
+     goalRow:3,goalCol:14});}
 
-  // Level 29: マスタークラス
+  // Level 29: 超難関
   {const p=makeEmpty();wallBorder(p);p[0][1]=-1;
-   p[4][5]=SPIKE;p[4][6]=SPIKE;p[4][7]=SPIKE;
-   p[7][7]=LAVA;p[7][8]=LAVA;
-   p[3][10]=WALL;p[3][11]=WALL;p[3][12]=WALL;
-   L.push({name:'マスタークラス',hint:'きびしい制限でゴールをねらえ！真の腕前を見せろ！',
-     preset:p,allowedBlocks:[FLOOR,RAMP_R,RAMP_L,SPRING,WARP_A,WARP_B],blockCounts:{[FLOOR]:3,[RAMP_R]:1,[RAMP_L]:1,[SPRING]:1,[WARP_A]:1,[WARP_B]:1},goalRow:2,goalCol:14});}
+   row(p,9,1,3,FLOOR);
+   row(p,7,2,5,FLOOR);
+   row(p,5,4,7,FLOOR);
+   row(p,3,6,9,FLOOR);
+   row(p,1,8,13,FLOOR);
+   p[9][4]=LAVA;p[7][6]=SPIKE;p[5][8]=LAVA;
+   L.push({name:'超難関コース！',
+     hint:'障害物だらけ！「バネ」「坂↘」「トランポリン」「大砲」で攻略！',
+     preset:p,allowedBlocks:[SPRING,RAMP_R,TRAMPOLINE,CANNON,FAN_U],blockCounts:{[SPRING]:2,[RAMP_R]:2,[TRAMPOLINE]:1,[CANNON]:1,[FAN_U]:1},
+     goalRow:1,goalCol:14});}
 
-  // Level 30: 伝説のコース
+  // Level 30: 伝説のコース！
   {const p=makeEmpty();wallBorder(p);p[0][1]=-1;
-   p[3][4]=SPIKE;p[3][5]=SPIKE;
-   p[6][7]=LAVA;p[6][8]=LAVA;p[6][9]=LAVA;
-   p[4][11]=WALL;p[4][12]=WALL;p[5][12]=WALL;
-   L.push({name:'伝説のコース',hint:'これがラスト！全部の知識を使い切れ！！',
-     preset:p,allowedBlocks:[FLOOR,RAMP_R,SPRING,CONVEYOR_R,BUMPER,WARP_A,WARP_B],blockCounts:{[FLOOR]:2,[RAMP_R]:1,[SPRING]:1,[CONVEYOR_R]:1,[BUMPER]:1,[WARP_A]:1,[WARP_B]:1},goalRow:2,goalCol:14});}
+   row(p,9,1,4,FLOOR);
+   row(p,7,3,6,FLOOR);
+   row(p,5,5,8,FLOOR);
+   row(p,3,7,10,FLOOR);
+   row(p,1,9,13,FLOOR);
+   p[9][5]=SPIKE;p[9][6]=SPIKE;
+   p[5][9]=LAVA;p[3][5]=LAVA;
+   L.push({name:'でんせつのコース！',
+     hint:'全部の知識を使ってラストをクリアしろ！スロット8個！',
+     preset:p,allowedBlocks:[SPRING,RAMP_R,TRAMPOLINE,CANNON,FAN_U,BUMPER,WARP_A,WARP_B],blockCounts:{[SPRING]:2,[RAMP_R]:2,[TRAMPOLINE]:1,[CANNON]:1,[WARP_A]:1,[WARP_B]:1},
+     goalRow:1,goalCol:14});}
 
   return L;
 })();
-
 // ── State ──────────────────────────────────────────────────────────
 // states: 'modeSelect' | 'levelSelect' | 'freeEdit' | 'freePlay' | 'challengeEdit' | 'challengePlay' | 'challengeWin' | 'challengeFail'
 let state = 'modeSelect';
