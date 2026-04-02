@@ -113,7 +113,7 @@ const MAPS=[
     [4,3,6,3,3,3,4,3,4,3,3,3,3,3,4],
     [4,3,3,3,4,3,4,3,3,3,4,4,4,3,4],
     [4,4,4,4,4,3,4,4,4,4,4,3,3,3,4],
-    [4,3,3,3,3,3,3,3,3,3,3,3,11,3,4],
+    [4,3,3,3,3,3,3,5,3,3,3,3,11,3,4],
     [4,4,4,4,4,4,4,4,4,4,4,4,4,4,4],
   ],
   // 3: Castle
@@ -144,7 +144,7 @@ const DOORS=[
   // Forest doors
   [{tx:7,ty:0,dest:0,dx:7,dy:12},{tx:7,ty:13,dest:2,dx:7,dy:1}], // north->town, south->cave
   // Cave doors
-  [{tx:7,ty:0,dest:1,dx:7,dy:12}], // north->forest
+  [{tx:7,ty:0,dest:1,dx:7,dy:12},{tx:7,ty:13,dest:3,dx:7,dy:12}], // north->forest, south->castle
   // Castle doors
   [{tx:7,ty:13,dest:2,dx:7,dy:1}], // south->cave
 ];
@@ -170,10 +170,10 @@ function makeAreaEnemies(){
       {type:'slime',tx:5,ty:3,alive:true,timer:0},
       {type:'slime',tx:10,ty:8,alive:true,timer:0},
       {type:'bat',tx:3,ty:11,alive:true,timer:0},
-      {type:'bat',tx:12,ty:5,alive:true,timer:0},
+      {type:'bat',tx:12,ty:4,alive:true,timer:0},
     ],
     [
-      {type:'goblin',tx:4,ty:4,alive:true,timer:0},
+      {type:'goblin',tx:3,ty:4,alive:true,timer:0},
       {type:'goblin',tx:11,ty:10,alive:true,timer:0},
       {type:'skeleton',tx:7,ty:7,alive:true,timer:0},
       {type:'skeleton',tx:13,ty:3,alive:true,timer:0},
@@ -1176,14 +1176,11 @@ function tryMove(dx,dy){
   const npc=getNPC(player.area,nx,ny);
   if(npc)return;
 
-  if(!isWalkable(player.area,nx,ny))return;
-
-  // Check enemy
+  // Check enemy BEFORE walkability (enemy might be on special tile)
   const enemy=getEnemy(player.area,nx,ny);
-  if(enemy){
-    startBattle(enemy);
-    return;
-  }
+  if(enemy){ startBattle(enemy); return; }
+
+  if(!isWalkable(player.area,nx,ny))return;
 
   player.fromX=player.x;player.fromY=player.y;
   player.x=nx;player.y=ny;
