@@ -461,6 +461,54 @@ function getChallengeRemaining(type){
   return lv.blockCounts[type]-(placedCounts[type]||0);
 }
 
+// ── Save / Load ─────────────────────────────────────────────────────
+const SAVE_KEY='block_course_free_v1_';
+const SAVE_MAX=5;
+function getSave(slot){try{const d=localStorage.getItem(SAVE_KEY+slot);return d?JSON.parse(d):null;}catch(e){return null;}}
+function writeSave(slot){localStorage.setItem(SAVE_KEY+slot,JSON.stringify({grid:grid.map(r=>[...r]),ts:Date.now()}));}
+function applyLoad(slot){
+  const d=getSave(slot);if(!d)return;
+  for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++)grid[r][c]=(d.grid[r]&&d.grid[r][c]!=null?d.grid[r][c]:NONE);
+  grid[FREE_GOAL_ROW][FREE_GOAL_COL]=GOAL;
+  lockedGrid=[];placedCounts={};sel=FLOOR;
+  ball=null;trail=[];confetti=[];ballTrapped=false;
+  state='freeEdit';
+}
+function fmtDate(ts){
+  if(!ts)return '---';
+  const d=new Date(ts);
+  return `${d.getMonth()+1}/${d.getDate()} ${d.getHours()}:${String(d.getMinutes()).padStart(2,'0')}`;
+}
+function drawSlotList(title,mode){
+  ctx.fillStyle='#0d1220';ctx.fillRect(0,0,W,H);
+  ctx.fillStyle='#fff';ctx.font=`bold ${CELL*0.7}px sans-serif`;ctx.textAlign='center';
+  ctx.fillText(title,W/2,CELL*1.5);
+  const bh=CELL*1.05,gap=CELL*0.28,startY=CELL*2.2;
+  for(let i=0;i<SAVE_MAX;i++){
+    const d=getSave(i);
+    const empty=!d&&mode==='load';
+    const bx=W*0.06,bw=W*0.88,by=startY+i*(bh+gap);
+    const over=!empty&&hitBtn({x:bx,y:by,w:bw,h:bh},mx,my);
+    ctx.fillStyle=empty?'#0d1520':(over?'#2a4060':'#162030');
+    ctx.beginPath();ctx.roundRect(bx,by,bw,bh,bh*0.18);ctx.fill();
+    if(over){ctx.strokeStyle='rgba(255,255,255,0.4)';ctx.lineWidth=2;ctx.stroke();}
+    ctx.fillStyle=empty?'#334':'#ccc';ctx.font=`bold ${CELL*0.42}px sans-serif`;ctx.textAlign='left';
+    ctx.fillText(`セーブ ${i+1}`,bx+CELL*0.45,by+bh*0.52);
+    ctx.fillStyle=d?'#88ccff':'#445';ctx.font=`${CELL*0.34}px sans-serif`;
+    ctx.fillText(d?`📅 ${fmtDate(d.ts)}`:'（空き）',bx+CELL*0.45,by+bh*0.82);
+    if(!empty){
+      ctx.fillStyle='rgba(255,220,80,0.9)';ctx.font=`bold ${CELL*0.38}px sans-serif`;ctx.textAlign='right';
+      ctx.fillText(mode==='save'?(d?'上書き保存 💾':'ここに保存 💾'):'読み込む 📂',bx+bw-CELL*0.4,by+bh*0.68);
+    }
+    canvas[`_slotBtn_${i}`]={x:bx,y:by,w:bw,h:bh,valid:!empty};
+  }
+  const bkW=CELL*3.5,bkH=CELL*0.75,bkX=W/2-bkW/2,bkY=H-CELL*1.1;
+  ctx.fillStyle='#334';ctx.beginPath();ctx.roundRect(bkX,bkY,bkW,bkH,bkH*0.3);ctx.fill();
+  ctx.fillStyle='#aaa';ctx.font=`${CELL*0.4}px sans-serif`;ctx.textAlign='center';
+  ctx.fillText('← キャンセル',W/2,bkY+bkH*0.7);
+  canvas._slotBackBtn={x:bkX,y:bkY,w:bkW,h:bkH};
+}
+
 // ── Spawn / physics ────────────────────────────────────────────────
 function spawnBall(){ball={x:1*CELL+CELL/2,y:0*CELL+CELL/2,vx:0.8,vy:0};trail=[];ballTrapped=false;}
 
@@ -965,6 +1013,8 @@ function draw(){
 
   if(state==='modeSelect'){drawModeSelect();return;}
   if(state==='levelSelect'){drawLevelSelect();return;}
+  if(state==='savePicker'){drawSlotList('どこに保存する？ 💾','save');return;}
+  if(state==='loadPicker'){drawSlotList('どのコースを読み込む？ 📂','load');return;}
 
   // Grid area
   drawGrid();
@@ -997,12 +1047,26 @@ function draw(){
     ctx.fillStyle='#22aa33';ctx.fillRect(GO_X,GO_Y,GO_W,GO_H);
     ctx.fillStyle='#fff';ctx.font=`bold ${Math.max(11,GO_H*0.5)}px sans-serif`;ctx.textAlign='center';
     ctx.fillText('▶ ためしてみる！',GO_X+GO_W/2,GO_Y+GO_H*0.68);
-    // Back button for free/challenge edit
-    const bkW=CELL*2.5,bkH=GO_H,bkX=10,bkY=GO_Y;
+    const bkH=GO_H,bkY=GO_Y;
+    // Back button (compact)
+    const bkW=CELL*1.8,bkX=6;
     ctx.fillStyle='#334';ctx.beginPath();ctx.roundRect(bkX,bkY,bkW,bkH,bkH*0.3);ctx.fill();
-    ctx.fillStyle='#aaa';ctx.font=`${Math.max(9,GO_H*0.45)}px sans-serif`;ctx.textAlign='left';
-    ctx.fillText('← もどる',bkX+8,bkY+bkH*0.68);
+    ctx.fillStyle='#aaa';ctx.font=`${Math.max(9,GO_H*0.48)}px sans-serif`;ctx.textAlign='center';
+    ctx.fillText('← もどる',bkX+bkW/2,bkY+bkH*0.68);
     canvas._editBackBtn={x:bkX,y:bkY,w:bkW,h:bkH};
+    // Save / Load buttons (free mode only)
+    if(state==='freeEdit'){
+      const svX=bkX+bkW+4,svW=CELL*2.1;
+      ctx.fillStyle='#224466';ctx.beginPath();ctx.roundRect(svX,bkY,svW,bkH,bkH*0.3);ctx.fill();
+      ctx.fillStyle='#88ddff';ctx.font=`${Math.max(9,GO_H*0.46)}px sans-serif`;ctx.textAlign='center';
+      ctx.fillText('💾 保存',svX+svW/2,bkY+bkH*0.68);
+      canvas._saveBtn={x:svX,y:bkY,w:svW,h:bkH};
+      const ldX=svX+svW+4,ldW=CELL*2.4;
+      ctx.fillStyle='#334422';ctx.beginPath();ctx.roundRect(ldX,bkY,ldW,bkH,bkH*0.3);ctx.fill();
+      ctx.fillStyle='#aaff88';ctx.font=`${Math.max(9,GO_H*0.46)}px sans-serif`;ctx.textAlign='center';
+      ctx.fillText('📂 よみこみ',ldX+ldW/2,bkY+bkH*0.68);
+      canvas._loadBtn={x:ldX,y:bkY,w:ldW,h:bkH};
+    }
   }
   if(isPlay){
     ctx.fillStyle='#aa2200';ctx.fillRect(GO_X,GO_Y,GO_W,GO_H);
@@ -1135,11 +1199,37 @@ function onDown(x,y){
     return;
   }
 
+  // ── savePicker ──
+  if(state==='savePicker'){
+    if(hitBtn(canvas._slotBackBtn,x,y)){state='freeEdit';return;}
+    for(let i=0;i<SAVE_MAX;i++){
+      if(canvas[`_slotBtn_${i}`]?.valid!==false&&hitBtn(canvas[`_slotBtn_${i}`],x,y)){
+        writeSave(i);beep(660,0.12,0.25,'triangle');setTimeout(()=>beep(880,0.1,0.2,'triangle'),100);
+        state='freeEdit';return;
+      }
+    }
+    return;
+  }
+
+  // ── loadPicker ──
+  if(state==='loadPicker'){
+    if(hitBtn(canvas._slotBackBtn,x,y)){state='freeEdit';return;}
+    for(let i=0;i<SAVE_MAX;i++){
+      if(canvas[`_slotBtn_${i}`]?.valid&&hitBtn(canvas[`_slotBtn_${i}`],x,y)){
+        applyLoad(i);beep(440,0.1,0.2,'triangle');setTimeout(()=>beep(660,0.12,0.25,'triangle'),100);return;
+      }
+    }
+    return;
+  }
+
   // ── win/fail (free mode) ──
   if(state==='win'||state==='fail'){state='freeEdit';ball=null;trail=[];confetti=[];return;}
 
   // ── Toolbar area ──
   if(y>GH){
+    // save/load buttons (free edit only)
+    if(state==='freeEdit'&&hitBtn(canvas._saveBtn,x,y)){state='savePicker';return;}
+    if(state==='freeEdit'&&hitBtn(canvas._loadBtn,x,y)){state='loadPicker';return;}
     // back button from edit
     if(hitBtn(canvas._editBackBtn,x,y)){
       state=(state==='freeEdit'||state==='freePlay')?'modeSelect':'levelSelect';
