@@ -49,6 +49,8 @@ var scene='menu';
 var mx=W/2, my=H/2, mdown=false, mup=false, mupX=0, mupY=0;
 var dragStart=null, dragging=false;
 var frameCount=0;
+var p2TouchX=W/2;
+var keys={};
 
 // Confetti
 var confetti=[];
@@ -1362,6 +1364,114 @@ function drawTennisEnd(){
   if(drawButton('モードえらび',W/2-110,450,210,54,'#661188'))setScene('tennis_modes');
 }
 
+// ── Tennis 2P ─────────────────────────────────────────────────────────────
+function initTennis2P(){
+  p2TouchX=W/2;
+  ten={
+    paddleX:W/2, paddleW:80, paddleY:H-40,
+    p2X:W/2, paddleW2:80, p2Y:60,
+    ballX:W/2, ballY:H/2,
+    vx:3, vy:-5,
+    p1Score:0, p2Score:0,
+    matchPhase:'serve', serveSide:1,
+    pointMsg:'', pointCol:'#fff',
+  };
+}
+
+function updateTennis2P(){
+  ten.paddleX=clamp(mx,ten.paddleW/2+30,W-ten.paddleW/2-30);
+  if(keys['a']||keys['A']||keys['ArrowLeft'])p2TouchX=Math.max(p2TouchX-7,ten.paddleW2/2+30);
+  if(keys['d']||keys['D']||keys['ArrowRight'])p2TouchX=Math.min(p2TouchX+7,W-ten.paddleW2/2-30);
+  ten.p2X=clamp(p2TouchX,ten.paddleW2/2+30,W-ten.paddleW2/2-30);
+
+  if(ten.matchPhase==='serve'){
+    if(ten.serveSide===1){
+      ten.ballX=ten.paddleX; ten.ballY=ten.paddleY-25;
+      if(mup&&my>H/2){ten.vx=(Math.random()-0.5)*4;ten.vy=-7;ten.matchPhase='play';beep(440,0.1,'sine');}
+    } else {
+      ten.ballX=ten.p2X; ten.ballY=ten.p2Y+25;
+      if(mup&&my<H/2){ten.vx=(Math.random()-0.5)*4;ten.vy=7;ten.matchPhase='play';beep(440,0.1,'sine');}
+    }
+  } else if(ten.matchPhase==='play'){
+    ten.ballX+=ten.vx; ten.ballY+=ten.vy;
+    if(ten.ballX<38||ten.ballX>W-38){ten.vx*=-1;beep(220,0.05,'sine',0.1);}
+    if(ten.ballY>ten.paddleY-20&&ten.ballY<ten.paddleY+10&&Math.abs(ten.ballX-ten.paddleX)<ten.paddleW/2){
+      ten.vy=-Math.abs(ten.vy); ten.vx+=(ten.ballX-ten.paddleX)*0.07; beep(500,0.08,'sine');
+    }
+    if(ten.ballY<ten.p2Y+20&&ten.ballY>ten.p2Y-10&&Math.abs(ten.ballX-ten.p2X)<ten.paddleW2/2){
+      ten.vy=Math.abs(ten.vy); ten.vx+=(ten.ballX-ten.p2X)*0.07; beep(330,0.08,'sine');
+    }
+    ten.vx=clamp(ten.vx,-9,9);
+    if(ten.vy<0)ten.vy=clamp(ten.vy,-12,-3);
+    else if(ten.vy>0)ten.vy=clamp(ten.vy,3,12);
+    if(ten.ballY>H+10){
+      ten.p2Score++;ten.pointMsg='P2のポイント！';ten.pointCol='#ff3366';
+      ten.matchPhase='point';ten.serveSide=2;frameCount=0;playMiss();
+      if(ten.p2Score===5)spawnConfetti();
+    }
+    if(ten.ballY<-10){
+      ten.p1Score++;ten.pointMsg='P1のポイント！';ten.pointCol='#9933ff';
+      ten.matchPhase='point';ten.serveSide=1;frameCount=0;playSuccess();
+      if(ten.p1Score===5)spawnConfetti();
+    }
+  } else if(ten.matchPhase==='point'){
+    if(frameCount>80){
+      if(ten.p1Score>=5||ten.p2Score>=5){setScene('tennis_end_2p');return;}
+      ten.matchPhase='serve';
+    }
+  }
+}
+
+function drawTennis2P(){
+  drawTennisCourt();
+  drawPaddle(ten.paddleX,ten.paddleY,ten.paddleW,'#9933ff');
+  drawPaddle(ten.p2X,ten.p2Y,ten.paddleW2,'#ff3366');
+  drawTennisBall(ten.ballX,ten.ballY);
+
+  ctx.fillStyle='rgba(0,0,0,0.6)';roundRect(W/2-95,8,190,46,10);ctx.fill();
+  ctx.font='bold 20px sans-serif';ctx.textAlign='center';
+  ctx.fillStyle='#9933ff';ctx.fillText('P1 '+ten.p1Score,W/2-32,36);
+  ctx.fillStyle='#fff';ctx.fillText('-',W/2,36);
+  ctx.fillStyle='#ff3366';ctx.fillText(ten.p2Score+' P2',W/2+32,36);
+
+  if(ten.matchPhase==='serve'){
+    if(ten.serveSide===1){
+      ctx.fillStyle='rgba(153,51,255,0.9)';ctx.font='bold 15px sans-serif';ctx.textAlign='center';
+      ctx.fillText('P1: 下をタップしてサーブ！',W/2,H-14);
+    } else {
+      ctx.fillStyle='rgba(255,51,102,0.9)';ctx.font='bold 15px sans-serif';ctx.textAlign='center';
+      ctx.fillText('P2: 上をタップしてサーブ！',W/2,28);
+    }
+  }
+
+  ctx.font='11px sans-serif';
+  ctx.fillStyle='rgba(153,51,255,0.8)';ctx.textAlign='left';ctx.fillText('P1: 下タッチ',35,H-14);
+  ctx.fillStyle='rgba(255,51,102,0.8)';ctx.textAlign='right';ctx.fillText('P2: 上タッチ / A・Dキー',W-35,28);
+
+  if(ten.matchPhase==='point'){
+    ctx.fillStyle='rgba(0,0,0,0.5)';ctx.fillRect(0,H/2-40,W,80);
+    ctx.fillStyle=ten.pointCol;ctx.font='bold 34px sans-serif';ctx.textAlign='center';
+    ctx.fillText(ten.pointMsg,W/2,H/2+12);
+    updateConfetti();drawConfetti();
+  }
+  drawBack('tennis_modes');
+}
+
+function drawTennisEnd2P(){
+  drawTennisCourt();
+  ctx.fillStyle='rgba(0,0,0,0.78)';ctx.fillRect(0,0,W,H);
+  var p1Won=ten.p1Score>=5;
+  ctx.fillStyle=p1Won?'#9933ff':'#ff3366';
+  ctx.font='bold 48px sans-serif';ctx.textAlign='center';
+  ctx.fillText(p1Won?'P1の勝ち！🎾':'P2の勝ち！🎾',W/2,150);
+  ctx.fillStyle='#fff';ctx.font='30px sans-serif';
+  ctx.fillText('P1 '+ten.p1Score+' - '+ten.p2Score+' P2',W/2,220);
+  drawConfetti();updateConfetti();
+  if(drawButton('もういちど',W/2-110,300,210,54,'#4a1a7a'))setScene('tennis_2p');
+  if(drawButton('モードえらび',W/2-110,370,210,54,'#661188'))setScene('tennis_modes');
+  if(drawButton('メニューへ',W/2-110,440,210,54,'#223344'))setScene('menu');
+}
+
 // ── initScene ──────────────────────────────────────────────────────────────
 function initScene(s){
   switch(s){
@@ -1375,6 +1485,7 @@ function initScene(s){
     case 'basket_dunk':  initBasket();initDunk();bskEndMode=s;break;
     case 'tennis_rally': initTennis();tenEndMode=s;break;
     case 'tennis_match': initTennis();ten.matchPhase='serve';tenEndMode=s;break;
+    case 'tennis_2p':    initTennis2P();break;
   }
 }
 
@@ -1445,6 +1556,7 @@ function update(){
     case 'basket_dunk':   updateDunk(); break;
     case 'tennis_rally':  updateTennisRally(); break;
     case 'tennis_match':  updateTennisMatch(); break;
+    case 'tennis_2p':     updateTennis2P(); break;
   }
 }
 
@@ -1472,7 +1584,8 @@ function draw(){
     case 'tennis_modes':
       drawModeSelect('🎾 テニス','#3a1060',[
         {label:'🎾 ラリーモード',scene:'tennis_rally',color:'#9933ff',desc:'何回続けられるか挑戦！'},
-        {label:'🏆 しあいモード',scene:'tennis_match',color:'#7722cc',desc:'AIに勝って5ポイント取ろう！'},
+        {label:'🏆 1人しあいモード',scene:'tennis_match',color:'#7722cc',desc:'AIに勝って5ポイント取ろう！'},
+        {label:'👥 2人で対戦！',scene:'tennis_2p',color:'#cc2266',desc:'2人で同じ画面でたたかおう！'},
       ]); break;
     case 'soccer_shoot':  drawSoccerShoot(); break;
     case 'soccer_gk':     drawSoccerGK(); break;
@@ -1485,9 +1598,11 @@ function draw(){
     case 'basket_3pt':    draw3pt(); break;
     case 'basket_dunk':   drawDunk(); break;
     case 'basket_end':    drawBasketEnd(); break;
-    case 'tennis_rally':  drawTennisRally(); break;
-    case 'tennis_match':  drawTennisMatch(); break;
-    case 'tennis_end':    drawTennisEnd(); break;
+    case 'tennis_rally':   drawTennisRally(); break;
+    case 'tennis_match':   drawTennisMatch(); break;
+    case 'tennis_end':     drawTennisEnd(); break;
+    case 'tennis_2p':      drawTennis2P(); break;
+    case 'tennis_end_2p':  drawTennisEnd2P(); break;
   }
   mup=false;
 }
@@ -1515,23 +1630,32 @@ canvas.addEventListener('mouseup',function(e){
 
 canvas.addEventListener('touchstart',function(e){
   e.preventDefault();ensureAC();
-  var t=e.touches[0];
-  var p=getPos(t);mx=p.x;my=p.y;mdown=true;
+  for(var i=0;i<e.touches.length;i++){
+    var p=getPos(e.touches[i]);
+    if(p.y<H/2){p2TouchX=p.x;}
+    else{mx=p.x;my=p.y;mdown=true;}
+  }
   dragStart=null;dragging=false;
 },{passive:false});
 canvas.addEventListener('touchmove',function(e){
   e.preventDefault();
-  var t=e.touches[0];
-  var p=getPos(t);mx=p.x;my=p.y;
+  for(var i=0;i<e.touches.length;i++){
+    var p=getPos(e.touches[i]);
+    if(p.y<H/2){p2TouchX=p.x;}
+    else{mx=p.x;my=p.y;}
+  }
 },{passive:false});
 canvas.addEventListener('touchend',function(e){
   e.preventDefault();
   if(e.changedTouches.length){
     var t=e.changedTouches[0];
-    var p=getPos(t);mupX=p.x;mupY=p.y;mx=p.x;my=p.y;
+    var p=getPos(t);
+    if(p.y<H/2){p2TouchX=p.x;mupX=p.x;mupY=p.y;mup=true;}
+    else{mupX=p.x;mupY=p.y;mx=p.x;my=p.y;mup=true;mdown=false;}
   }
-  mup=true;mdown=false;
 },{passive:false});
+window.addEventListener('keydown',function(e){keys[e.key]=true;});
+window.addEventListener('keyup',function(e){keys[e.key]=false;});
 </script>
 </body>
 </html>
