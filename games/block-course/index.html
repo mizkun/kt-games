@@ -276,118 +276,6 @@ const LEVELS = (function(){
      preset:p,allowedBlocks:[SPRING,TRAMPOLINE,RAMP_R],blockCounts:{[SPRING]:1,[TRAMPOLINE]:1,[RAMP_R]:1},
      goalRow:8,goalCol:14});}
 
-  // Level 21: ジグザグ上級
-  {const p=makeEmpty();wallBorder(p);p[0][1]=-1;
-   row(p,2,1,4,FLOOR);
-   row(p,5,4,8,FLOOR);
-   row(p,8,7,11,FLOOR);
-   row(p,5,10,13,FLOOR);
-   L.push({name:'ジグザグ上級！',
-     hint:'4つの台を「坂↘」「坂↙」でつなごう！',
-     preset:p,allowedBlocks:[RAMP_R,RAMP_L],blockCounts:{[RAMP_R]:2,[RAMP_L]:2},
-     goalRow:5,goalCol:14});}
-
-  // Level 22: 複合1
-  {const p=makeEmpty();wallBorder(p);p[0][1]=-1;
-   row(p,8,1,5,FLOOR);
-   row(p,5,5,9,FLOOR);
-   row(p,2,9,13,FLOOR);
-   p[8][6]=SPIKE;
-   L.push({name:'複合チャレンジ1！',
-     hint:'「バネ」「坂↘」「トランポリン」を使ってゴールへ！',
-     preset:p,allowedBlocks:[SPRING,RAMP_R,TRAMPOLINE,FLOOR],blockCounts:{[SPRING]:1,[RAMP_R]:1,[TRAMPOLINE]:1,[FLOOR]:2},
-     goalRow:2,goalCol:14});}
-
-  // Level 23: コンベア迷路
-  {const p=makeEmpty();wallBorder(p);p[0][1]=-1;
-   row(p,3,1,6,FLOOR);
-   row(p,6,4,10,FLOOR);
-   row(p,9,7,13,FLOOR);
-   L.push({name:'コンベア迷路！',
-     hint:'「コンベア→」「坂↘」を使って3段の台をすばやくくだろう！',
-     preset:p,allowedBlocks:[CONVEYOR_R,RAMP_R],blockCounts:{[CONVEYOR_R]:3,[RAMP_R]:2},
-     goalRow:9,goalCol:14});}
-
-  // Level 24: スピードコース
-  {const p=makeEmpty();wallBorder(p);p[0][1]=-1;
-   row(p,5,1,13,FLOOR);
-   p[4][5]=WALL;p[4][6]=WALL;p[4][7]=WALL;p[4][8]=WALL;
-   L.push({name:'スピードコース！',
-     hint:'「ブースト→」「コンベア→」でとにかく速くゴールへ！',
-     preset:p,allowedBlocks:[BOOST_R,CONVEYOR_R],blockCounts:{[BOOST_R]:3,[CONVEYOR_R]:3},
-     goalRow:5,goalCol:14});}
-
-  // Level 25: 上へ上へ！
-  {const p=makeEmpty();wallBorder(p);p[0][1]=-1;
-   row(p,9,1,4,FLOOR);
-   row(p,7,3,7,FLOOR);
-   row(p,5,5,9,FLOOR);
-   row(p,3,7,11,FLOOR);
-   row(p,1,9,13,FLOOR);
-   L.push({name:'上へ上へ！',
-     hint:'バネを4個置いて5段の台をジャンプでのぼれ！',
-     preset:p,allowedBlocks:[SPRING,FLOOR],blockCounts:{[SPRING]:4,[FLOOR]:2},
-     goalRow:1,goalCol:14});}
-
-  // Level 26: とげ＋マグマ回避
-  {const p=makeEmpty();wallBorder(p);p[0][1]=-1;
-   row(p,7,1,3,FLOOR);
-   p[7][4]=SPIKE;p[7][5]=SPIKE;
-   row(p,7,6,8,FLOOR);
-   p[7][9]=LAVA;p[7][10]=LAVA;
-   row(p,7,11,13,FLOOR);
-   L.push({name:'とげ＆マグマ回避！',
-     hint:'とげとマグマをとびこえてゴールへ！バネや大砲を使おう！',
-     preset:p,allowedBlocks:[SPRING,CANNON,TRAMPOLINE],blockCounts:{[SPRING]:2,[CANNON]:1,[TRAMPOLINE]:1},
-     goalRow:7,goalCol:14});}
-
-  // Level 27: 複合上級
-  {const p=makeEmpty();wallBorder(p);p[0][1]=-1;
-   row(p,8,1,4,FLOOR);
-   row(p,5,5,9,FLOOR);
-   row(p,2,10,13,FLOOR);
-   p[8][5]=SPIKE;p[5][10]=LAVA;
-   L.push({name:'複合上級！',
-     hint:'「バネ」「坂↘」「フリッパー」で障害物をよけながらゴールへ！',
-     preset:p,allowedBlocks:[SPRING,RAMP_R,FLIPPER_R,FLOOR],blockCounts:{[SPRING]:2,[RAMP_R]:1,[FLIPPER_R]:1,[FLOOR]:2},
-     goalRow:2,goalCol:14});}
-
-  // Level 28: ワープ上級
-  {const p=makeEmpty();wallBorder(p);p[0][1]=-1;
-   row(p,8,1,6,FLOOR);
-   row(p,3,9,13,FLOOR);
-   p[8][7]=SPIKE;p[8][8]=SPIKE;p[8][9]=SPIKE;
-   L.push({name:'ワープ上級！',
-     hint:'とげを超えるために「ワープA」「ワープB」を使おう！',
-     preset:p,allowedBlocks:[WARP_A,WARP_B,FLOOR,RAMP_R],blockCounts:{[WARP_A]:1,[WARP_B]:1,[FLOOR]:2,[RAMP_R]:1},
-     goalRow:3,goalCol:14});}
-
-  // Level 29: 超難関
-  {const p=makeEmpty();wallBorder(p);p[0][1]=-1;
-   row(p,9,1,3,FLOOR);
-   row(p,7,2,5,FLOOR);
-   row(p,5,4,7,FLOOR);
-   row(p,3,6,9,FLOOR);
-   row(p,1,8,13,FLOOR);
-   p[9][4]=LAVA;p[7][6]=SPIKE;p[5][8]=LAVA;
-   L.push({name:'超難関コース！',
-     hint:'障害物だらけ！「バネ」「坂↘」「トランポリン」「大砲」で攻略！',
-     preset:p,allowedBlocks:[SPRING,RAMP_R,TRAMPOLINE,CANNON,FAN_U],blockCounts:{[SPRING]:2,[RAMP_R]:2,[TRAMPOLINE]:1,[CANNON]:1,[FAN_U]:1},
-     goalRow:1,goalCol:14});}
-
-  // Level 30: 伝説のコース！
-  {const p=makeEmpty();wallBorder(p);p[0][1]=-1;
-   row(p,9,1,4,FLOOR);
-   row(p,7,3,6,FLOOR);
-   row(p,5,5,8,FLOOR);
-   row(p,3,7,10,FLOOR);
-   row(p,1,9,13,FLOOR);
-   p[9][5]=SPIKE;p[9][6]=SPIKE;
-   p[5][9]=LAVA;p[3][5]=LAVA;
-   L.push({name:'でんせつのコース！',
-     hint:'全部の知識を使ってラストをクリアしろ！スロット8個！',
-     preset:p,allowedBlocks:[SPRING,RAMP_R,TRAMPOLINE,CANNON,FAN_U,BUMPER,WARP_A,WARP_B],blockCounts:{[SPRING]:2,[RAMP_R]:2,[TRAMPOLINE]:1,[CANNON]:1,[WARP_A]:1,[WARP_B]:1},
-     goalRow:1,goalCol:14});}
 
   return L;
 })();
@@ -410,10 +298,7 @@ const BALL_SHAPES = [
   {name:'ごかく',   type:'polygon', sides:5, color1:'#ffaa44', color2:'#aa6600'},  // Lv10-12
   {name:'ろっかく', type:'polygon', sides:6, color1:'#aa44ff', color2:'#6600aa'},  // Lv13-15
   {name:'ななかく', type:'polygon', sides:7, color1:'#44ffff', color2:'#00aaaa'},  // Lv16-18
-  {name:'はっかく', type:'polygon', sides:8, color1:'#ff44ff', color2:'#aa00aa'},  // Lv19-21
-  {name:'ダイヤ',   type:'diamond', color1:'#44ddff', color2:'#0088cc'},  // Lv22-24
-  {name:'ピザ',     type:'pizza',   color1:'#ffcc44', color2:'#cc8800'},  // Lv25-27
-  {name:'ほし',     type:'star',    color1:'#ffff44', color2:'#ccaa00'},  // Lv28-30
+  {name:'ダイヤ',   type:'diamond', color1:'#44ddff', color2:'#0088cc'},  // Lv19-20
 ];
 function getBallShape(lvl){return BALL_SHAPES[Math.min(Math.floor(lvl/3),BALL_SHAPES.length-1)];}
 function drawBallPath(ctx,x,y,r,shape){
@@ -442,7 +327,7 @@ const grid = Array.from({length:ROWS},()=>new Array(COLS).fill(NONE));
 const FREE_GOAL_COL = COLS-2, FREE_GOAL_ROW = ROWS-3;
 
 // Load cleared levels
-for(let i=0;i<30;i++){
+for(let i=0;i<20;i++){
   if(localStorage.getItem('block_course_cleared_'+i)==='1') clearedLevels[i]=true;
 }
 
@@ -567,11 +452,9 @@ let BALL_R = BALL_R_BASE;
 // Returns {ballScale, timeLimit(seconds, 0=no limit)}
 function getLevelDifficulty(lvl){
   if(lvl<5)  return {ballScale:1.0, timeLimit:0};
-  if(lvl<10) return {ballScale:0.88, timeLimit:60};
-  if(lvl<15) return {ballScale:0.76, timeLimit:45};
-  if(lvl<20) return {ballScale:0.65, timeLimit:35};
-  if(lvl<25) return {ballScale:0.55, timeLimit:28};
-  return            {ballScale:0.45, timeLimit:22};
+  if(lvl<10) return {ballScale:0.85, timeLimit:60};
+  if(lvl<15) return {ballScale:0.7, timeLimit:45};
+  return            {ballScale:0.55, timeLimit:30};
 }
 let challengeTimer = 0;   // frames remaining
 let challengeTimeLimit = 0; // seconds (for display)
@@ -923,16 +806,16 @@ function drawModeSelect(){
   ctx.fillStyle='#aa5500';ctx.beginPath();ctx.roundRect(bx,chalY,bw,bh,bh*0.2);ctx.fill();
   ctx.strokeStyle='#ffaa44';ctx.lineWidth=2;ctx.stroke();
   ctx.fillStyle='#fff';ctx.font=`bold ${CELL*0.6}px sans-serif`;
-  ctx.fillText('🏆 チャレンジ！30ステージ',W/2,chalY+bh*0.62);
+  ctx.fillText('🏆 チャレンジ！20ステージ',W/2,chalY+bh*0.62);
   ctx.fillStyle='#ffddaa';ctx.font=`${CELL*0.3}px sans-serif`;
-  ctx.fillText('30のステージをクリアしよう！',W/2,chalY+bh*0.88);
+  ctx.fillText('20のステージをクリアしよう！',W/2,chalY+bh*0.88);
   // Store button bounds for click
   canvas._modeFreeBtn={x:bx,y:freeY,w:bw,h:bh};
   canvas._modeChalBtn={x:bx,y:chalY,w:bw,h:bh};
 }
 
 // ── Level Select Screen ────────────────────────────────────────────
-const LS_COLS=5, LS_ROWS=6;
+const LS_COLS=5, LS_ROWS=4;
 function drawLevelSelect(){
   ctx.fillStyle='#1a1a2e';ctx.fillRect(0,0,W,H);
   ctx.fillStyle='#ffdd00';ctx.font=`bold ${CELL*0.7}px sans-serif`;ctx.textAlign='center';
@@ -948,7 +831,7 @@ function drawLevelSelect(){
   const bw=Math.floor((W-padX*2)/LS_COLS)-4;
   const bh=Math.floor((GH-padY-CELL*0.3)/LS_ROWS)-4;
   canvas._lsBtns=[];
-  for(let i=0;i<30;i++){
+  for(let i=0;i<20;i++){
     const col=i%LS_COLS,row=Math.floor(i/LS_COLS);
     const bx=padX+col*(bw+4),by=padY+row*(bh+4);
     canvas._lsBtns.push({x:bx,y:by,w:bw,h:bh,idx:i});
@@ -979,7 +862,7 @@ function drawLevelSelect(){
   // Progress count
   const cleared30=Object.keys(clearedLevels).length;
   ctx.fillStyle='#aaa';ctx.font=`${CELL*0.3}px sans-serif`;ctx.textAlign='center';
-  ctx.fillText(`クリア: ${cleared30}/30`,W/2,H-8);
+  ctx.fillText(`クリア: ${cleared30}/20`,W/2,H-8);
 }
 
 // ── Grid draw helper ───────────────────────────────────────────────
@@ -1192,7 +1075,7 @@ function draw(){
     ctx.fillStyle='#ffdd00';ctx.font=`bold ${CELL*1.1}px sans-serif`;ctx.textAlign='center';ctx.shadowColor='#ffaa00';ctx.shadowBlur=30;ctx.fillText('🎉 ステージクリア！',W/2,GH*0.3);ctx.shadowBlur=0;
     ctx.fillStyle='#fff';ctx.font=`${CELL*0.45}px sans-serif`;ctx.fillText(`Lv${currentLevel+1}: ${LEVELS[currentLevel].name}`,W/2,GH*0.43);
     // Show next level changes
-    if(currentLevel<29){
+    if(currentLevel<19){
       const nextShape=getBallShape(currentLevel+1);const curShape=getBallShape(currentLevel);
       const nextDiff=getLevelDifficulty(currentLevel+1);const curDiff=getLevelDifficulty(currentLevel);
       let hints=[];
@@ -1204,7 +1087,7 @@ function draw(){
     }
     // Next level / back buttons
     const bw2=CELL*4,bh2=CELL*0.85,by2=GH*0.6;
-    if(currentLevel<29){
+    if(currentLevel<19){
       ctx.fillStyle='#22aa44';ctx.beginPath();ctx.roundRect(W/2-bw2/2,by2,bw2,bh2,bh2*0.3);ctx.fill();
       ctx.fillStyle='#fff';ctx.font=`bold ${CELL*0.45}px sans-serif`;ctx.fillText('つぎへ！▶',W/2,by2+bh2*0.68);
       canvas._chalWinNextBtn={x:W/2-bw2/2,y:by2,w:bw2,h:bh2};
@@ -1283,7 +1166,7 @@ function onDown(x,y){
 
   // ── challengeWin ──
   if(state==='challengeWin'){
-    if(hitBtn(canvas._chalWinNextBtn,x,y)&&currentLevel<29){initChallenge(currentLevel+1);beep(440,0.12,0.2,'triangle');return;}
+    if(hitBtn(canvas._chalWinNextBtn,x,y)&&currentLevel<19){initChallenge(currentLevel+1);beep(440,0.12,0.2,'triangle');return;}
     if(hitBtn(canvas._chalWinBackBtn,x,y)){state='levelSelect';return;}
     return;
   }
