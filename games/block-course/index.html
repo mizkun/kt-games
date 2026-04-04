@@ -110,8 +110,8 @@ const LEVELS = (function(){
    row(p,8,8,13,FLOOR);  // 下の台
    // p[2][5]と p[5][9]に坂を置く（ヒント通り）
    L.push({name:'坂でジグザグ！',
-     hint:'「坂↘」と「坂↙」を使って、台をつなごう！',
-     preset:p,allowedBlocks:[RAMP_R,RAMP_L],blockCounts:{[RAMP_R]:12,[RAMP_L]:6},
+     hint:'「坂↘」と「コンベア→」を使って、台をつなごう！',
+     preset:p,allowedBlocks:[RAMP_R,CONVEYOR_R],blockCounts:{[RAMP_R]:12,[CONVEYOR_R]:6},
      goalRow:8,goalCol:14});}
 
   // ── Lv4: バネ2個でのぼれ！ ──────────────────────────
