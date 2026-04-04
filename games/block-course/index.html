@@ -80,15 +80,15 @@ const LEVELS = (function(){
   // helper: set a col range
   function col(p,c,r1,r2,t){for(let r=r1;r<=r2;r++)p[r][c]=t;}
 
-  // ── Lv1: ゆかをつなごう！ ────────────────────────────────
-  // かんたん！真ん中のすきまに「ゆか」を2個置くだけ！
+  // ── Lv1: 坂でころがせ！ ────────────────────────────────
+  // 上の台から坂↘を使ってボールを下の台に転がそう！
   {const p=makeEmpty();wallBorder(p);p[0][1]=-1;
-   row(p,5,1,6,FLOOR);   // 左の台
-   row(p,5,9,13,FLOOR);  // 右の台（すきまは7,8）
-   L.push({name:'ゆかをつなごう！',
-     hint:'真ん中のすきまに「ゆか」を2個置いてつなごう！',
-     preset:p,allowedBlocks:[FLOOR],blockCounts:{[FLOOR]:2},
-     goalRow:5,goalCol:14});}
+   row(p,3,1,5,FLOOR);    // 上の短い台
+   row(p,7,7,13,FLOOR);   // 下の台（ゴール側）
+   L.push({name:'坂でころがせ！',
+     hint:'上の台のはしに「坂↘」を置いて、ボールを下の台にころがそう！',
+     preset:p,allowedBlocks:[RAMP_R],blockCounts:{[RAMP_R]:1},
+     goalRow:7,goalCol:14});}
 
   // ── Lv2: バネでとばそう！ ─────────────────────────────
   // 長い床でボールが来る。バネでうえに打ち上げる！
