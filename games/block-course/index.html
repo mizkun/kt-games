@@ -98,8 +98,8 @@ const LEVELS = (function(){
    col(p,12,3,7,WALL);   // 右かべ（固定）
    row(p,3,12,13,FLOOR); // 上の台（固定）
    L.push({name:'バネでとばそう！',
-     hint:'長い床の上に「バネ」を1個置いてボールを上にとばそう！',
-     preset:p,allowedBlocks:[SPRING],blockCounts:{[SPRING]:1},
+     hint:'床の上に「バネ」を置いてボールを上にとばそう！',
+     preset:p,allowedBlocks:[SPRING],blockCounts:{[SPRING]:3},
      goalRow:3,goalCol:14});}
 
   // ── Lv3: 坂2個でジグザグ！ ──────────────────────────
