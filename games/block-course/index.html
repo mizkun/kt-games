@@ -80,16 +80,15 @@ const LEVELS = (function(){
   // helper: set a col range
   function col(p,c,r1,r2,t){for(let r=r1;r<=r2;r++)p[r][c]=t;}
 
-  // ── Lv1: 坂を1個おこう！ ────────────────────────────────
-  // 左の台にのってから右の台へ。坂↘を1個つかって落ちずにゴール！
+  // ── Lv1: ゆかをつなごう！ ────────────────────────────────
+  // かんたん！真ん中のすきまに「ゆか」を2個置くだけ！
   {const p=makeEmpty();wallBorder(p);p[0][1]=-1;
-   row(p,3,1,7,FLOOR);   // 左の台（固定）
-   row(p,7,8,13,FLOOR);  // 右の台（固定）
-   // p[5][8]は空欄→プレイヤーがRamp_Rを置く場所（ヒント通り）
-   L.push({name:'坂を1個おこう！',
-     hint:'右の台の上あたりに「坂↘」を1個置いてボールを右の台に落とそう！',
-     preset:p,allowedBlocks:[RAMP_R],blockCounts:{[RAMP_R]:1},
-     goalRow:7,goalCol:14});}
+   row(p,5,1,6,FLOOR);   // 左の台
+   row(p,5,9,13,FLOOR);  // 右の台（すきまは7,8）
+   L.push({name:'ゆかをつなごう！',
+     hint:'真ん中のすきまに「ゆか」を2個置いてつなごう！',
+     preset:p,allowedBlocks:[FLOOR],blockCounts:{[FLOOR]:2},
+     goalRow:5,goalCol:14});}
 
   // ── Lv2: バネでとばそう！ ─────────────────────────────
   // 長い床でボールが来る。バネでうえに打ち上げる！
@@ -402,6 +401,35 @@ let confetti = [];
 let warpCooldown = 0;
 let ac = null;
 
+// ── Ball shapes per level ──────────────────────────────────────────
+const BALL_SHAPES = [
+  {name:'まる',     type:'circle',  color1:'#ff4488', color2:'#aa0033'},  // Lv1-3
+  {name:'さんかく', type:'polygon', sides:3, color1:'#44ff88', color2:'#00aa33'},  // Lv4-6
+  {name:'しかく',   type:'polygon', sides:4, color1:'#4488ff', color2:'#0033aa'},  // Lv7-9
+  {name:'ごかく',   type:'polygon', sides:5, color1:'#ffaa44', color2:'#aa6600'},  // Lv10-12
+  {name:'ろっかく', type:'polygon', sides:6, color1:'#aa44ff', color2:'#6600aa'},  // Lv13-15
+  {name:'ななかく', type:'polygon', sides:7, color1:'#44ffff', color2:'#00aaaa'},  // Lv16-18
+  {name:'はっかく', type:'polygon', sides:8, color1:'#ff44ff', color2:'#aa00aa'},  // Lv19-21
+  {name:'ダイヤ',   type:'diamond', color1:'#44ddff', color2:'#0088cc'},  // Lv22-24
+  {name:'ピザ',     type:'pizza',   color1:'#ffcc44', color2:'#cc8800'},  // Lv25-27
+  {name:'ほし',     type:'star',    color1:'#ffff44', color2:'#ccaa00'},  // Lv28-30
+];
+function getBallShape(lvl){return BALL_SHAPES[Math.min(Math.floor(lvl/3),BALL_SHAPES.length-1)];}
+function drawBallPath(ctx,x,y,r,shape){
+  ctx.beginPath();
+  if(shape.type==='circle'){ctx.arc(x,y,r,0,Math.PI*2);}
+  else if(shape.type==='polygon'){
+    const n=shape.sides;
+    for(let i=0;i<n;i++){const a=-Math.PI/2+(2*Math.PI*i)/n;const px=x+r*Math.cos(a),py=y+r*Math.sin(a);if(i===0)ctx.moveTo(px,py);else ctx.lineTo(px,py);}ctx.closePath();
+  } else if(shape.type==='diamond'){
+    ctx.moveTo(x,y-r);ctx.lineTo(x+r*0.7,y);ctx.lineTo(x,y+r);ctx.lineTo(x-r*0.7,y);ctx.closePath();
+  } else if(shape.type==='pizza'){
+    ctx.moveTo(x,y);ctx.arc(x,y,r,-Math.PI*0.85,Math.PI*0.15);ctx.closePath();
+  } else if(shape.type==='star'){
+    for(let i=0;i<10;i++){const a=-Math.PI/2+(Math.PI*i)/5;const rd=i%2===0?r:r*0.45;const px=x+rd*Math.cos(a),py=y+rd*Math.sin(a);if(i===0)ctx.moveTo(px,py);else ctx.lineTo(px,py);}ctx.closePath();
+  }
+}
+
 // Challenge mode state
 let currentLevel = 0;
 let clearedLevels = {};
@@ -428,6 +456,8 @@ function initFreePlay(){
   lockedGrid=[];
   placedCounts={};
   sel=FLOOR;
+  BALL_R=BALL_R_BASE; // reset ball size for free play
+  challengeTimer=0;challengeTimeLimit=0;
   state='freeEdit';
   ball=null;trail=[];confetti=[];ballTrapped=false;
 }
@@ -451,6 +481,11 @@ function initChallenge(idx){
   for(const t of lv.allowedBlocks)placedCounts[t]=0;
   // First allowed block as default sel (not NONE)
   sel=lv.allowedBlocks[0]||FLOOR;
+  // Apply difficulty scaling
+  const diff=getLevelDifficulty(idx);
+  BALL_R=BALL_R_BASE*diff.ballScale;
+  challengeTimeLimit=diff.timeLimit;
+  challengeTimer=diff.timeLimit*60; // 60fps
   state='challengeEdit';
   ball=null;trail=[];confetti=[];ballTrapped=false;warpCooldown=0;
 }
@@ -524,7 +559,21 @@ function resolveWall(tx,ty){
   if(frame%3===0)beep(200+Math.random()*100,0.04,0.07,'square');
 }
 
-const BALL_R = CELL * 0.27;
+const BALL_R_BASE = CELL * 0.27;
+let BALL_R = BALL_R_BASE;
+
+// ── Difficulty scaling ─────────────────────────────────────────────
+// Returns {ballScale, timeLimit(seconds, 0=no limit)}
+function getLevelDifficulty(lvl){
+  if(lvl<5)  return {ballScale:1.0, timeLimit:0};
+  if(lvl<10) return {ballScale:0.88, timeLimit:60};
+  if(lvl<15) return {ballScale:0.76, timeLimit:45};
+  if(lvl<20) return {ballScale:0.65, timeLimit:35};
+  if(lvl<25) return {ballScale:0.55, timeLimit:28};
+  return            {ballScale:0.45, timeLimit:22};
+}
+let challengeTimer = 0;   // frames remaining
+let challengeTimeLimit = 0; // seconds (for display)
 
 function resolveFloor(tx,ty){
   if(ball.vy<0)return;
@@ -687,6 +736,11 @@ function resolveWarpB2(tx,ty){
 
 function updateBall(){
   if(!ball)return;
+  // Timer countdown
+  if(state==='challengePlay'&&challengeTimeLimit>0){
+    challengeTimer--;
+    if(challengeTimer<=0){triggerFail('time');return;}
+  }
   if(warpCooldown>0)warpCooldown--;
   if(ballTrapped){resolveFerris(trapTx,trapTy);trail.push({x:ball.x,y:ball.y});if(trail.length>10)trail.shift();return;}
   ball.vy+=0.34;ball.x+=ball.vx;ball.y+=ball.vy;
@@ -746,7 +800,9 @@ function triggerWin(){
   [523,659,784,1047,1319].forEach((f,i)=>setTimeout(()=>beep(f,0.3,0.25,'triangle'),i*120));
   for(let i=0;i<60;i++)confetti.push({x:Math.random()*GW,y:Math.random()*GH,vx:(Math.random()-0.5)*4,vy:Math.random()*-3-2,col:`hsl(${Math.random()*360|0},100%,60%)`,r:3+Math.random()*4,life:120});
 }
-function triggerFail(){
+let failReason='fall'; // 'fall' or 'time'
+function triggerFail(reason){
+  failReason=reason||'fall';
   state=(state==='challengePlay')?'challengeFail':'fail';
   ball=null;
   beep(400,0.1,0.28,'sawtooth');setTimeout(()=>beep(300,0.13,0.28,'sawtooth'),130);
@@ -907,7 +963,12 @@ function drawLevelSelect(){
       ctx.fillText(i+1,bx+bw/2,by+bh*0.75);
     } else if(unlocked){
       ctx.fillStyle='#fff';ctx.font=`bold ${Math.min(bh*0.5,CELL*0.45)}px sans-serif`;ctx.textAlign='center';ctx.textBaseline='middle';
-      ctx.fillText(i+1,bx+bw/2,by+bh/2);
+      ctx.fillText(i+1,bx+bw/2,by+bh*0.35);
+      // Show ball shape preview
+      const sh=getBallShape(i);const diff=getLevelDifficulty(i);
+      const pr=Math.min(bh*0.15,CELL*0.18)*diff.ballScale;
+      ctx.fillStyle=sh.color1;drawBallPath(ctx,bx+bw/2,by+bh*0.72,pr,sh);ctx.fill();
+      if(diff.timeLimit>0){ctx.fillStyle='#ffaa44';ctx.font=`${Math.min(bh*0.18,CELL*0.16)}px sans-serif`;ctx.fillText(`${diff.timeLimit}s`,bx+bw-6,by+10);}
     } else {
       ctx.fillStyle='#555';ctx.font=`${Math.min(bh*0.5,CELL*0.4)}px sans-serif`;ctx.textAlign='center';ctx.textBaseline='middle';
       ctx.fillText('🔒',bx+bw/2,by+bh/2);
@@ -1025,11 +1086,13 @@ function draw(){
   const isEdit=state==='freeEdit'||state==='challengeEdit';
   if(isEdit){ctx.fillStyle='rgba(255,200,0,0.8)';ctx.font=`${CELL*0.22}px sans-serif`;ctx.fillText('スタート',CELL*1+CELL/2,CELL*0.5+CELL/4+CELL*0.52);}
 
-  // Trail
-  for(let i=0;i<trail.length;i++){ctx.globalAlpha=(i/trail.length)*0.4;ctx.fillStyle='#ff4488';ctx.beginPath();ctx.arc(trail[i].x,trail[i].y,BALL_R*(0.3+0.7*i/trail.length),0,Math.PI*2);ctx.fill();}ctx.globalAlpha=1;
+  // Trail & Ball — shape changes by level in challenge mode
+  const isChallMode=(state==='challengeEdit'||state==='challengePlay'||state==='challengeWin'||state==='challengeFail');
+  const bShape=isChallMode?getBallShape(currentLevel):BALL_SHAPES[0];
+  for(let i=0;i<trail.length;i++){ctx.globalAlpha=(i/trail.length)*0.4;ctx.fillStyle=bShape.color1;const tr=BALL_R*(0.3+0.7*i/trail.length);drawBallPath(ctx,trail[i].x,trail[i].y,tr,bShape);ctx.fill();}ctx.globalAlpha=1;
 
   // Ball
-  if(ball){const g=ctx.createRadialGradient(ball.x-BALL_R*.3,ball.y-BALL_R*.3,0,ball.x,ball.y,BALL_R);g.addColorStop(0,'#ffffff');g.addColorStop(0.4,'#ff4488');g.addColorStop(1,'#aa0033');ctx.beginPath();ctx.arc(ball.x,ball.y,BALL_R,0,Math.PI*2);ctx.fillStyle=g;ctx.fill();ctx.strokeStyle='rgba(255,255,255,0.4)';ctx.lineWidth=1;ctx.stroke();}
+  if(ball){const g=ctx.createRadialGradient(ball.x-BALL_R*.3,ball.y-BALL_R*.3,0,ball.x,ball.y,BALL_R);g.addColorStop(0,'#ffffff');g.addColorStop(0.4,bShape.color1);g.addColorStop(1,bShape.color2);drawBallPath(ctx,ball.x,ball.y,BALL_R,bShape);ctx.fillStyle=g;ctx.fill();ctx.strokeStyle='rgba(255,255,255,0.4)';ctx.lineWidth=1;ctx.stroke();}
 
   // Confetti
   for(const c of confetti){ctx.fillStyle=c.col;ctx.globalAlpha=c.life/120;ctx.beginPath();ctx.arc(c.x,c.y,c.r,0,Math.PI*2);ctx.fill();}ctx.globalAlpha=1;
@@ -1082,6 +1145,24 @@ function draw(){
     ctx.fillText(`Lv${currentLevel+1}: ${lv.name} — ${lv.hint}`,GW/2,CELL*0.38);
   }
 
+  // Timer display
+  if(state==='challengePlay'&&challengeTimeLimit>0){
+    const secs=Math.ceil(challengeTimer/60);
+    const ratio=challengeTimer/(challengeTimeLimit*60);
+    const tCol=ratio>0.3?'#44ff88':ratio>0.15?'#ffaa00':'#ff3333';
+    ctx.fillStyle='rgba(0,0,0,0.6)';ctx.fillRect(GW-CELL*3.2,CELL*0.1,CELL*3,CELL*0.55);
+    ctx.fillStyle=tCol;ctx.font=`bold ${CELL*0.38}px sans-serif`;ctx.textAlign='center';
+    ctx.fillText(`⏱ ${secs}びょう`,GW-CELL*1.7,CELL*0.48);
+    // Flashing warning when low
+    if(ratio<=0.15&&frame%20<10){ctx.fillStyle='rgba(255,0,0,0.15)';ctx.fillRect(0,0,GW,GH);}
+  }
+  // Timer display in edit mode
+  if(state==='challengeEdit'&&challengeTimeLimit>0){
+    ctx.fillStyle='rgba(0,0,0,0.5)';ctx.fillRect(GW-CELL*3.2,CELL*0.1,CELL*3,CELL*0.55);
+    ctx.fillStyle='#88ccff';ctx.font=`bold ${CELL*0.32}px sans-serif`;ctx.textAlign='center';
+    ctx.fillText(`⏱ ${challengeTimeLimit}びょう`,GW-CELL*1.7,CELL*0.46);
+  }
+
   // Danger zone
   if(isPlay){
     const dangerH=CELL*0.55,stripeCount=10;
@@ -1108,7 +1189,18 @@ function draw(){
   if(state==='challengeWin'){
     ctx.fillStyle='rgba(0,0,0,0.78)';ctx.fillRect(0,0,W,GH);
     ctx.fillStyle='#ffdd00';ctx.font=`bold ${CELL*1.1}px sans-serif`;ctx.textAlign='center';ctx.shadowColor='#ffaa00';ctx.shadowBlur=30;ctx.fillText('🎉 ステージクリア！',W/2,GH*0.3);ctx.shadowBlur=0;
-    ctx.fillStyle='#fff';ctx.font=`${CELL*0.45}px sans-serif`;ctx.fillText(`Lv${currentLevel+1}: ${LEVELS[currentLevel].name}`,W/2,GH*0.46);
+    ctx.fillStyle='#fff';ctx.font=`${CELL*0.45}px sans-serif`;ctx.fillText(`Lv${currentLevel+1}: ${LEVELS[currentLevel].name}`,W/2,GH*0.43);
+    // Show next level changes
+    if(currentLevel<29){
+      const nextShape=getBallShape(currentLevel+1);const curShape=getBallShape(currentLevel);
+      const nextDiff=getLevelDifficulty(currentLevel+1);const curDiff=getLevelDifficulty(currentLevel);
+      let hints=[];
+      if(nextShape!==curShape) hints.push(`🆕 ボール→${nextShape.name}`);
+      if(nextDiff.ballScale<curDiff.ballScale) hints.push('🔍 ボールが小さくなる！');
+      if(nextDiff.timeLimit>0&&curDiff.timeLimit===0) hints.push('⏱ タイム制限スタート！');
+      else if(nextDiff.timeLimit>0&&nextDiff.timeLimit<curDiff.timeLimit) hints.push(`⏱ ${nextDiff.timeLimit}びょう！`);
+      if(hints.length>0){ctx.fillStyle='#88ffcc';ctx.font=`bold ${CELL*0.32}px sans-serif`;ctx.fillText(hints.join('  '),W/2,GH*0.52);}
+    }
     // Next level / back buttons
     const bw2=CELL*4,bh2=CELL*0.85,by2=GH*0.6;
     if(currentLevel<29){
@@ -1126,9 +1218,12 @@ function draw(){
   }
   if(state==='challengeFail'){
     ctx.fillStyle='rgba(0,0,0,0.78)';ctx.fillRect(0,0,W,GH);
-    ctx.font=`${CELL*1.4}px sans-serif`;ctx.textAlign='center';ctx.fillText('💥',W/2,GH*0.25);
-    ctx.shadowColor='#ff2200';ctx.shadowBlur=30;ctx.fillStyle='#ff4444';ctx.font=`bold ${CELL*0.85}px sans-serif`;ctx.fillText('ざんねん！',W/2,GH*0.46);ctx.shadowBlur=0;
-    ctx.fillStyle='#ffcc44';ctx.font=`${CELL*0.38}px sans-serif`;ctx.fillText('もう一回チャレンジ！',W/2,GH*0.58);
+    const failEmoji=failReason==='time'?'⏱':'💥';
+    const failMsg=failReason==='time'?'じかんぎれ！':'ざんねん！';
+    const failSub=failReason==='time'?'もっとはやくクリアしよう！':'もう一回チャレンジ！';
+    ctx.font=`${CELL*1.4}px sans-serif`;ctx.textAlign='center';ctx.fillText(failEmoji,W/2,GH*0.25);
+    ctx.shadowColor='#ff2200';ctx.shadowBlur=30;ctx.fillStyle='#ff4444';ctx.font=`bold ${CELL*0.85}px sans-serif`;ctx.fillText(failMsg,W/2,GH*0.46);ctx.shadowBlur=0;
+    ctx.fillStyle='#ffcc44';ctx.font=`${CELL*0.38}px sans-serif`;ctx.fillText(failSub,W/2,GH*0.58);
     const bw2=CELL*4,bh2=CELL*0.85,by2=GH*0.67;
     ctx.fillStyle='#aa3311';ctx.beginPath();ctx.roundRect(W/2-bw2/2,by2,bw2,bh2,bh2*0.3);ctx.fill();
     ctx.fillStyle='#fff';ctx.font=`bold ${CELL*0.42}px sans-serif`;ctx.fillText('🔄 もう一回！',W/2,by2+bh2*0.68);
@@ -1239,7 +1334,7 @@ function onDown(x,y){
     if(x>=GO_X&&x<=GO_X+GO_W&&y>=GO_Y&&y<=GO_Y+GO_H){
       if(state==='freeEdit'){state='freePlay';spawnBall();beep(440,0.1,0.2,'triangle');}
       else if(state==='freePlay'){state='freeEdit';ball=null;trail=[];}
-      else if(state==='challengeEdit'){state='challengePlay';spawnBall();beep(440,0.1,0.2,'triangle');}
+      else if(state==='challengeEdit'){state='challengePlay';challengeTimer=challengeTimeLimit*60;spawnBall();beep(440,0.1,0.2,'triangle');}
       else if(state==='challengePlay'){state='challengeEdit';ball=null;trail=[];}
       return;
     }
