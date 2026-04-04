@@ -134,14 +134,14 @@ const LEVELS = (function(){
      preset:p,allowedBlocks:[CONVEYOR_R],blockCounts:{[CONVEYOR_R]:6},
      goalRow:6,goalCol:14});}
 
-  // ── Lv6: トランポリンで高く！ ────────────────────────
+  // ── Lv6: バネで高くとべ！ ────────────────────────────
   {const p=makeEmpty();wallBorder(p);p[0][1]=-1;
-   row(p,8,1,10,FLOOR);  // 床
-   col(p,7,2,8,WALL);    // 右のかべ（固定）
-   L.push({name:'トランポリンで高く！',
-     hint:'かべの左側の床に「トランポリン」を置いてボールを上にはねとばそう！',
-     preset:p,allowedBlocks:[TRAMPOLINE],blockCounts:{[TRAMPOLINE]:2},
-     goalRow:1,goalCol:14});}
+   row(p,8,1,5,FLOOR);   // 左の短い床
+   row(p,4,10,13,FLOOR);  // 右上の台（ゴール側）
+   L.push({name:'バネで高くとべ！',
+     hint:'床に「バネ」を置いてボールを右上の台までとばそう！',
+     preset:p,allowedBlocks:[SPRING,FLOOR],blockCounts:{[SPRING]:3,[FLOOR]:4},
+     goalRow:4,goalCol:14});}
 
   // ── Lv7: 坂↘＋坂↙で折り返し！ ─────────────────────
   {const p=makeEmpty();wallBorder(p);p[0][1]=-1;
