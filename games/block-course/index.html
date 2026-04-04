@@ -121,8 +121,8 @@ const LEVELS = (function(){
    row(p,5,4,8,FLOOR);   // 中の台
    row(p,2,8,13,FLOOR);  // 上の台
    L.push({name:'バネ2個でのぼれ！',
-     hint:'下と中の台に「バネ」を1個ずつ置いてどんどん上へ！',
-     preset:p,allowedBlocks:[SPRING],blockCounts:{[SPRING]:2},
+     hint:'「バネ」と「坂↘」を使ってどんどん上へ！',
+     preset:p,allowedBlocks:[SPRING,RAMP_R],blockCounts:{[SPRING]:2,[RAMP_R]:7},
      goalRow:2,goalCol:14});}
 
   // ── Lv5: コンベアで加速！ ────────────────────────────
