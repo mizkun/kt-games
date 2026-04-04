@@ -81,15 +81,14 @@ const LEVELS = (function(){
   function col(p,c,r1,r2,t){for(let r=r1;r<=r2;r++)p[r][c]=t;}
 
   // ── Lv1: 坂でころがせ！ ────────────────────────────────
-  // 4つの台を坂↘でつないでゴールまで転がそう！
+  // レベル3と同じ3段パターン。坂4個＋コンベア3個（余裕をもたせる）
   {const p=makeEmpty();wallBorder(p);p[0][1]=-1;
-   row(p,2,1,2,FLOOR);    // 1段目（上）
-   row(p,4,4,5,FLOOR);    // 2段目
-   row(p,6,7,8,FLOOR);    // 3段目
-   row(p,8,10,13,FLOOR);  // 4段目（ゴール側）
+   row(p,2,1,4,FLOOR);    // 上の台
+   row(p,5,5,9,FLOOR);    // 中の台
+   row(p,8,9,13,FLOOR);   // 下の台
    L.push({name:'坂でころがせ！',
-     hint:'台と台のあいだに「坂↘」を置いて、ボールをころがしてつなごう！',
-     preset:p,allowedBlocks:[RAMP_R],blockCounts:{[RAMP_R]:4},
+     hint:'「坂↘」を台のはしに置いて、「コンベア→」でボールを進めよう！',
+     preset:p,allowedBlocks:[RAMP_R,CONVEYOR_R],blockCounts:{[RAMP_R]:4,[CONVEYOR_R]:3},
      goalRow:8,goalCol:14});}
 
   // ── Lv2: バネでとばそう！ ─────────────────────────────
