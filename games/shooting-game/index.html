@@ -208,7 +208,9 @@
     state.powerLevel = 1;
     state.powerTimer = 0;
     state.shakeTime = 0;
+    state.shieldTime = 0;
     state.player = { x: W/2, y: H - 80, w: 32, h: 36, vx: 0, vy: 0, cooldown: 0 };
+    addAlly();
     updateHUD();
   }
 
@@ -287,8 +289,9 @@
   function spawnPowerup(x, y) {
     const r = Math.random();
     let type = 'power';
-    if (r < 0.18 && state.lives < 5) type = 'life';
-    else if (r < 0.5 && state.allies.length < 2) type = 'ally';
+    if (r < 0.16 && state.lives < 5) type = 'life';
+    else if (r < 0.4 && state.allies.length < 2) type = 'ally';
+    else if (r < 0.6) type = 'shield';
     state.powerups.push({ x, y, vy: 60, w: 22, h: 22, type, t: 0 });
   }
 
@@ -381,6 +384,7 @@
     }
 
     if (state.invuln > 0) state.invuln -= dt;
+    if (state.shieldTime > 0) state.shieldTime -= dt;
 
     // player movement
     const p = state.player;
@@ -547,9 +551,11 @@
             updateHUD();
           } else if (u.type === 'ally') {
             addAlly();
+          } else if (u.type === 'shield') {
+            state.shieldTime = Math.max(state.shieldTime, 6);
           }
           powerSound();
-          const c = u.type === 'life' ? '#ff5577' : (u.type === 'ally' ? '#88ff66' : '#66ddff');
+          const c = u.type === 'life' ? '#ff5577' : (u.type === 'ally' ? '#88ff66' : (u.type === 'shield' ? '#ffe04a' : '#66ddff'));
           explode(u.x, u.y, c, 14, 160);
           u.dead = true;
         }
@@ -609,7 +615,7 @@
     });
 
     // collisions: enemy bullets / enemies vs player
-    if (state.player && state.invuln <= 0) {
+    if (state.player && state.invuln <= 0 && state.shieldTime <= 0) {
       for (const b of state.eBullets) {
         if (Math.abs(b.x - state.player.x) < 14 && Math.abs(b.y - state.player.y) < 18) {
           b.dead = true;
@@ -649,10 +655,10 @@
         updateHUD();
       }
     } else {
-      const baseRate = Math.max(0.4, 1.4 - state.wave * 0.08);
+      const baseRate = Math.max(0.7, 2.0 - state.wave * 0.07);
       if (state.spawnTimer <= 0) {
         spawnEnemy();
-        state.spawnTimer = baseRate * (0.6 + Math.random()*0.8);
+        state.spawnTimer = baseRate * (0.7 + Math.random()*0.8);
       }
       if (state.waveTimer > 18) {
         state.wave++;
@@ -840,6 +846,28 @@
       ctx.stroke();
       ctx.globalAlpha = 1;
     }
+    // shield
+    if (state.shieldTime > 0) {
+      const flickering = state.shieldTime < 1.5 && Math.floor(state.shieldTime * 8) % 2 === 0;
+      if (!flickering) {
+        const t = performance.now() / 200;
+        ctx.strokeStyle = '#ffe04a';
+        ctx.shadowColor = '#ffe04a';
+        ctx.shadowBlur = 14;
+        ctx.lineWidth = 3;
+        ctx.globalAlpha = 0.85;
+        ctx.beginPath();
+        ctx.arc(0, 0, 28 + Math.sin(t)*1.5, 0, Math.PI*2);
+        ctx.stroke();
+        ctx.globalAlpha = 0.3;
+        ctx.fillStyle = '#ffe04a';
+        ctx.beginPath();
+        ctx.arc(0, 0, 28 + Math.sin(t)*1.5, 0, Math.PI*2);
+        ctx.fill();
+        ctx.globalAlpha = 1;
+        ctx.shadowBlur = 0;
+      }
+    }
     ctx.restore();
   }
 
@@ -976,6 +1004,20 @@
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.fillText('+1', 0, 12);
+    } else if (u.type === 'shield') {
+      ctx.fillStyle = '#ffe04a';
+      ctx.shadowColor = '#ffe04a';
+      ctx.shadowBlur = 12;
+      ctx.beginPath();
+      ctx.arc(0, 0, 11, 0, Math.PI*2);
+      ctx.stroke();
+      ctx.fill();
+      ctx.shadowBlur = 0;
+      ctx.fillStyle = '#444';
+      ctx.font = 'bold 12px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('S', 0, 1);
     } else {
       ctx.fillStyle = '#ff5577';
       ctx.shadowColor = '#ff5577';
