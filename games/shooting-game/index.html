@@ -211,21 +211,49 @@
     state.shieldTime = 0;
     state.player = { x: W/2, y: H - 80, w: 32, h: 36, vx: 0, vy: 0, cooldown: 0 };
     addAlly();
+    addAlly();
     updateHUD();
   }
 
-  function addAlly() {
-    if (!state.player || state.allies.length >= 2) return;
+  function reassignAllies() {
+    const normals = state.allies.filter(a => a.tier !== 'super');
+    if (normals.length === 1) {
+      normals[0].targetOffset = -42;
+      normals[0].targetYOffset = 12;
+    } else if (normals.length === 2) {
+      normals[0].targetOffset = -42;
+      normals[1].targetOffset = 42;
+      normals[0].targetYOffset = normals[1].targetYOffset = 12;
+    }
+    const supers = state.allies.filter(a => a.tier === 'super');
+    for (const s of supers) {
+      s.targetOffset = 0;
+      s.targetYOffset = -34;
+    }
+  }
+
+  function addAlly(tier) {
+    if (!state.player) return;
+    tier = tier || 'normal';
+    if (tier === 'super') {
+      // only one super at a time; replace
+      state.allies = state.allies.filter(a => a.tier !== 'super');
+      state.allies.push({
+        x: state.player.x, y: state.player.y - 30,
+        cooldown: 0.1, tier: 'super',
+        targetOffset: 0, targetYOffset: -34,
+      });
+      reassignAllies();
+      return;
+    }
+    const normalCount = state.allies.filter(a => a.tier !== 'super').length;
+    if (normalCount >= 2) return;
     state.allies.push({
-      x: state.player.x,
-      y: state.player.y + 30,
-      cooldown: 0.1,
+      x: state.player.x, y: state.player.y + 30,
+      cooldown: 0.1, tier: 'normal',
+      targetOffset: 0, targetYOffset: 12,
     });
-    // assign offsets
-    state.allies.forEach((a, i, arr) => {
-      if (arr.length === 1) a.targetOffset = -42;
-      else { a.targetOffset = i === 0 ? -42 : 42; }
-    });
+    reassignAllies();
   }
 
   function updateHUD() {
@@ -286,12 +314,33 @@
     state.enemies.push(e);
   }
 
+  function spawnSuperBoss() {
+    const e = {
+      type: 'superboss',
+      x: W/2, y: -110,
+      w: 140, h: 100,
+      vx: 80, vy: 0,
+      hp: 80 + state.wave * 12,
+      maxHp: 80 + state.wave * 12,
+      shootTimer: 0.7,
+      t: 0,
+      phase: 0,
+      score: 9000,
+      color: '#cc00ff',
+      enterPhase: true,
+    };
+    state.enemies.push(e);
+  }
+
   function spawnPowerup(x, y) {
     const r = Math.random();
     let type = 'power';
-    if (r < 0.16 && state.lives < 10) type = 'life';
-    else if (r < 0.4 && state.allies.length < 2) type = 'ally';
-    else if (r < 0.6) type = 'shield';
+    const normalAllies = state.allies.filter(a => a.tier !== 'super').length;
+    const hasSuperAlly = state.allies.some(a => a.tier === 'super');
+    if (r < 0.10 && !hasSuperAlly) type = 'superAlly';
+    else if (r < 0.22 && state.lives < 10) type = 'life';
+    else if (r < 0.42 && normalAllies < 2) type = 'ally';
+    else if (r < 0.62) type = 'shield';
     state.powerups.push({ x, y, vy: 60, w: 22, h: 22, type, t: 0 });
   }
 
@@ -448,6 +497,17 @@
           if (e.x < 60) { e.x = 60; e.vx *= -1; }
           if (e.x > W - 60) { e.x = W - 60; e.vx *= -1; }
         }
+      } else if (e.type === 'superboss') {
+        if (e.enterPhase) {
+          e.y += 60 * dt;
+          if (e.y > 110) { e.enterPhase = false; }
+        } else {
+          e.x += e.vx * dt;
+          if (e.x < 90) { e.x = 90; e.vx *= -1; }
+          if (e.x > W - 90) { e.x = W - 90; e.vx *= -1; }
+          // sway up/down
+          e.y = 110 + Math.sin(e.t * 0.8) * 18;
+        }
       }
       e.x += e.vx * dt;
       if (!e.enterPhase) e.y += e.vy * dt;
@@ -484,6 +544,34 @@
           }
           e.shootTimer = 1.0;
         }
+      } else if (e.type === 'superboss') {
+        e.shootTimer -= dt;
+        if (e.shootTimer <= 0 && !e.enterPhase) {
+          e.phase = (e.phase + 1) % 3;
+          if (e.phase === 0) {
+            // 5-way wide spread
+            for (let a = -0.6; a <= 0.6; a += 0.3) {
+              state.eBullets.push({ x: e.x, y: e.y + 40, vx: Math.sin(a)*200, vy: Math.cos(a)*240, w: 8, h: 8, color: '#ff66ff' });
+            }
+          } else if (e.phase === 1) {
+            // ring of 10
+            for (let i = 0; i < 10; i++) {
+              const ang = (i / 10) * Math.PI * 2;
+              state.eBullets.push({ x: e.x, y: e.y, vx: Math.cos(ang)*180, vy: Math.sin(ang)*180, w: 8, h: 8, color: '#cc00ff' });
+            }
+          } else {
+            // double aimed
+            if (state.player) {
+              const dx = state.player.x - e.x;
+              const dy = state.player.y - e.y;
+              const d = Math.hypot(dx, dy) || 1;
+              for (let off = -16; off <= 16; off += 32) {
+                state.eBullets.push({ x: e.x + off, y: e.y + 40, vx: dx/d * 300, vy: dy/d * 300, w: 9, h: 9, color: '#ff3399' });
+              }
+            }
+          }
+          e.shootTimer = 0.85;
+        }
       }
     }
     // remove off-screen enemies
@@ -515,12 +603,22 @@
           explode(b.x, b.y, '#ffe04a', 4, 80);
           if (e.hp <= 0) {
             state.score += e.score;
-            explode(e.x, e.y, e.color, e.type === 'boss' ? 50 : 18, e.type === 'boss' ? 380 : 220);
+            const isAnyBoss = e.type === 'boss' || e.type === 'superboss';
+            const isSuper = e.type === 'superboss';
+            explode(e.x, e.y, e.color, isSuper ? 80 : (isAnyBoss ? 50 : 18), isSuper ? 480 : (isAnyBoss ? 380 : 220));
             explodeSound();
-            if (e.type === 'boss') {
+            if (isSuper) {
+              shake(28, 0.9);
+              flashScreen();
+              // forced superAlly + multiple powerups
+              if (!state.allies.some(a => a.tier === 'super')) addAlly('super');
+              spawnPowerup(e.x - 30, e.y - 10);
+              spawnPowerup(e.x + 30, e.y - 10);
+              spawnPowerup(e.x - 10, e.y + 20);
+              spawnPowerup(e.x + 10, e.y + 20);
+            } else if (isAnyBoss) {
               shake(20, 0.6);
               flashScreen();
-              // drop multiple powerups
               spawnPowerup(e.x - 20, e.y);
               spawnPowerup(e.x + 20, e.y);
             } else {
@@ -551,11 +649,17 @@
             updateHUD();
           } else if (u.type === 'ally') {
             addAlly();
+          } else if (u.type === 'superAlly') {
+            addAlly('super');
           } else if (u.type === 'shield') {
             state.shieldTime = Math.max(state.shieldTime, 6);
           }
           powerSound();
-          const c = u.type === 'life' ? '#ff5577' : (u.type === 'ally' ? '#88ff66' : (u.type === 'shield' ? '#ffe04a' : '#66ddff'));
+          const c = u.type === 'life' ? '#ff5577'
+                  : u.type === 'ally' ? '#88ff66'
+                  : u.type === 'superAlly' ? '#cc66ff'
+                  : u.type === 'shield' ? '#ffe04a'
+                  : '#66ddff';
           explode(u.x, u.y, c, 14, 160);
           u.dead = true;
         }
@@ -568,14 +672,21 @@
     for (const a of state.allies) {
       if (state.player) {
         const tx = state.player.x + a.targetOffset;
-        const ty = state.player.y + 12;
+        const ty = state.player.y + (a.targetYOffset != null ? a.targetYOffset : 12);
         a.x += (tx - a.x) * Math.min(1, dt * 10);
         a.y += (ty - a.y) * Math.min(1, dt * 10);
       }
       a.cooldown -= dt;
       if (shootingNow && a.cooldown <= 0) {
-        state.bullets.push({ x: a.x, y: a.y - 14, vx: 0, vy: -540, w: 3, h: 10, color: '#88ff66' });
-        a.cooldown = 0.18;
+        if (a.tier === 'super') {
+          state.bullets.push({ x: a.x, y: a.y - 16, vx: 0, vy: -620, w: 5, h: 14, color: '#ee99ff' });
+          state.bullets.push({ x: a.x - 8, y: a.y - 10, vx: -90, vy: -560, w: 3, h: 12, color: '#cc66ff' });
+          state.bullets.push({ x: a.x + 8, y: a.y - 10, vx: 90, vy: -560, w: 3, h: 12, color: '#cc66ff' });
+          a.cooldown = 0.13;
+        } else {
+          state.bullets.push({ x: a.x, y: a.y - 14, vx: 0, vy: -540, w: 3, h: 10, color: '#88ff66' });
+          a.cooldown = 0.18;
+        }
       }
     }
 
@@ -593,13 +704,13 @@
       if (a.dead) continue;
       for (const e of state.enemies) {
         if (Math.abs(e.x - a.x) < e.w/2 + 12 && Math.abs(e.y - a.y) < e.h/2 + 12) {
-          if (e.type !== 'boss') {
+          if (e.type !== 'boss' && e.type !== 'superboss') {
             e.hp = 0;
             explode(e.x, e.y, e.color, 18, 220);
             e.dead = true;
           }
           a.dead = true;
-          explode(a.x, a.y, '#88ff66', 22, 240);
+          explode(a.x, a.y, a.tier === 'super' ? '#cc66ff' : '#88ff66', 22, 240);
           damageSound();
           break;
         }
@@ -609,10 +720,7 @@
     state.enemies = state.enemies.filter(e => !e.dead);
     state.allies = state.allies.filter(a => !a.dead);
     // re-assign offsets when one dies
-    state.allies.forEach((a, i, arr) => {
-      if (arr.length === 1) a.targetOffset = -42;
-      else if (arr.length === 2) a.targetOffset = i === 0 ? -42 : 42;
-    });
+    reassignAllies();
 
     // collisions: enemy bullets / enemies vs player
     if (state.player && state.invuln <= 0 && state.shieldTime <= 0) {
@@ -625,7 +733,7 @@
       }
       for (const e of state.enemies) {
         if (Math.abs(e.x - state.player.x) < e.w/2 + 12 && Math.abs(e.y - state.player.y) < e.h/2 + 14) {
-          if (e.type !== 'boss') {
+          if (e.type !== 'boss' && e.type !== 'superboss') {
             e.hp = 0;
             explode(e.x, e.y, e.color, 18, 220);
             e.dead = true;
@@ -641,8 +749,19 @@
     // wave control
     state.spawnTimer -= dt;
     state.waveTimer += dt;
-    const isBossWave = state.wave % 5 === 0;
-    if (isBossWave) {
+    const isSuperBossWave = state.wave > 0 && state.wave % 10 === 0;
+    const isBossWave = !isSuperBossWave && state.wave > 0 && state.wave % 5 === 0;
+    if (isSuperBossWave) {
+      if (!state.enemies.some(e => e.type === 'superboss') && state.waveTimer < 2) {
+        spawnSuperBoss();
+      }
+      if (!state.enemies.some(e => e.type === 'superboss') && state.waveTimer > 3) {
+        state.wave++;
+        state.waveTimer = 0;
+        state.lives = Math.min(10, state.lives + 2);
+        updateHUD();
+      }
+    } else if (isBossWave) {
       // spawn boss once per wave
       if (!state.enemies.some(e => e.type === 'boss') && state.waveTimer < 2) {
         spawnBoss();
@@ -785,15 +904,28 @@
     if (state.player) drawPlayer(state.player);
 
     // boss HP bar
-    const boss = state.enemies.find(e => e.type === 'boss');
+    const boss = state.enemies.find(e => e.type === 'boss' || e.type === 'superboss');
     if (boss) {
+      const isSuper = boss.type === 'superboss';
+      const barW = isSuper ? 240 : 200;
       ctx.fillStyle = '#222';
-      ctx.fillRect(W/2 - 100, 12, 200, 6);
-      ctx.fillStyle = '#ff3366';
-      ctx.fillRect(W/2 - 100, 12, 200 * (boss.hp/boss.maxHp), 6);
+      ctx.fillRect(W/2 - barW/2, 12, barW, 6);
+      ctx.fillStyle = isSuper ? '#cc00ff' : '#ff3366';
+      if (isSuper) {
+        ctx.shadowColor = '#ff66ff';
+        ctx.shadowBlur = 10;
+      }
+      ctx.fillRect(W/2 - barW/2, 12, barW * (boss.hp/boss.maxHp), 6);
+      ctx.shadowBlur = 0;
       ctx.strokeStyle = '#fff';
       ctx.lineWidth = 1;
-      ctx.strokeRect(W/2 - 100, 12, 200, 6);
+      ctx.strokeRect(W/2 - barW/2, 12, barW, 6);
+      if (isSuper) {
+        ctx.fillStyle = '#ff66ff';
+        ctx.font = 'bold 11px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('!! SUPER BOSS !!', W/2, 32);
+      }
     }
 
     ctx.restore();
@@ -874,30 +1006,71 @@
   function drawAlly(a) {
     ctx.save();
     ctx.translate(a.x, a.y);
-    ctx.scale(0.78, 0.78);
-    ctx.fillStyle = '#ff8833';
-    const flameH = 8 + Math.sin(performance.now()/40)*3;
-    ctx.beginPath();
-    ctx.moveTo(-5, 12);
-    ctx.lineTo(0, 12 + flameH);
-    ctx.lineTo(5, 12);
-    ctx.fill();
-    ctx.fillStyle = '#88ff66';
-    ctx.beginPath();
-    ctx.moveTo(0, -16);
-    ctx.lineTo(12, 12);
-    ctx.lineTo(0, 6);
-    ctx.lineTo(-12, 12);
-    ctx.closePath();
-    ctx.fill();
-    ctx.fillStyle = '#fff';
-    ctx.beginPath();
-    ctx.arc(0, -2, 3, 0, Math.PI*2);
-    ctx.fill();
-    ctx.fillStyle = '#22aa44';
-    ctx.beginPath();
-    ctx.arc(0, -2, 2, 0, Math.PI*2);
-    ctx.fill();
+    if (a.tier === 'super') {
+      ctx.scale(0.92, 0.92);
+      ctx.fillStyle = '#ff66cc';
+      const flameH = 10 + Math.sin(performance.now()/35)*4;
+      ctx.beginPath();
+      ctx.moveTo(-6, 14);
+      ctx.lineTo(0, 14 + flameH);
+      ctx.lineTo(6, 14);
+      ctx.fill();
+      ctx.shadowColor = '#cc00ff';
+      ctx.shadowBlur = 14;
+      ctx.fillStyle = '#cc66ff';
+      ctx.beginPath();
+      ctx.moveTo(0, -20);
+      ctx.lineTo(16, 12);
+      ctx.lineTo(8, 6);
+      ctx.lineTo(0, 10);
+      ctx.lineTo(-8, 6);
+      ctx.lineTo(-16, 12);
+      ctx.closePath();
+      ctx.fill();
+      ctx.shadowBlur = 0;
+      ctx.fillStyle = '#fff';
+      ctx.beginPath();
+      ctx.arc(0, -4, 4, 0, Math.PI*2);
+      ctx.fill();
+      ctx.fillStyle = '#660099';
+      ctx.beginPath();
+      ctx.arc(0, -4, 2.5, 0, Math.PI*2);
+      ctx.fill();
+      // star sparkle
+      const t = performance.now() / 200;
+      ctx.strokeStyle = '#ffaaff';
+      ctx.lineWidth = 1.5;
+      ctx.globalAlpha = 0.6 + 0.4 * Math.sin(t);
+      ctx.beginPath();
+      ctx.arc(0, 0, 22, 0, Math.PI*2);
+      ctx.stroke();
+      ctx.globalAlpha = 1;
+    } else {
+      ctx.scale(0.78, 0.78);
+      ctx.fillStyle = '#ff8833';
+      const flameH = 8 + Math.sin(performance.now()/40)*3;
+      ctx.beginPath();
+      ctx.moveTo(-5, 12);
+      ctx.lineTo(0, 12 + flameH);
+      ctx.lineTo(5, 12);
+      ctx.fill();
+      ctx.fillStyle = '#88ff66';
+      ctx.beginPath();
+      ctx.moveTo(0, -16);
+      ctx.lineTo(12, 12);
+      ctx.lineTo(0, 6);
+      ctx.lineTo(-12, 12);
+      ctx.closePath();
+      ctx.fill();
+      ctx.fillStyle = '#fff';
+      ctx.beginPath();
+      ctx.arc(0, -2, 3, 0, Math.PI*2);
+      ctx.fill();
+      ctx.fillStyle = '#22aa44';
+      ctx.beginPath();
+      ctx.arc(0, -2, 2, 0, Math.PI*2);
+      ctx.fill();
+    }
     ctx.restore();
   }
 
@@ -946,6 +1119,43 @@
       ctx.arc(-10, 0, 3, 0, Math.PI*2);
       ctx.arc(10, 0, 3, 0, Math.PI*2);
       ctx.fill();
+    } else if (e.type === 'superboss') {
+      // mega mothership
+      const t = performance.now() / 200;
+      ctx.shadowColor = '#ff66ff';
+      ctx.shadowBlur = 20 + 8 * Math.sin(t);
+      ctx.fillStyle = '#440066';
+      ctx.beginPath();
+      ctx.ellipse(0, 5, 70, 38, 0, 0, Math.PI*2);
+      ctx.fill();
+      ctx.fillStyle = '#cc00ff';
+      ctx.beginPath();
+      ctx.ellipse(0, -10, 60, 28, 0, 0, Math.PI*2);
+      ctx.fill();
+      ctx.shadowBlur = 0;
+      ctx.fillStyle = '#ff66ff';
+      ctx.beginPath();
+      ctx.arc(0, -8, 14, 0, Math.PI*2);
+      ctx.fill();
+      ctx.fillStyle = '#fff';
+      ctx.beginPath();
+      ctx.arc(0, -8, 6, 0, Math.PI*2);
+      ctx.fill();
+      // spikes
+      ctx.fillStyle = '#220033';
+      for (let i = -3; i <= 3; i++) {
+        const x = i * 18;
+        ctx.beginPath();
+        ctx.moveTo(x - 7, 30);
+        ctx.lineTo(x, 50);
+        ctx.lineTo(x + 7, 30);
+        ctx.fill();
+      }
+      // wings
+      ctx.fillStyle = '#ff3399';
+      ctx.fillRect(-66, 14, 10, 22);
+      ctx.fillRect(56, 14, 10, 22);
+      ctx.fillRect(-5, 30, 10, 22);
     } else if (e.type === 'boss') {
       // big mothership
       ctx.fillStyle = '#aa1144';
@@ -1004,6 +1214,23 @@
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.fillText('+1', 0, 12);
+    } else if (u.type === 'superAlly') {
+      ctx.fillStyle = '#cc66ff';
+      ctx.shadowColor = '#ff66ff';
+      ctx.shadowBlur = 16;
+      // star
+      ctx.beginPath();
+      const sp = 5;
+      for (let i = 0; i < sp * 2; i++) {
+        const r = i % 2 === 0 ? 13 : 6;
+        const ang = (i / (sp * 2)) * Math.PI * 2 - Math.PI / 2;
+        const x = Math.cos(ang) * r;
+        const y = Math.sin(ang) * r;
+        if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+      }
+      ctx.closePath();
+      ctx.fill();
+      ctx.shadowBlur = 0;
     } else if (u.type === 'shield') {
       ctx.fillStyle = '#ffe04a';
       ctx.shadowColor = '#ffe04a';
