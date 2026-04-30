@@ -127,6 +127,9 @@ let powerupRespawnTimeout = null;
 let titleSnake = [];
 let titleSnakeTimer = 0;
 let frame = 0;
+const MAX_HP = 2;
+let hp = MAX_HP;
+let invuln = 0;
 
 // ---- hi-score ----
 hiScore = parseInt(localStorage.getItem('snake_crash_hi') || '0');
@@ -165,6 +168,8 @@ function initGame() {
   moveInterval = 10;
   crashTimer = 0;
   crashMode = false;
+  hp = MAX_HP;
+  invuln = 0;
 
   // place 8 brick blocks
   blocks = [];
@@ -253,28 +258,32 @@ function moveSnake() {
     nx = ((nx % COLS) + COLS) % COLS;
     ny = ((ny % ROWS) + ROWS) % ROWS;
   } else {
-    // wall = game over
+    // wall: take damage, wrap if survived
     if (nx < 0 || nx >= COLS || ny < 0 || ny >= ROWS) {
-      triggerGameOver();
-      return;
+      if (takeDamage()) return;
+      nx = ((nx % COLS) + COLS) % COLS;
+      ny = ((ny % ROWS) + ROWS) % ROWS;
     }
   }
 
   // check brick block
   const blockIdx = blocks.findIndex(b => b.x === nx && b.y === ny);
   if (blockIdx !== -1) {
+    const bx = GX + blocks[blockIdx].x * CELL + CELL / 2;
+    const by = GY + blocks[blockIdx].y * CELL + CELL / 2;
     if (crashMode) {
       // smash block!
-      const bx = GX + blocks[blockIdx].x * CELL + CELL / 2;
-      const by = GY + blocks[blockIdx].y * CELL + CELL / 2;
       spawnParticles(bx, by, 20, ['#ff8800','#ffcc00','#ff4400','#fff','#cc6600']);
       blocks.splice(blockIdx, 1);
       score += 3;
       screenShake = 10;
       sfxBreakBlock();
     } else {
-      triggerGameOver();
-      return;
+      if (takeDamage()) return;
+      // survived: break the block we hit
+      spawnParticles(bx, by, 22, ['#ff4444','#ff8800','#ffcc00','#fff']);
+      blocks.splice(blockIdx, 1);
+      sfxBreakBlock();
     }
   }
 
@@ -356,6 +365,38 @@ function triggerGameOver() {
     hiScore = score;
     localStorage.setItem('snake_crash_hi', hiScore);
   }
+}
+
+function takeDamage() {
+  if (invuln > 0 || crashMode) return false;
+  hp--;
+  invuln = 90;
+  screenShake = Math.max(screenShake, 16);
+  if (snake && snake[0]) {
+    spawnParticles(GX + snake[0].x * CELL + CELL / 2, GY + snake[0].y * CELL + CELL / 2, 22, ['#ff4444','#ffaaaa','#fff']);
+  }
+  sfxDamage();
+  if (hp <= 0) {
+    triggerGameOver();
+    return true;
+  }
+  return false;
+}
+
+function sfxDamage() {
+  try {
+    const ac = getAudio();
+    const o = ac.createOscillator();
+    const g = ac.createGain();
+    o.connect(g); g.connect(ac.destination);
+    o.type = 'square';
+    o.frequency.setValueAtTime(440, ac.currentTime);
+    o.frequency.linearRampToValueAtTime(110, ac.currentTime + 0.3);
+    g.gain.setValueAtTime(0.18, ac.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + 0.35);
+    o.start(ac.currentTime);
+    o.stop(ac.currentTime + 0.4);
+  } catch(e) {}
 }
 
 // ---- drawing helpers ----
@@ -525,6 +566,26 @@ function drawGame() {
   ctx.textAlign = 'left';
   ctx.fillText(`ベスト: ${hiScore}`, 10, 58);
 
+  // HP hearts
+  ctx.font = '24px serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  for (let i = 0; i < MAX_HP; i++) {
+    const hx = 130 + i * 30;
+    if (i < hp) {
+      ctx.fillStyle = '#ff4466';
+      ctx.shadowColor = '#ff0044';
+      ctx.shadowBlur = 6;
+      ctx.fillText('❤', hx, 32);
+    } else {
+      ctx.shadowBlur = 0;
+      ctx.fillStyle = '#444';
+      ctx.fillText('🖤', hx, 32);
+    }
+  }
+  ctx.shadowBlur = 0;
+  ctx.textBaseline = 'alphabetic';
+
   // crash timer bar (top of grid)
   if (crashMode && crashTimer > 0) {
     const barW = GRID_W * (crashTimer / 300);
@@ -645,6 +706,7 @@ function drawGame() {
     const sw = CELL - 2, sh = CELL - 2;
     if (i === 0) {
       // head
+      const blink = invuln > 0 && (Math.floor(frame / 4) % 2 === 0);
       if (crashMode) {
         ctx.fillStyle = '#ffaa00';
         ctx.shadowColor = '#ff8800';
@@ -654,8 +716,12 @@ function drawGame() {
         ctx.shadowColor = '#44ff00';
         ctx.shadowBlur = 8;
       }
+      ctx.save();
+      if (blink) ctx.globalAlpha = 0.35;
       drawRoundRect(sx, sy, sw, sh, 5, ctx.fillStyle);
+      ctx.restore();
       ctx.shadowBlur = 0;
+      if (blink) continue;
 
       // eyes based on direction
       ctx.fillStyle = '#1a1a1a';
@@ -828,6 +894,8 @@ function loop() {
       screenShake = 3;
     }
   }
+
+  if (invuln > 0) invuln--;
 
   // update powerup pulse & bonus food spin (done in draw)
 
