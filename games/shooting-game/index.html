@@ -210,7 +210,7 @@
     state.shakeTime = 0;
     state.shieldTime = 0;
     state.player = { x: W/2, y: H - 80, w: 32, h: 36, vx: 0, vy: 0, cooldown: 0 };
-    addAlly('ultra');
+    for (let i = 0; i < 3; i++) addAlly('ultra');
     for (let i = 0; i < 5; i++) addAlly('mega');
     for (let i = 0; i < 10; i++) addAlly('super');
     for (let i = 0; i < 4; i++) addAlly();
@@ -256,10 +256,16 @@
       a.targetOffset = s.x;
       a.targetYOffset = s.y;
     });
+    const ultraSlots = [
+      { x: 0, y: -220 },
+      { x: -110, y: -185 },
+      { x: 110, y: -185 },
+    ];
     const ultras = state.allies.filter(a => a.tier === 'ultra');
-    ultras.forEach((a) => {
-      a.targetOffset = 0;
-      a.targetYOffset = -200;
+    ultras.forEach((a, i) => {
+      const s = ultraSlots[i] || ultraSlots[ultraSlots.length - 1];
+      a.targetOffset = s.x;
+      a.targetYOffset = s.y;
     });
   }
 
@@ -268,7 +274,7 @@
     tier = tier || 'normal';
     if (tier === 'ultra') {
       const uCount = state.allies.filter(a => a.tier === 'ultra').length;
-      if (uCount >= 1) return;
+      if (uCount >= 3) return;
       state.allies.push({
         x: state.player.x, y: state.player.y - 200,
         cooldown: 0.1, tier: 'ultra',
