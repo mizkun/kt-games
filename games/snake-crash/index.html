@@ -171,11 +171,23 @@ function initGame() {
   hp = MAX_HP;
   invuln = 0;
 
-  // place 8 brick blocks
+  // place lots of brick blocks
   blocks = [];
   const blockPositions = [
-    {x:3,y:3},{x:16,y:3},{x:3,y:16},{x:16,y:16},
-    {x:9,y:7},{x:10,y:7},{x:9,y:12},{x:10,y:12}
+    // four corner clusters
+    {x:3,y:3},{x:4,y:3},{x:3,y:4},
+    {x:15,y:3},{x:16,y:3},{x:16,y:4},
+    {x:3,y:15},{x:3,y:16},{x:4,y:16},
+    {x:15,y:16},{x:16,y:15},{x:16,y:16},
+    // top & bottom middle pairs
+    {x:9,y:6},{x:10,y:6},
+    {x:9,y:13},{x:10,y:13},
+    // left & right walls (avoid snake row y=10)
+    {x:5,y:8},{x:5,y:11},
+    {x:14,y:8},{x:14,y:11},
+    // outer scattered
+    {x:1,y:7},{x:18,y:13},
+    {x:9,y:1},{x:10,y:18},
   ];
   for (const bp of blockPositions) {
     if (!snake.some(s => s.x === bp.x && s.y === bp.y)) blocks.push({x: bp.x, y: bp.y});
@@ -253,18 +265,9 @@ function moveSnake() {
   let nx = snake[0].x + dir.x;
   let ny = snake[0].y + dir.y;
 
-  if (crashMode) {
-    // wrap around walls
-    nx = ((nx % COLS) + COLS) % COLS;
-    ny = ((ny % ROWS) + ROWS) % ROWS;
-  } else {
-    // wall: take damage, wrap if survived
-    if (nx < 0 || nx >= COLS || ny < 0 || ny >= ROWS) {
-      if (takeDamage()) return;
-      nx = ((nx % COLS) + COLS) % COLS;
-      ny = ((ny % ROWS) + ROWS) % ROWS;
-    }
-  }
+  // walls always wrap around (no damage)
+  nx = ((nx % COLS) + COLS) % COLS;
+  ny = ((ny % ROWS) + ROWS) % ROWS;
 
   // check brick block
   const blockIdx = blocks.findIndex(b => b.x === nx && b.y === ny);
