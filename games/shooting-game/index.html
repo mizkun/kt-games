@@ -210,47 +210,63 @@
     state.shakeTime = 0;
     state.shieldTime = 0;
     state.player = { x: W/2, y: H - 80, w: 32, h: 36, vx: 0, vy: 0, cooldown: 0 };
+    addAlly('super');
+    addAlly('super');
+    addAlly('super');
+    addAlly();
+    addAlly();
     addAlly();
     addAlly();
     updateHUD();
   }
 
   function reassignAllies() {
+    const normalSlots = [
+      { x: -54, y: 18 },
+      { x: 54, y: 18 },
+      { x: -28, y: 30 },
+      { x: 28, y: 30 },
+    ];
+    const superSlots = [
+      { x: 0, y: -36 },
+      { x: -42, y: -18 },
+      { x: 42, y: -18 },
+    ];
     const normals = state.allies.filter(a => a.tier !== 'super');
-    if (normals.length === 1) {
-      normals[0].targetOffset = -42;
-      normals[0].targetYOffset = 12;
-    } else if (normals.length === 2) {
-      normals[0].targetOffset = -42;
-      normals[1].targetOffset = 42;
-      normals[0].targetYOffset = normals[1].targetYOffset = 12;
-    }
+    normals.forEach((a, i) => {
+      const s = normalSlots[i] || normalSlots[normalSlots.length - 1];
+      a.targetOffset = s.x;
+      a.targetYOffset = s.y;
+    });
     const supers = state.allies.filter(a => a.tier === 'super');
-    for (const s of supers) {
-      s.targetOffset = 0;
-      s.targetYOffset = -34;
-    }
+    supers.forEach((a, i) => {
+      const s = superSlots[i] || superSlots[superSlots.length - 1];
+      a.targetOffset = s.x;
+      a.targetYOffset = s.y;
+    });
   }
 
   function addAlly(tier) {
     if (!state.player) return;
     tier = tier || 'normal';
     if (tier === 'super') {
-      // only one super at a time; replace
-      state.allies = state.allies.filter(a => a.tier !== 'super');
+      const sCount = state.allies.filter(a => a.tier === 'super').length;
+      if (sCount >= 3) return;
       state.allies.push({
         x: state.player.x, y: state.player.y - 30,
         cooldown: 0.1, tier: 'super',
+        hp: 3, maxHp: 3, invuln: 0,
         targetOffset: 0, targetYOffset: -34,
       });
       reassignAllies();
       return;
     }
     const normalCount = state.allies.filter(a => a.tier !== 'super').length;
-    if (normalCount >= 2) return;
+    if (normalCount >= 4) return;
     state.allies.push({
       x: state.player.x, y: state.player.y + 30,
       cooldown: 0.1, tier: 'normal',
+      hp: 3, maxHp: 3, invuln: 0,
       targetOffset: 0, targetYOffset: 12,
     });
     reassignAllies();
@@ -690,18 +706,31 @@
       }
     }
 
+    // allies invuln tick
+    for (const a of state.allies) {
+      if (a.invuln > 0) a.invuln -= dt;
+    }
+
     // allies vs enemy bullets / enemies
     for (const a of state.allies) {
+      if (a.invuln > 0) continue;
+      const allyColor = a.tier === 'super' ? '#cc66ff' : '#88ff66';
       for (const b of state.eBullets) {
         if (Math.abs(b.x - a.x) < 12 && Math.abs(b.y - a.y) < 14) {
           b.dead = true;
-          a.dead = true;
-          explode(a.x, a.y, '#88ff66', 22, 240);
+          a.hp = (a.hp != null ? a.hp : 1) - 1;
+          a.invuln = 0.6;
+          if (a.hp <= 0) {
+            a.dead = true;
+            explode(a.x, a.y, allyColor, 22, 240);
+          } else {
+            explode(a.x, a.y, allyColor, 10, 140);
+          }
           damageSound();
           break;
         }
       }
-      if (a.dead) continue;
+      if (a.dead || a.invuln > 0) continue;
       for (const e of state.enemies) {
         if (Math.abs(e.x - a.x) < e.w/2 + 12 && Math.abs(e.y - a.y) < e.h/2 + 12) {
           if (e.type !== 'boss' && e.type !== 'superboss') {
@@ -709,8 +738,14 @@
             explode(e.x, e.y, e.color, 18, 220);
             e.dead = true;
           }
-          a.dead = true;
-          explode(a.x, a.y, a.tier === 'super' ? '#cc66ff' : '#88ff66', 22, 240);
+          a.hp = (a.hp != null ? a.hp : 1) - 1;
+          a.invuln = 0.6;
+          if (a.hp <= 0) {
+            a.dead = true;
+            explode(a.x, a.y, allyColor, 22, 240);
+          } else {
+            explode(a.x, a.y, allyColor, 10, 140);
+          }
           damageSound();
           break;
         }
@@ -749,7 +784,7 @@
     // wave control
     state.spawnTimer -= dt;
     state.waveTimer += dt;
-    const isSuperBossWave = state.wave > 0 && state.wave % 10 === 0;
+    const isSuperBossWave = state.wave === 1 || (state.wave > 0 && state.wave % 10 === 0);
     const isBossWave = !isSuperBossWave && state.wave > 0 && state.wave % 5 === 0;
     if (isSuperBossWave) {
       if (!state.enemies.some(e => e.type === 'superboss') && state.waveTimer < 2) {
@@ -1004,8 +1039,10 @@
   }
 
   function drawAlly(a) {
+    const blink = a.invuln > 0 && Math.floor(a.invuln * 12) % 2 === 0;
     ctx.save();
     ctx.translate(a.x, a.y);
+    if (blink) ctx.globalAlpha = 0.4;
     if (a.tier === 'super') {
       ctx.scale(0.92, 0.92);
       ctx.fillStyle = '#ff66cc';
@@ -1070,6 +1107,16 @@
       ctx.beginPath();
       ctx.arc(0, -2, 2, 0, Math.PI*2);
       ctx.fill();
+    }
+    // HP bar
+    if (a.maxHp && a.maxHp > 1) {
+      ctx.globalAlpha = 1;
+      const barW = 18, barY = -22;
+      ctx.fillStyle = 'rgba(0,0,0,0.6)';
+      ctx.fillRect(-barW/2, barY, barW, 3);
+      const ratio = Math.max(0, a.hp / a.maxHp);
+      ctx.fillStyle = a.tier === 'super' ? '#ee99ff' : '#aaff88';
+      ctx.fillRect(-barW/2, barY, barW * ratio, 3);
     }
     ctx.restore();
   }
