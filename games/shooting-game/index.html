@@ -195,7 +195,7 @@
   function reset() {
     state.score = 0;
     state.wave = 1;
-    state.lives = 3;
+    state.lives = 10;
     state.bullets = [];
     state.enemies = [];
     state.eBullets = [];
@@ -231,7 +231,7 @@
   function updateHUD() {
     scoreEl.textContent = state.score;
     waveEl.textContent = state.wave;
-    livesEl.textContent = '♥'.repeat(Math.max(0, state.lives)) || '✕';
+    livesEl.textContent = state.lives > 0 ? `♥×${state.lives}` : '✕';
   }
 
   // ----- Spawning -----
@@ -289,7 +289,7 @@
   function spawnPowerup(x, y) {
     const r = Math.random();
     let type = 'power';
-    if (r < 0.16 && state.lives < 5) type = 'life';
+    if (r < 0.16 && state.lives < 10) type = 'life';
     else if (r < 0.4 && state.allies.length < 2) type = 'ally';
     else if (r < 0.6) type = 'shield';
     state.powerups.push({ x, y, vy: 60, w: 22, h: 22, type, t: 0 });
@@ -547,7 +547,7 @@
             state.powerLevel = Math.min(3, state.powerLevel + 1);
             state.powerTimer = 12;
           } else if (u.type === 'life') {
-            state.lives = Math.min(5, state.lives + 1);
+            state.lives = Math.min(10, state.lives + 1);
             updateHUD();
           } else if (u.type === 'ally') {
             addAlly();
@@ -651,7 +651,7 @@
       if (!state.enemies.some(e => e.type === 'boss') && state.waveTimer > 3) {
         state.wave++;
         state.waveTimer = 0;
-        state.lives = Math.min(5, state.lives + 1);
+        state.lives = Math.min(10, state.lives + 1);
         updateHUD();
       }
     } else {
