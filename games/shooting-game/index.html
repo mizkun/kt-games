@@ -335,10 +335,10 @@
       type: 'superboss',
       x: W/2, y: -110,
       w: 140, h: 100,
-      vx: 80, vy: 0,
+      vx: 130, vy: 0,
       hp: 1000,
       maxHp: 1000,
-      shootTimer: 0.7,
+      shootTimer: 0.5,
       t: 0,
       phase: 0,
       score: 9000,
@@ -563,30 +563,42 @@
       } else if (e.type === 'superboss') {
         e.shootTimer -= dt;
         if (e.shootTimer <= 0 && !e.enterPhase) {
-          e.phase = (e.phase + 1) % 3;
+          e.phase = (e.phase + 1) % 4;
           if (e.phase === 0) {
-            // 5-way wide spread
-            for (let a = -0.6; a <= 0.6; a += 0.3) {
-              state.eBullets.push({ x: e.x, y: e.y + 40, vx: Math.sin(a)*200, vy: Math.cos(a)*240, w: 8, h: 8, color: '#ff66ff' });
+            // 9-way wide spread
+            for (let a = -0.8; a <= 0.8; a += 0.2) {
+              state.eBullets.push({ x: e.x, y: e.y + 40, vx: Math.sin(a)*220, vy: Math.cos(a)*260, w: 8, h: 8, color: '#ff66ff' });
             }
           } else if (e.phase === 1) {
-            // ring of 10
-            for (let i = 0; i < 10; i++) {
-              const ang = (i / 10) * Math.PI * 2;
-              state.eBullets.push({ x: e.x, y: e.y, vx: Math.cos(ang)*180, vy: Math.sin(ang)*180, w: 8, h: 8, color: '#cc00ff' });
+            // double ring of 16 (rotated)
+            for (let i = 0; i < 16; i++) {
+              const ang = (i / 16) * Math.PI * 2;
+              state.eBullets.push({ x: e.x, y: e.y, vx: Math.cos(ang)*200, vy: Math.sin(ang)*200, w: 8, h: 8, color: '#cc00ff' });
             }
-          } else {
-            // double aimed
+            for (let i = 0; i < 16; i++) {
+              const ang = (i / 16) * Math.PI * 2 + Math.PI / 16;
+              state.eBullets.push({ x: e.x, y: e.y, vx: Math.cos(ang)*120, vy: Math.sin(ang)*120, w: 6, h: 6, color: '#ff66ff' });
+            }
+          } else if (e.phase === 2) {
+            // triple aimed shotgun
             if (state.player) {
               const dx = state.player.x - e.x;
               const dy = state.player.y - e.y;
               const d = Math.hypot(dx, dy) || 1;
-              for (let off = -16; off <= 16; off += 32) {
-                state.eBullets.push({ x: e.x + off, y: e.y + 40, vx: dx/d * 300, vy: dy/d * 300, w: 9, h: 9, color: '#ff3399' });
+              const baseAng = Math.atan2(dy, dx);
+              for (let off = -2; off <= 2; off++) {
+                const ang = baseAng + off * 0.12;
+                state.eBullets.push({ x: e.x + off * 14, y: e.y + 40, vx: Math.cos(ang) * 340, vy: Math.sin(ang) * 340, w: 9, h: 9, color: '#ff3399' });
               }
             }
+          } else {
+            // rapid horizontal sweep
+            for (let i = 0; i < 12; i++) {
+              const xs = -W/2 + (i + 0.5) * (W / 12);
+              state.eBullets.push({ x: e.x + xs * 0.6, y: e.y + 30, vx: xs * 0.4, vy: 280, w: 7, h: 12, color: '#ffaaff' });
+            }
           }
-          e.shootTimer = 0.85;
+          e.shootTimer = 0.55;
         }
       }
     }
